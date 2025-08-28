@@ -13,7 +13,7 @@ export default function ChatPanelHeader({
   onClearChat,
 }: ChatPanelHeaderProps) {
   return (
-    <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+    <div className="flex items-center justify-between p-3 border-b border-gray-200 dark:border-gray-700 bg-transparent">
       <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
         Chat
       </h3>

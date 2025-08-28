@@ -17,8 +17,8 @@ export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
           onClick={() => onChange("workflow")}
           className={`px-4 py-2 text-sm font-medium ${
             active === "workflow"
-              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
           }`}
         >
           Workflow
@@ -27,8 +27,8 @@ export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
           onClick={() => onChange("fields")}
           className={`px-4 py-2 text-sm font-medium ${
             active === "fields"
-              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
           }`}
         >
           Fields
@@ -37,8 +37,8 @@ export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
           onClick={() => onChange("views")}
           className={`px-4 py-2 text-sm font-medium ${
             active === "views"
-              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
           }`}
         >
           Views

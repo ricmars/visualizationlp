@@ -5,10 +5,6 @@ import { useParams } from "next/navigation";
 import dynamic from "next/dynamic";
 
 // Dynamic imports to prevent SSR issues with Pega components
-const WorkflowDiagram = dynamic(
-  () => import("../../components/WorkflowDiagram"),
-  { ssr: false },
-);
 const WorkflowLifecycleView = dynamic(
   () => import("../../components/WorkflowLifecycleView"),
   { ssr: false },
@@ -16,30 +12,21 @@ const WorkflowLifecycleView = dynamic(
 import { ChatMessage } from "../../components/ChatInterface";
 import FreeFormSelectionOverlay from "./components/FreeFormSelectionOverlay";
 import QuickChatOverlay from "./components/QuickChatOverlay";
-import ResizeSeparator from "./components/ResizeSeparator";
-import ChatPanelTabs from "./components/ChatPanelTabs";
 import ChatPanelContent from "./components/ChatPanelContent";
 import usePersistentTab from "./hooks/usePersistentTab";
-import { useChatPanel } from "./hooks/useChatPanel";
 import { useFreeFormSelection } from "./hooks/useFreeFormSelection";
 import usePreviewIframe from "./hooks/usePreviewIframe";
 import useStepsUpdate from "./hooks/useStepsUpdate";
 import useFieldMutations from "./hooks/useFieldMutations";
 import useWorkflowMutations from "./hooks/useWorkflowMutations";
-import { useReorderHandlers } from "./hooks/useReorderHandlers";
 import useChatMessaging from "./hooks/useChatMessaging";
 import { useQuickChat } from "./hooks/useQuickChat";
 import { useViewMutations } from "./hooks/useViewMutations";
 import {
   ACTIVE_TAB_STORAGE_KEY,
-  ACTIVE_PANEL_TAB_STORAGE_KEY,
   CHECKPOINTS_STORAGE_KEY,
   MAX_CHECKPOINTS,
   MODEL_UPDATED_EVENT,
-  CHAT_PANEL_WIDTH_STORAGE_KEY,
-  CHAT_PANEL_EXPANDED_STORAGE_KEY,
-  CHAT_MIN_WIDTH,
-  CHAT_MAX_WIDTH,
 } from "./utils/constants";
 import {
   Field,
@@ -64,13 +51,11 @@ interface WorkflowCheckpoint {
   description: string;
   model: WorkflowModel;
 }
-import { motion } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
 import ViewsPanel from "../../components/ViewsPanel";
 import FieldsList from "../../components/FieldsList";
 //
 import WorkflowTopBar from "./components/WorkflowTopBar";
-import WorkflowToolbar from "./components/WorkflowToolbar";
 import WorkflowTabs from "./components/WorkflowTabs";
 import FieldsHeader from "./components/FieldsHeader";
 import ViewsHeader from "./components/ViewsHeader";
@@ -156,29 +141,13 @@ export default function WorkflowPage() {
   const [activeStep, setActiveStep] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const {
-    chatPanelWidth,
-    isChatPanelExpanded,
-    onResizeMouseDown,
-    handleToggleChatPanel,
-  } = useChatPanel({
-    minWidth: CHAT_MIN_WIDTH,
-    maxWidth: CHAT_MAX_WIDTH,
-    widthStorageKey: CHAT_PANEL_WIDTH_STORAGE_KEY,
-    expandedStorageKey: CHAT_PANEL_EXPANDED_STORAGE_KEY,
-    initialWidth: 500,
-    initialExpanded: true,
-  });
+  const FIXED_CHAT_PANEL_WIDTH = 500;
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  const [workflowView, setWorkflowView] = useState<"flat" | "lifecycle">(
-    "lifecycle",
-  );
+  // Lifecycle is the only supported view now
   const [activeTab, setActiveTab] = usePersistentTab<
     "workflow" | "fields" | "views" | "chat" | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
-  const [activePanelTab, setActivePanelTab] = usePersistentTab<
-    "chat" | "history"
-  >(ACTIVE_PANEL_TAB_STORAGE_KEY, "chat");
+  // History UI removed; side panel always shows chat
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
@@ -410,7 +379,6 @@ export default function WorkflowPage() {
     handleAddProcess,
     handleDeleteStep,
     handleDeleteProcess,
-    handleDeleteStage,
   } = useWorkflowMutations({
     selectedCase,
     workflowStages: workflowModel.stages,
@@ -421,15 +389,6 @@ export default function WorkflowPage() {
     caseId: id,
     eventName: MODEL_UPDATED_EVENT,
   });
-
-  const { handleStageReorder, handleProcessReorder, handleStepReorder } =
-    useReorderHandlers({
-      stages: workflowModel.stages,
-      setModelAction: setModel,
-      setSelectedCaseAction: (next) => setSelectedCase(next as any),
-      handleStepsUpdate,
-      selectedCase,
-    });
 
   const {
     handleAddFieldsToView,
@@ -871,7 +830,7 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div className="flex h-screen bg-white dark:bg-gray-900">
+    <div className="flex h-screen">
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden relative">
         {/* Header row with title and preview switch */}
@@ -903,123 +862,65 @@ export default function WorkflowPage() {
             <>
               {activeTab === "workflow" && (
                 <>
-                  <WorkflowToolbar
-                    workflowView={workflowView}
-                    onSetView={setWorkflowView}
-                    onAddStage={() => setIsAddStageModalOpen(true)}
+                  <WorkflowLifecycleView
+                    stages={workflowModel.stages}
+                    onStepSelect={(stageId, processId, stepId) =>
+                      handleStepSelect(stageId, processId, stepId)
+                    }
+                    activeStage={activeStage}
+                    activeProcess={activeProcess}
+                    activeStep={activeStep}
+                    onEditStep={(stageId, processId, stepId) => {
+                      // For lifecycle view editing, just select the step to show configuration
+                      handleStepSelect(
+                        stageId.toString(),
+                        processId.toString(),
+                        stepId.toString(),
+                      );
+                    }}
+                    onDeleteStep={handleDeleteStep}
+                    fields={fields}
+                    readOnly={false}
+                    onAddField={handleAddField}
+                    onUpdateField={handleUpdateField}
+                    onDeleteField={handleDeleteField}
+                    onAddExistingField={(stepId, fieldIds) => {
+                      // Convert field IDs to field names for the existing handler
+                      const fieldNames = fieldIds
+                        .map((id) => fields.find((f) => f.id === id)?.name)
+                        .filter((name): name is string => !!name);
+                      void handleAddFieldsToStep(
+                        stepId,
+                        fieldNames,
+                        workflowModel.stages,
+                      );
+                    }}
+                    onFieldChange={(fieldId, value) => {
+                      // For now, this is read-only in lifecycle view
+                      console.log(
+                        "Field change in lifecycle view:",
+                        fieldId,
+                        value,
+                      );
+                    }}
+                    views={views}
+                    onAddFieldsToView={handleAddFieldsToView}
+                    onStepsUpdate={handleStepsUpdate}
+                    onAddProcess={(stageId, processName) =>
+                      handleAddProcess(Number(stageId), processName)
+                    }
+                    onAddStep={(stageId, processId, stepName, stepType) =>
+                      handleAddStep(
+                        Number(stageId),
+                        Number(processId),
+                        stepName,
+                        stepType as StepType,
+                      )
+                    }
+                    onDeleteProcess={(stageId, processId) =>
+                      handleDeleteProcess(Number(stageId), Number(processId))
+                    }
                   />
-                  {workflowView === "flat" ? (
-                    <WorkflowDiagram
-                      stages={workflowModel.stages}
-                      fields={fields}
-                      views={views}
-                      onStepSelect={(stageId, processId, stepId) =>
-                        handleStepSelect(
-                          String(stageId),
-                          String(processId),
-                          String(stepId),
-                        )
-                      }
-                      activeStage={
-                        activeStage ? Number(activeStage) : undefined
-                      }
-                      activeProcess={
-                        activeProcess ? Number(activeProcess) : undefined
-                      }
-                      activeStep={activeStep ? Number(activeStep) : undefined}
-                      onStepsUpdate={handleStepsUpdate}
-                      onDeleteStage={handleDeleteStage}
-                      onDeleteProcess={(stageId, processId) =>
-                        handleDeleteProcess(Number(stageId), Number(processId))
-                      }
-                      onDeleteStep={(stageId, processId, stepId) =>
-                        handleDeleteStep(
-                          Number(stageId),
-                          Number(processId),
-                          Number(stepId),
-                        )
-                      }
-                      onAddField={handleAddField}
-                      onUpdateField={handleUpdateField}
-                      onDeleteField={handleDeleteField}
-                      onAddProcess={(stageId, processName) =>
-                        handleAddProcess(Number(stageId), processName)
-                      }
-                      onAddStep={(stageId, processId, stepName, stepType) =>
-                        handleAddStep(
-                          Number(stageId),
-                          Number(processId),
-                          stepName,
-                          stepType,
-                        )
-                      }
-                      onStageReorder={handleStageReorder}
-                      onProcessReorder={handleProcessReorder}
-                      onStepReorder={handleStepReorder}
-                      onAddFieldsToView={handleAddFieldsToView}
-                      onViewFieldsReorder={handleFieldsReorder}
-                    />
-                  ) : (
-                    <WorkflowLifecycleView
-                      stages={workflowModel.stages}
-                      onStepSelect={(stageId, processId, stepId) =>
-                        handleStepSelect(stageId, processId, stepId)
-                      }
-                      activeStage={activeStage}
-                      activeProcess={activeProcess}
-                      activeStep={activeStep}
-                      onEditStep={(stageId, processId, stepId) => {
-                        // For lifecycle view editing, just select the step to show configuration
-                        handleStepSelect(
-                          stageId.toString(),
-                          processId.toString(),
-                          stepId.toString(),
-                        );
-                      }}
-                      onDeleteStep={handleDeleteStep}
-                      fields={fields}
-                      readOnly={false}
-                      onAddField={handleAddField}
-                      onUpdateField={handleUpdateField}
-                      onDeleteField={handleDeleteField}
-                      onAddExistingField={(stepId, fieldIds) => {
-                        // Convert field IDs to field names for the existing handler
-                        const fieldNames = fieldIds
-                          .map((id) => fields.find((f) => f.id === id)?.name)
-                          .filter((name): name is string => !!name);
-                        void handleAddFieldsToStep(
-                          stepId,
-                          fieldNames,
-                          workflowModel.stages,
-                        );
-                      }}
-                      onFieldChange={(fieldId, value) => {
-                        // For now, this is read-only in lifecycle view
-                        console.log(
-                          "Field change in lifecycle view:",
-                          fieldId,
-                          value,
-                        );
-                      }}
-                      views={views}
-                      onAddFieldsToView={handleAddFieldsToView}
-                      onStepsUpdate={handleStepsUpdate}
-                      onAddProcess={(stageId, processName) =>
-                        handleAddProcess(Number(stageId), processName)
-                      }
-                      onAddStep={(stageId, processId, stepName, stepType) =>
-                        handleAddStep(
-                          Number(stageId),
-                          Number(processId),
-                          stepName,
-                          stepType as StepType,
-                        )
-                      }
-                      onDeleteProcess={(stageId, processId) =>
-                        handleDeleteProcess(Number(stageId), Number(processId))
-                      }
-                    />
-                  )}
                 </>
               )}
               {activeTab === "fields" && (
@@ -1149,38 +1050,13 @@ export default function WorkflowPage() {
         </ModalPortal>
       </div>
 
-      {/* Separator & Chat Panel */}
-      <ResizeSeparator
-        onMouseDown={onResizeMouseDown}
-        onToggle={(e) => {
-          e.stopPropagation();
-          handleToggleChatPanel();
-        }}
-        isExpanded={isChatPanelExpanded}
-      />
-
-      {/* Chat Panel */}
-      <motion.div
+      {/* Chat Panel - fixed width */}
+      <div
         className="border-l dark:border-gray-700 flex flex-col h-screen overflow-hidden text-sm"
-        animate={{
-          width: isChatPanelExpanded ? `${chatPanelWidth}px` : "0px",
-          opacity: isChatPanelExpanded ? 1 : 0,
-        }}
-        transition={{ duration: 0.3 }}
-        style={{
-          minWidth: isChatPanelExpanded ? `${CHAT_MIN_WIDTH}px` : "0px",
-          maxWidth: `${CHAT_MAX_WIDTH}px`,
-          fontSize: "14px",
-        }}
+        style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
       >
         <div className="flex-1 overflow-hidden flex flex-col">
-          <ChatPanelTabs
-            active={activePanelTab}
-            onChange={(tab) => setActivePanelTab(tab)}
-          />
-
           <ChatPanelContent
-            activeTab={activePanelTab}
             messages={messages}
             onSendMessage={(message) => void handleSendMessage(message)}
             onAbort={() => handleAbort()}
@@ -1190,7 +1066,7 @@ export default function WorkflowPage() {
             onClearChat={handleClearChat}
           />
         </div>
-      </motion.div>
+      </div>
 
       {/* Free Form selection overlay */}
       {isFreeFormSelecting && (

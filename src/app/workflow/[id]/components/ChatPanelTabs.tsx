@@ -18,8 +18,8 @@ export default function ChatPanelTabs({
           onClick={() => onChange("chat")}
           className={`flex-1 px-4 py-2 text-sm font-medium ${
             active === "chat"
-              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
           }`}
         >
           Chat
@@ -28,8 +28,8 @@ export default function ChatPanelTabs({
           onClick={() => onChange("history")}
           className={`flex-1 px-4 py-2 text-sm font-medium ${
             active === "history"
-              ? "text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400"
-              : "text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
           }`}
         >
           History

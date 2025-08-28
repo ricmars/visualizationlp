@@ -24,7 +24,7 @@ export default function WorkflowTopBar({
       <div className="flex items-center">
         <Link
           href="/"
-          className="flex items-center mr-4 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+          className="flex items-center mr-4 text-white hover:text-white/90"
         >
           <svg
             className="w-5 h-5 mr-2"
@@ -42,7 +42,7 @@ export default function WorkflowTopBar({
           Back
         </Link>
         <div className="flex items-center">
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          <h1 className="text-3xl font-bold text-white">
             {selectedCaseName || "Loading..."}
           </h1>
           {canEdit && (
@@ -70,13 +70,7 @@ export default function WorkflowTopBar({
             className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all duration-200 ease-in-out shadow-sm peer-checked:translate-x-6 peer-checked:bg-white group-hover:scale-95`}
           ></div>
         </div>
-        <div
-          className={`ml-3 text-sm font-medium transition-colors duration-200 ${
-            isPreviewMode
-              ? "text-blue-600 dark:text-blue-400"
-              : "text-gray-700 dark:text-gray-300"
-          }`}
-        >
+        <div className="ml-3 text-sm font-medium text-white transition-colors duration-200">
           Preview
         </div>
       </label>

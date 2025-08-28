@@ -12,21 +12,6 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 
-// Typing indicator component
-const TypingIndicator = () => (
-  <div className="flex items-center space-x-1">
-    <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
-    <div
-      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-      style={{ animationDelay: "0.1s" }}
-    ></div>
-    <div
-      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-      style={{ animationDelay: "0.2s" }}
-    ></div>
-  </div>
-);
-
 // Blinking cursor component
 const BlinkingCursor = () => (
   <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-1"></span>
@@ -552,7 +537,7 @@ export default function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
+    <div className="flex flex-col h-full">
       {/* Checkpoint Status Bar */}
       {checkpointStatus?.activeSession && (
         <div className="bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700 px-4 py-2">
@@ -593,65 +578,78 @@ export default function ChatInterface({
 
       {/* Messages area */}
       <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
-        {filteredMessages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${
-              msg.sender === "user" ? "justify-end" : "justify-start"
-            }`}
-          >
+        {filteredMessages.map((msg, idx) => {
+          const isLast = idx === filteredMessages.length - 1;
+          const isAssistant = msg.sender !== "user";
+          const baseBubbleClasses = isAssistant
+            ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm"
+            : "bg-blue-500 text-white";
+
+          return (
             <div
-              className={`max-w-[85%] p-2.5 rounded-lg text-sm ${
-                msg.sender === "user"
-                  ? "bg-blue-500 text-white"
-                  : msg.isThinking
-                  ? "bg-blue-50 dark:bg-blue-900/20 text-gray-900 dark:text-gray-100 border border-blue-200 dark:border-blue-700"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+              key={msg.id}
+              className={`flex ${
+                msg.sender === "user" ? "justify-end" : "justify-start"
               }`}
             >
               <div
-                className="prose prose-sm dark:prose-invert max-w-none font-sans"
-                style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                className={`max-w-[85%] p-3 rounded-2xl text-sm ${baseBubbleClasses}`}
               >
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm, remarkBreaks]}
-                  components={markdownComponents}
+                <div
+                  className="prose prose-sm dark:prose-invert max-w-none font-sans"
+                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                 >
-                  {formatContent(msg.content)}
-                </ReactMarkdown>
-                {msg.isThinking && <BlinkingCursor />}
-              </div>
-              <div
-                className={`text-xs mt-1.5 ${
-                  msg.sender === "user"
-                    ? "text-blue-100"
-                    : "text-gray-500 dark:text-gray-400"
-                }`}
-              >
-                {msg.timestamp.toLocaleTimeString()}
-                {!msg.isThinking && typeof msg.durationMs === "number" && (
-                  <span className="ml-2">
-                    • {formatDuration(msg.durationMs)}
-                  </span>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    components={markdownComponents}
+                  >
+                    {formatContent(msg.content)}
+                  </ReactMarkdown>
+                  {msg.isThinking && <BlinkingCursor />}
+                </div>
+
+                {/* In-bubble status and controls, matching screenshot style */}
+                {isAssistant && msg.isThinking && isLast && (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                      <div className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs">Generating your response…</span>
+                    </div>
+                    {onAbort && (
+                      <button
+                        onClick={() => onAbort?.()}
+                        className="px-3 py-1.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800"
+                      >
+                        Stop generating
+                      </button>
+                    )}
+                  </div>
                 )}
-                {typeof msg.tokenCount === "number" && (
-                  <span className="ml-2">
-                    • {msg.tokenExact ? "" : "~"}
-                    {msg.tokenCount} tokens
-                  </span>
-                )}
-                {msg.isThinking && (
-                  <span className="ml-2 flex items-center">
-                    <span className="mr-1 text-blue-600 dark:text-blue-400">
-                      thinking
+
+                <div
+                  className={`text-xs mt-1.5 ${
+                    msg.sender === "user"
+                      ? "text-blue-100"
+                      : "text-gray-500 dark:text-gray-400"
+                  }`}
+                >
+                  {msg.timestamp.toLocaleTimeString()}
+                  {!msg.isThinking && typeof msg.durationMs === "number" && (
+                    <span className="ml-2">
+                      • {formatDuration(msg.durationMs)}
                     </span>
-                    <TypingIndicator />
-                  </span>
-                )}
+                  )}
+                  {typeof msg.tokenCount === "number" && (
+                    <span className="ml-2">
+                      • {msg.tokenExact ? "" : "~"}
+                      {msg.tokenCount} tokens
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 
@@ -666,7 +664,7 @@ export default function ChatInterface({
               onKeyDown={handleKeyDown}
               placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
               rows={1}
-              className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm leading-relaxed transition-all duration-200 ease-in-out"
+              className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto bg-transparent text-white placeholder-white text-sm leading-relaxed transition-all duration-200 ease-in-out"
               disabled={isLoading || isProcessing}
             />
           </div>
