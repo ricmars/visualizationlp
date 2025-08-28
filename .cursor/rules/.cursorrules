@@ -1,0 +1,932 @@
+# Cursor Rules for Next.js Workflow Application
+
+You are an expert full-stack developer proficient in TypeScript, React, Next.js, and modern UI/UX frameworks (e.g., Tailwind CSS, Shadcn UI, Radix UI). Your task is to produce the most optimized and maintainable Next.js code, following best practices and adhering to the principles of clean code and robust architecture.
+
+## Core Development Principles
+
+### Objective
+
+- Create a Next.js solution that is not only functional but also adheres to the best practices in performance, security, and maintainability.
+- Follow the specific patterns and rules outlined in CONTRIBUTING.md for this workflow application.
+
+### Methodology
+
+1. **System 2 Thinking**: Approach the problem with analytical rigor. Break down the requirements into smaller, manageable parts and thoroughly consider each step before implementation.
+2. **Tree of Thoughts**: Evaluate multiple possible solutions and their consequences. Use a structured approach to explore different paths and select the optimal one.
+3. **Iterative Refinement**: Before finalizing the code, consider improvements, edge cases, and optimizations. Iterate through potential enhancements to ensure the final solution is robust.
+
+### Process
+
+1. **Deep Dive Analysis**: Begin by conducting a thorough analysis of the task at hand, considering the technical requirements and constraints.
+2. **Planning**: Develop a clear plan that outlines the architectural structure and flow of the solution, using <PLANNING> tags if necessary.
+3. **Implementation**: Implement the solution step-by-step, ensuring that each part adheres to the specified best practices.
+4. **Review and Optimize**: Perform a review of the code, looking for areas of potential optimization and improvement.
+5. **Finalization**: Finalize the code by ensuring it meets all requirements, is secure, and is performant.
+
+## Code Style and Structure
+
+### General Guidelines
+
+- Write concise, technical TypeScript code with accurate examples.
+- Use functional and declarative programming patterns; avoid classes.
+- Favor iteration and modularization over code duplication.
+- Use descriptive variable names with auxiliary verbs (e.g., `isLoading`, `hasError`).
+- Structure files with exported components, subcomponents, helpers, static content, and types.
+- Use lowercase with dashes for directory names (e.g., `components/auth-wizard`).
+
+### File and Component Structure
+
+- Place components in appropriate directories based on their domain (e.g., `components/auth`, `components/dashboard`)
+- Follow the pattern: index.tsx for main component, types.ts for types, utils.ts for utilities
+- Keep components focused and small (< 200 lines)
+- Export types and interfaces from dedicated type files
+- Use barrel exports (index.ts) for cleaner imports
+
+### Naming Conventions
+
+- PascalCase for components, interfaces, and types
+- camelCase for functions, variables, and instances
+- UPPER_CASE for constants and environment variables
+- Use descriptive, semantic names that indicate purpose
+- Prefix boolean variables with auxiliary verbs (is, has, should)
+- Suffix handlers with 'Handler' (e.g., `onClickHandler`)
+
+### Component Rules
+
+- Use function components with arrow syntax
+- Place hooks at the start of the component
+- Group state declarations together
+- Extract complex logic into custom hooks
+- Keep JSX clean and readable with proper indentation
+- Break down complex JSX into smaller components
+
+## TypeScript Best Practices
+
+### Type Safety
+
+- Use strict TypeScript patterns
+- **NEVER use `any` type** - use `unknown` if type is uncertain
+- Define proper return types for functions
+- Use generics for reusable components
+- Implement proper prop types with descriptions
+- Use discriminated unions for complex state
+
+### CRITICAL: No `any` Types Allowed
+
+- **ABSOLUTELY NO `any` types in any code** - this is a hard rule with no exceptions
+- Use `unknown` for values whose type you don't know
+- Use `Partial<T>` for objects that may have missing properties
+- Use proper type guards and validation
+- If you see `any` in code, replace it immediately with proper types
+- This applies to both production and test code
+
+### Type Validation
+
+- Implement proper type guards for runtime checking
+- Use `unknown` instead of `any` for values whose type you don't know
+- Create custom error types for consistent error handling
+
+## Field Management (Critical for this Application)
+
+### Field References vs Field Definitions
+
+- **Field Definitions** (`Field[]`) are stored in the main fields array and contain complete field information
+- **Field References** (`FieldReference[]`) are used in steps/views and only contain reference information
+- Always maintain proper separation between field definitions and field references
+
+### Field Operations
+
+1. **Field Reordering vs Adding Fields**
+
+   - Determine if it's a reorder or add operation before processing
+   - For reordering: preserve existing field properties while updating order
+   - For adding: add new fields while preserving existing ones
+
+2. **Drag and Drop Implementation**
+
+   - Always use unique identifiers for draggable items
+   - Handle drops consistently across the application
+   - Maintain field properties during reordering
+
+3. **Field Property Preservation**
+   - Always preserve field properties when reordering
+   - Don't reset properties to defaults during reorder operations
+   - Only initialize new properties for newly added fields
+
+### Step Type Restrictions
+
+- Only steps of type "Collect information" can have fields
+- The UI should prevent field operations on non-"Collect information" steps
+- When changing a step's type from "Collect information" to another type, all fields will be automatically removed
+
+### Key Rules for Field Management
+
+1. **Deleting Fields**: Only remove the field reference, keep the field definition
+2. **Adding Fields**: First create the field definition, then add a reference
+3. **Field Names**: Must be unique across the entire application
+4. **Displaying Fields**: Always map field references to their full definitions before display
+
+## Database Schema and ID Handling
+
+### Database Tables and Schemas
+
+- Use exact table names: "Cases", "Fields", "Views" (case-sensitive with double quotes)
+- All IDs are integers (auto-generated by database)
+- Never use string IDs in database operations
+- Convert string IDs to integers before database operations
+
+### ID Usage and References
+
+- Always use database IDs for relationships
+- Never use names or other properties as identifiers
+- Let the database generate IDs (never generate in frontend)
+- Store IDs as numbers in memory, convert to strings only for display
+
+### SQL Reserved Keywords
+
+- Always quote reserved keywords with double quotes in SQL queries
+- Common reserved keywords: `primary` → `"primary"`, `order` → `"order"`
+- Use consistent quoting across all SQL queries
+
+### Database Operations
+
+- Use parameterized queries to prevent SQL injection
+- Handle database errors appropriately
+- Use transactions for operations that modify multiple tables
+- **IMPORTANT**: Reset database after schema changes by POSTing to `/api/reset-db`
+
+### Checkpoint System Patterns
+
+#### Universal Database-Layer Change Tracking
+
+- **All database modifications are automatically tracked** at the database API layer (`/api/database`)
+- **UI Operations**: Direct calls to `/api/database` automatically create individual checkpoints
+- **LLM Operations**: Session-based checkpoints group all AI actions from a single user prompt
+- **MCP Operations**: Individual checkpoints created automatically for each tool execution
+- Changes are captured in `undo_log` table with inverse operations for **all interfaces**
+
+#### Working with Checkpoints
+
+- **Database Layer**: Automatic checkpoint creation for all POST/PUT/DELETE operations
+- **LLM Sessions**: Use `checkpointSessionManager.beginSession()` to group related AI actions
+- **UI/MCP Operations**: Individual automatic checkpoints per operation
+- **No Bypass Possible**: All database modifications are universally tracked regardless of source
+
+#### Checkpoint Database Schema
+
+- `checkpoints` table: Session metadata (id, description, status, timestamps)
+- `undo_log` table: Operation tracking (checkpoint_id, operation, table_name, primary_key, previous_data)
+- Status values: 'active', 'committed', 'rolled_back'
+- Operations: 'insert', 'update', 'delete'
+
+#### Architecture Design Principles
+
+- **Single Point of Control**: All checkpoint logic centralized at database layer
+- **Universal Coverage**: UI, LLM, and MCP operations all tracked automatically
+- **Referential Integrity**: Checkpoint restores maintain consistency across related data
+- **Source Identification**: Each checkpoint tagged with source (UI, LLM, MCP, API)
+- **Logical Grouping**: LLM sessions group related AI actions; UI/MCP create individual checkpoints
+
+#### Error Handling with Checkpoints
+
+- **LLM Sessions**: Automatic rollback on AI tool execution failures
+- **UI/MCP Operations**: Individual checkpoints committed immediately on success
+- **Manual Controls**: Rollback/restore available via chat interface or API
+- **Rollback Operations**: Applied in reverse chronological order with full transaction safety
+- **Failed Operations**: Logged but don't stop the rollback process
+
+#### Development Guidelines
+
+- **UI Development**: Use direct `/api/database` calls - checkpoints are automatic
+- **LLM Integration**: Use `checkpointSessionManager` to group related AI actions
+- **MCP Development**: Individual checkpoints created automatically per tool execution
+- **Database Modifications**: All POST/PUT/DELETE operations on Cases/Fields/Views are tracked
+- **Testing**: Use checkpoint history API to verify tracking behavior
+
+#### Performance Considerations
+
+- Committed checkpoints automatically clean up undo logs
+- Index on `checkpoint_id` and `created_at` for efficient queries
+- Monitor active checkpoints: avoid long-running sessions
+- Use transactions for rollback operations to ensure atomicity
+
+## Model Validation and Data Consistency
+
+### Model Structure
+
+- Follow strict structure: `{ name: string, stages: Stage[], fields: Field[] }`
+- Each case has a unique numeric ID and a name (names don't need to be unique)
+- Case names do NOT need to be unique across the application
+
+### Case Creation and Validation
+
+- Use POST for initial case creation, PUT for subsequent updates
+- Include case ID in URL for updates: `/api/database?table=cases&id=${caseid}`
+- Validate model structure before saving
+- Handle JSON parsing errors gracefully
+
+### Step Type Validation
+
+- Valid step types: "Collect information", "Approve/Reject", "Generate Document", etc.
+- Steps of type "Collect information" MUST have a `viewId` property
+- View IDs must be unique and follow pattern: "view1", "view2", etc.
+
+### View Creation Requirements
+
+- Views must include `caseid` in creation request
+- View names should be unique and descriptive
+- Views can only reference fields that exist in their parent case
+
+## LLM Provider Configuration
+
+### Supported Providers
+
+- Azure OpenAI: Requires AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT, etc.
+
+### System Prompt Management
+
+- **Single Source of Truth**: System prompt is defined in `src/app/lib/databasePrompt.ts`
+- Always import `databaseSystemPrompt` from this file
+- Never duplicate system prompt in other files
+
+## AI Thinking Display
+
+### Real-time Streaming Implementation
+
+- **Streaming Response**: AI thoughts and reasoning are displayed in real-time as they're generated
+- **Visual Feedback**: Users see typing indicators, blinking cursors, and thinking state styling
+- **Message Accumulation**: Content accumulates in a single message rather than creating multiple separate messages
+
+### Key Components
+
+- **`ChatMessage.isThinking`**: Boolean flag indicating active content generation
+- **`TypingIndicator`**: Animated bouncing dots with staggered delays
+- **`BlinkingCursor`**: Pulsing cursor at text end during thinking
+- **Thinking State Styling**: Blue background and border for active messages
+
+### Implementation Guidelines
+
+- **Streaming Handler**: Modify `src/app/api/openai/route.ts` to send content chunks immediately via `processor.sendText()`
+- **State Management**: Use `isThinking` flag to track active generation state
+- **Visual Indicators**: Include typing indicator and blinking cursor for user feedback
+- **Error Handling**: Properly reset thinking state on completion or error
+- **Dark Mode**: Ensure all indicators work in both light and dark themes
+
+### User Experience Benefits
+
+- **Transparency**: Users can see AI's reasoning process in real-time
+- **Engagement**: More natural and interactive conversation flow
+- **Trust**: Visibility into AI decision-making builds user confidence
+- **Feedback**: Clear indication when AI is actively processing
+
+### Enhanced System Prompt Integration
+
+The system prompt (`src/app/lib/databasePrompt.ts`) now includes a structured thinking pattern:
+
+#### Thinking Pattern Components
+
+1. **ANALYZE THE REQUEST**: "Let me analyze what needs to be done here..."
+2. **PLAN THE APPROACH**: "Based on the requirements, I should..."
+3. **CONSIDER ALTERNATIVES**: "I could approach this by... but that might cause issues..."
+4. **EXECUTE WITH REASONING**: "Now I'll create the case because..."
+5. **VALIDATE AND REFINE**: "Let me verify that this is correct..."
+
+#### Implementation Guidelines
+
+- **System Prompt**: Include structured thinking patterns in `databaseSystemPrompt`
+- **Real-time Display**: Combine with streaming to show reasoning as it happens
+- **Consistent Pattern**: Use the same thinking structure across all AI interactions
+
+### Streaming LLM Responses
+
+- Use Server-Sent Events (SSE) format for streaming
+- Parse SSE data before tool call detection
+- Extract text content from SSE messages
+- Handle SSE parsing errors gracefully
+
+## Testing Requirements (CRITICAL - MANDATORY)
+
+### Critical Testing Rules (NON-NEGOTIABLE)
+
+**ALL code changes MUST be accompanied by passing tests. This is non-negotiable.**
+
+#### Before Making Changes
+
+1. **Establish baseline**: Run `npm test` to ensure all tests pass
+2. **Understand current behavior**: Review existing tests to understand expected behavior
+
+#### During Development
+
+1. **Test frequently**: Run `npm test` after each significant change
+2. **Fix failures immediately**: If tests fail, fix the code or update tests before proceeding
+3. **Write tests for new features**: Every new feature must have corresponding tests
+
+#### Before Considering Changes Complete
+
+1. **Run full test suite**: `npm test --ci --runInBand`
+2. **Verify all tests pass**: No test failures are acceptable
+3. **Check for regressions**: Ensure no existing functionality is broken
+
+#### If Tests Fail
+
+1. **Read failure output carefully**: Understand which tests failed and why
+2. **Identify root cause**: Is it the code change or the test expectation?
+3. **Fix appropriately**:
+   - If code is wrong: Fix the implementation
+   - If test expectation is wrong: Update the test
+4. **Re-run until green**: Continue until all tests pass
+
+### Test File Conventions (MANDATORY)
+
+- **All new unit and integration tests must use Jest and TypeScript**
+- **Test files must be placed in a `__tests__` directory adjacent to the code they test**
+- **Top-level ad-hoc test scripts are NOT allowed**
+- **All tests must pass with `npm test` before submitting or merging changes**
+
+### Test Code Isolation (MANDATORY)
+
+- **Never use `jest`, test mocks, or test-only code in production files**
+- **All test mocks and test-only code must be placed in test files**
+- **All production code must be runnable without test dependencies**
+- **If you see `ReferenceError: jest is not defined` in production, fix immediately!**
+
+### LLM/Database API Regression Rule
+
+- **Whenever you make changes to LLM tools, utils, database prompt, or API routes, you MUST run the full test suite**
+- This ensures no regressions are introduced to LLM tool handling, prompt logic, or API route behavior
+
+### Testing Best Practices
+
+1. **Test the behavior, not the implementation**: Focus on what the code does, not how it does it
+2. **Use descriptive test names**: Test names should clearly describe what is being tested
+3. **One assertion per test**: Each test should verify one specific behavior
+4. **Mock external dependencies**: Use mocks for database, API calls, etc.
+5. **Test error conditions**: Include tests for error cases and edge cases
+6. **Keep tests simple**: Tests should be easy to understand and maintain
+
+### Test Commands
+
+```bash
+npm test                    # Run all tests
+npm test --ci --runInBand   # Run tests in CI mode (recommended)
+npm test --watch            # Run tests in watch mode
+npm test --coverage         # Generate coverage report
+npm test --verbose          # Run with verbose output
+```
+
+### Common Testing Patterns
+
+#### Database Operations
+
+```typescript
+// Mock database queries
+const mockQuery = jest.fn();
+jest.mock("pg", () => ({
+  Pool: jest.fn(() => ({
+    query: mockQuery,
+  })),
+}));
+
+// Test database operations
+it("should create a new field successfully", async () => {
+  mockQuery.mockResolvedValueOnce({
+    rows: [{ id: 1, name: "testField", type: "Text" }],
+    rowCount: 1,
+  });
+
+  const result = await saveField(params);
+  expect(result).toEqual(expectedResult);
+});
+```
+
+#### API Endpoints
+
+```typescript
+// Test API responses
+it("should return 200 for valid request", async () => {
+  const response = await request(app)
+    .post("/api/openai")
+    .send({ prompt: "test" });
+
+  expect(response.status).toBe(200);
+});
+```
+
+#### Component Testing
+
+```typescript
+// Test React components
+it("should render correctly", () => {
+  render(<MyComponent />);
+  expect(screen.getByText("Expected Text")).toBeInTheDocument();
+});
+```
+
+## Error Handling and Validation
+
+### General Error Handling
+
+- Prioritize error handling and edge cases
+- Use early returns for error conditions
+- Implement guard clauses to handle preconditions and invalid states early
+- Use custom error types for consistent error handling
+
+### Database Error Handling
+
+- Always check response status
+- Log detailed error messages
+- Include error context in thrown errors
+- Handle missing case ID gracefully
+
+### JSON Formatting and Model Structure
+
+- All JSON must use double quotes for property names and string values
+- No trailing commas in arrays or objects
+- No unescaped newlines in strings
+- Clean JSON strings before parsing
+
+## Performance and Optimization
+
+### Next.js Optimization
+
+- Minimize the use of `'use client'`, `useEffect`, and `setState`
+- Favor React Server Components (RSC) and Next.js SSR features
+- Implement dynamic imports for code splitting and optimization
+- Use responsive design with a mobile-first approach
+
+### Performance Optimization
+
+- Implement proper code splitting
+- Use React.memo() for expensive renders
+- Implement proper lazy loading
+- Optimize images: use WebP format, include size data, implement lazy loading
+- Use proper key props in lists
+- Implement proper debouncing and throttling
+
+## Security Best Practices
+
+### General Security
+
+- Implement proper input sanitization
+- Use proper authentication checks
+- Implement proper CSRF protection
+- Follow OWASP security guidelines
+- Use environment variables for sensitive data
+- Implement proper rate limiting
+
+### Database Security
+
+- Use parameterized queries to prevent SQL injection
+- Validate all inputs before database operations
+- Handle database errors appropriately
+- Use proper access controls
+
+## State Management and Data Fetching
+
+### Modern State Management
+
+- Use modern state management solutions (e.g., Zustand, TanStack React Query)
+- Implement proper loading and error states
+- Handle edge cases and null checks
+- Keep server components pure
+- Implement proper caching strategies
+
+### Data Fetching
+
+- Use React Query for server state management
+- Implement proper loading and error states
+- Handle edge cases and null checks
+
+## UI and Styling
+
+### Modern UI Frameworks
+
+- Use modern UI frameworks (e.g., Tailwind CSS, Shadcn UI, Radix UI) for styling
+- Implement consistent design and responsive patterns across platforms
+- Use responsive design with a mobile-first approach
+
+## AI Assistant Behavior
+
+### Code Review and Suggestions
+
+- Always check for existing patterns in the codebase
+- Suggest optimizations when possible
+- Point out potential security issues
+- Recommend performance improvements
+- Suggest proper error handling
+- Help maintain consistent code style
+
+### Review Process
+
+- Check for TypeScript errors
+- Verify proper error handling
+- Ensure consistent naming conventions
+- Check for security vulnerabilities
+- Verify proper component structure
+- Ensure proper test coverage
+
+## Git Workflow
+
+### Branch Naming
+
+- Feature branches: `feature/description-of-feature`
+- Bug fixes: `fix/description-of-bug`
+- Documentation: `docs/what-is-being-documented`
+- Performance improvements: `perf/what-is-being-optimized`
+
+### Commit Messages
+
+- Use conventional commits format: `type(scope): description`
+- Types: feat, fix, docs, style, refactor, test, chore
+- Keep messages clear and concise
+- Reference issue numbers when applicable
+
+## Development Setup
+
+### Prerequisites
+
+- Node.js (version specified in .nvmrc)
+- npm (package manager - NOT pnpm)
+- Git
+- Neon PostgresDB account and database instance
+
+### Database Setup
+
+- Use Neon PostgresDB as primary database
+- Create account at https://neon.tech
+- Add connection string to `.env.local`
+- Reset database after schema changes: `curl -X POST http://localhost:3100/api/reset-db`
+
+### Getting Started
+
+1. Clone the repository
+2. Run `npm install`
+3. Copy `.env.example` to `.env.local`
+4. Run `npm run dev` to start development server on port 3100
+
+### Running Tests
+
+- Unit tests: `npm test`
+- E2E tests: `npm test:e2e`
+- Coverage report: `npm test:coverage`
+
+## Rule Type Registry System
+
+### Overview
+
+The Rule Type Registry System is a flexible, dynamic approach to managing different types of rules in the application. Instead of hardcoding validation logic, database schemas, and UI components for each rule type, this system allows you to define rule types declaratively and generates all the necessary code automatically.
+
+### Key Benefits
+
+1. **Dynamic Rule Type Addition**: Add new rule types without modifying existing code
+2. **Automatic Code Generation**: Database schemas, validation, and UI components are generated automatically
+3. **Type Safety**: Full TypeScript support with generated interfaces
+4. **Consistent Patterns**: All rule types follow the same patterns and conventions
+5. **Extensible**: Easy to add new features and capabilities
+6. **Maintainable**: Single source of truth for each rule type definition
+
+### Core Components
+
+1. **Rule Type Registry** (`src/app/types/ruleTypeRegistry.ts`)
+
+   - Central registry for managing all rule types
+   - Provides validation, code generation, and management functions
+
+2. **Dynamic Database Service** (`src/app/lib/dynamicDatabaseService.ts`)
+
+   - Generic database operations for any rule type
+   - Automatic validation and checkpoint tracking
+
+3. **Dynamic API** (`src/app/api/dynamic/route.ts`)
+
+   - RESTful API for all rule types
+   - Single endpoint handles all CRUD operations
+
+4. **Rule Type Definitions** (`src/app/types/ruleTypeDefinitions.ts`)
+   - Declarative definitions of existing rule types
+
+### Registration Pattern
+
+Register the rule type with the registry:
+
+```typescript
+import { ruleTypeRegistry } from "./ruleTypeRegistry";
+import { myRuleType } from "./myRuleType";
+
+ruleTypeRegistry.register(myRuleType);
+```
+
+### Dynamic API Usage Pattern
+
+Use the dynamic API to perform operations:
+
+```typescript
+// Create a new instance
+const response = await fetch("/api/dynamic", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    ruleType: "my-rule-type",
+    data: {
+      name: "Example",
+      // ... other properties
+    },
+  }),
+});
+
+// Read an instance
+const response = await fetch("/api/dynamic?ruleType=my-rule-type&id=1");
+
+// List instances
+const response = await fetch("/api/dynamic?ruleType=my-rule-type");
+
+// Update an instance
+const response = await fetch("/api/dynamic", {
+  method: "PUT",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    ruleType: "my-rule-type",
+    id: 1,
+    data: {
+      name: "Updated Name",
+    },
+  }),
+});
+
+// Delete an instance
+const response = await fetch("/api/dynamic?ruleType=my-rule-type&id=1", {
+  method: "DELETE",
+});
+```
+
+### Best Practices for Rule Type Design
+
+1. **Clear Naming**: Use descriptive, consistent names
+2. **Proper Categorization**: Group related rule types
+3. **Comprehensive Validation**: Include all necessary validation rules
+4. **Version Management**: Use semantic versioning
+
+### Database Schema Design Rules
+
+1. **Consistent Naming**: Use snake_case for column names
+2. **Proper Indexing**: Add indexes for frequently queried columns
+3. **Foreign Keys**: Define relationships properly
+4. **Constraints**: Use database constraints for data integrity
+5. **Descriptions**: Include column descriptions for documentation
+
+### UI Configuration Rules
+
+1. **User-Friendly Labels**: Use clear, descriptive labels
+2. **Helpful Placeholders**: Provide example values
+3. **Logical Grouping**: Organize fields in logical sections
+4. **Responsive Design**: Consider mobile and desktop layouts
+5. **Accessibility**: Include proper ARIA labels and descriptions
+
+### Business Logic Hooks Rules
+
+1. **Validation**: Use hooks for complex validation logic
+2. **Data Transformation**: Transform data as needed
+3. **Side Effects**: Handle external integrations
+4. **Error Handling**: Provide meaningful error messages
+5. **Logging**: Log important operations for debugging
+
+## Critical Reminders
+
+### Before Submitting Code
+
+- Run all tests locally (`npm test`)
+- Update documentation if needed
+- Ensure code follows style guidelines
+- Self-review your changes
+- Add meaningful test coverage
+
+### Common Pitfalls to Avoid
+
+- Using `any` type in production or test files
+- Including test-only code in production files
+- Not calling `getToolsContext()` with required arguments
+- Not calling `createStreamProcessor()` with all required arguments
+- Using unquoted reserved keywords in SQL queries
+- Not resetting database after schema changes
+- Duplicating system prompt in multiple files
+- Using names instead of IDs for database relationships
+- **Using wrong port (3000 instead of 3100)**
+- **Using wrong package manager (pnpm instead of npm)**
+- **Bypassing checkpoint system for database modifications**
+- **Forgetting to commit or rollback checkpoint sessions**
+- **Using createSharedTools() instead of createCheckpointSharedTools() in routes**
+- **Not handling checkpoint rollback failures gracefully**
+- **Not registering rule types in the registry**
+- **Missing required fields in rule type definitions**
+- **Inconsistent naming between TypeScript interface and database schema**
+
+### Validation Checklist
+
+- [ ] No `any` types used in production or test files
+- [ ] All functions have proper parameter and return types
+- [ ] No test-only code or jest references in production files
+- [ ] All reserved keywords are quoted in SQL queries
+- [ ] Database schema is up to date (reset if needed)
+- [ ] System prompt is imported from single source
+- [ ] All IDs are integers in database operations
+- [ ] Field management follows proper patterns
+- [ ] All tests pass
+- [ ] Error handling is implemented
+- [ ] Security best practices are followed
+- [ ] **Using correct port (3100) in all commands and examples**
+- [ ] **Using correct package manager (npm) in all commands and examples**
+- [ ] **Checkpoint system is used for all database modification tools**
+- [ ] **No direct use of createSharedTools() in production routes (use createCheckpointSharedTools())**
+- [ ] **Checkpoint sessions are properly committed or rolled back**
+- [ ] **No orphaned active checkpoints in database**
+- [ ] **Rule types are properly registered in the registry**
+- [ ] **All required fields are included in rule type definitions**
+- [ ] **TypeScript interface matches database schema naming**
+- [ ] **Validation schema covers all required validations**
+- [ ] **All modals use ModalPortal component for rendering**
+- [ ] **All modals use absolute positioning (not fixed)**
+- [ ] **All modal overlays include modal-overlay class**
+- [ ] **All modal content includes role="dialog" attribute**
+- [ ] **Main content area has correct ID and data attributes**
+- [ ] **AI Quick Action context isolation tested with modals**
+
+## LLM Tool Usage Rules (Authoritative)
+
+- Tool-first policy: Tool descriptions are the source of truth for behavior. Assume clients may only see the tool descriptions (e.g., MCP); do not rely on hidden system prompts.
+- Language-agnostic: Do not depend on English keywords or heuristics to infer intent. Users may speak any language.
+- Destructive actions (deleteCase, deleteField, deleteView):
+  - Permanent and not recoverable.
+  - Only call when the user is explicit about deletion. If ambiguous, ask the user to confirm first (use the user’s language).
+- Workflow operations:
+  - New workflow: createCase → saveFields → saveView → saveCase to persist the structural model.
+  - Existing workflow: use saveFields for field-only edits; use saveView for view composition/layout; use saveCase only for structural changes (stages/processes/steps).
+- Conventions:
+  - IDs must be integers (never strings).
+- What to avoid:
+  - No language-specific keyword gates (e.g., searching for “delete” tokens).
+  - No grafting of additional instructions into the user prompt; keep guidance in system and tool descriptions.
+
+### Destructive Action Confirmation Template
+
+If deletion intent is ambiguous, ask: "Please confirm you want to permanently delete this item; this action cannot be undone." Then stop until the user responds.
+
+## Modal System and AI Quick Action Context Isolation (CRITICAL)
+
+### Modal Architecture Rules
+
+The modal system is designed to ensure proper isolation of AI Quick Action context. **These rules must be strictly followed** to prevent breaking this functionality:
+
+#### 1. Modal Portal System (MANDATORY)
+
+- **All modals MUST use the `ModalPortal` component** for rendering
+- **Portal target**: Modals are rendered into the `#main-content-area` container, NOT `document.body`
+- **Never bypass the portal system** - direct modal rendering breaks context isolation
+
+```typescript
+// CORRECT: Use ModalPortal for all modals
+<ModalPortal isOpen={isModalOpen}>
+  <SomeModal isOpen={isModalOpen} onClose={onClose} />
+</ModalPortal>
+
+// WRONG: Direct modal rendering
+<SomeModal isOpen={isModalOpen} onClose={onClose} />
+```
+
+#### 2. Modal Positioning Rules (CRITICAL)
+
+- **Use `absolute` positioning, NEVER `fixed`** - modals must be contained within main content area
+- **Background overlay**: `absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay`
+- **Modal content**: `absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90]`
+- **Required classes**: All modal overlays MUST include `modal-overlay` class
+- **Required attributes**: All modal content MUST include `role="dialog"` attribute
+
+```typescript
+// CORRECT: Absolute positioning with required classes/attributes
+<div className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay" onClick={onClose} />
+<div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90]" role="dialog">
+  {children}
+</div>
+
+// WRONG: Fixed positioning
+<div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[80]" onClick={onClose} />
+<div className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90]">
+  {children}
+</div>
+```
+
+#### 3. Main Content Area Requirements
+
+- **Container ID**: Main content area MUST have `id="main-content-area"`
+- **Data attribute**: Main content area MUST have `data-main-content="true"`
+- **Positioning context**: Main content area MUST have `relative` positioning class
+- **Portal integration**: ModalPortal automatically targets this container
+
+```typescript
+// CORRECT: Main content container setup
+<main
+  id="main-content-area"
+  className="flex-1 overflow-auto relative"
+  data-main-content="true"
+>
+  {/* Main content */}
+</main>
+```
+
+#### 4. Context Filtering System (DO NOT MODIFY)
+
+The AI Quick Action context filtering in `useFreeFormSelection.ts` uses specific selectors to exclude modal content:
+
+```typescript
+// This filtering logic is CRITICAL - do not modify without understanding implications
+.filter((el) => {
+  const modalPortal = el.closest('[data-modal-portal="true"]');
+  const modalOverlay = el.closest('.modal-overlay, [class*="z-40"], [class*="z-50"], [class*="z-60"]');
+  const withinModal = el.closest('[role="dialog"], .modal, [class*="backdrop-blur"]');
+  return !modalPortal && !modalOverlay && !withinModal;
+});
+```
+
+#### 5. Modal Component Standards
+
+Every modal component must follow these patterns:
+
+- **Portal wrapping**: Always wrap in `ModalPortal`
+- **Portal data attribute**: Content wrapped in `<div data-modal-portal="true">`
+- **Overlay class**: Background overlay must include `modal-overlay` class
+- **Dialog role**: Modal content must have `role="dialog"` attribute
+- **Z-index hierarchy**: Use `z-[80]` for modal overlay, `z-[90]` for modal content
+- **Click outside**: Overlay click should close modal
+- **Note**: Free form selection overlay uses `z-[100]` to appear above modals
+
+#### 6. Z-Index Hierarchy (CRITICAL)
+
+The z-index values must be maintained in this specific order:
+
+- **Base content**: `z-0` to `z-10` (normal page content)
+- **Modal overlays**: `z-[80]` (modal background overlays)
+- **Modal content**: `z-[90]` (modal dialog content)
+- **Selection overlay**: `z-[100]` (free form selection overlay - must be above modals)
+- **Quick chat**: `z-[110]` (quick chat input - must be above selection overlay)
+
+**NEVER change these values without understanding the full hierarchy!**
+
+#### 7. Side Panel Integration
+
+- **Modal containment**: Modals are contained within main content area, never overlap side panel
+- **Responsive sizing**: Modals automatically adjust when side panel expands/collapses
+- **Accessibility**: Side panel remains fully accessible when modals are open
+
+#### 8. Prohibited Practices
+
+**NEVER do these things as they will break modal isolation:**
+
+- ❌ Render modals directly to `document.body`
+- ❌ Use `fixed` positioning for modal containers
+- ❌ Bypass the `ModalPortal` component
+- ❌ Remove `modal-overlay` class from overlays
+- ❌ Remove `role="dialog"` from modal content
+- ❌ Modify the context filtering logic without full understanding
+- ❌ Change the main content area's ID or data attributes
+
+#### 9. Testing Modal Isolation
+
+When modifying modal code, verify:
+
+1. **AI Quick Action works correctly**: Context only includes modal content when modal is open
+2. **Modal positioning**: Modals stay within main content area boundaries
+3. **Side panel accessibility**: Side panel remains usable when modals are open
+4. **Responsive behavior**: Modals resize properly with side panel state changes
+5. **Selection overlay**: Cursor changes to crosshair when hovering over modal content during selection mode
+
+#### 10. Common Modal Components
+
+All these components follow the correct pattern:
+
+- `AddFieldModal`, `EditFieldModal`
+- `AddStageModal`, `AddProcessModal`, `AddStepModal`
+- `StepConfigurationModal`, `EditWorkflowModal`
+- `DeleteWorkflowModal`
+
+#### 11. Modal Development Checklist
+
+When creating or modifying modals:
+
+- [ ] Wrapped in `ModalPortal` component
+- [ ] Uses `absolute` positioning (not `fixed`)
+- [ ] Includes `modal-overlay` class on background
+- [ ] Includes `role="dialog"` on modal content
+- [ ] Uses correct z-index hierarchy (`z-[80]`/`z-[90]`)
+- [ ] Renders into `#main-content-area` container
+- [ ] Tested with AI Quick Action for context isolation
+- [ ] Tested with side panel expansion/collapse
+
+### Why This Architecture Matters
+
+This modal system ensures that:
+
+1. **AI Quick Action context is properly isolated** - when a modal is open, only modal content is captured
+2. **Modals don't interfere with side panel** - users can still access chat and other side panel features
+3. **Responsive design works correctly** - modals automatically adapt to layout changes
+4. **Accessibility is maintained** - proper focus management and screen reader support
+
+**Breaking these rules will result in broken AI Quick Action functionality and poor user experience.**
