@@ -30,47 +30,202 @@ export interface SharedTool<TParams, TResult> {
 export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
   const tools: SharedTool<any, any>[] = [
     {
+      name: "saveApplication",
+      description:
+        "Creates or updates an application (name, description, icon) and links provided workflow IDs (cases) to it. New application flow: 1) Call saveApplication first with name/description (and optional icon) to create the application and get its id. 2) Create one or more workflows (cases), passing applicationid into createCase so they are linked upon creation. 3) Optionally call saveApplication again with workflowIds to ensure associations (useful if any case was created without applicationid).",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Application ID (omit for create)",
+          },
+          name: { type: "string", description: "Application name" },
+          description: {
+            type: "string",
+            description: "Application description",
+          },
+          icon: { type: "string", description: "Icon (optional)" },
+          workflowIds: {
+            type: "array",
+            description:
+              "List of workflow (case) IDs to associate with this application",
+            items: { type: "integer" },
+          },
+        },
+        required: ["name", "description"],
+      },
+      execute: async (params: {
+        id?: number;
+        name: string;
+        description: string;
+        icon?: string;
+        workflowIds?: number[];
+      }) => {
+        console.log("=== saveApplication EXECUTION STARTED ===");
+        console.log(
+          "saveApplication parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("saveApplication called at:", new Date().toISOString());
+
+        const { id, name, description, icon, workflowIds } = params;
+
+        if (!name) throw new Error("Application name is required");
+        if (!description)
+          throw new Error("Application description is required");
+
+        let applicationId = id;
+        if (applicationId) {
+          const updateQuery = `
+            UPDATE "${DB_TABLES.APPLICATIONS}"
+            SET name = $1, description = $2, icon = $3
+            WHERE id = $4
+            RETURNING id, name, description, icon
+          `;
+          const updateRes = await pool.query(updateQuery, [
+            name,
+            description,
+            icon ?? null,
+            applicationId,
+          ]);
+          if (updateRes.rowCount === 0) {
+            throw new Error(`No application found with id ${applicationId}`);
+          }
+        } else {
+          const insertQuery = `
+            INSERT INTO "${DB_TABLES.APPLICATIONS}" (name, description, icon)
+            VALUES ($1, $2, $3)
+            RETURNING id, name, description, icon
+          `;
+          const insertRes = await pool.query(insertQuery, [
+            name,
+            description,
+            icon ?? null,
+          ]);
+          applicationId = insertRes.rows[0].id;
+        }
+
+        if (workflowIds && workflowIds.length > 0) {
+          // Associate the specified workflows to this application
+          const linkQuery = `
+            UPDATE "${DB_TABLES.CASES}"
+            SET applicationid = $1
+            WHERE id = ANY($2)
+          `;
+          await pool.query(linkQuery, [applicationId, workflowIds]);
+        }
+
+        return {
+          id: applicationId,
+          name,
+          description,
+          icon: icon ?? null,
+          workflowIds: workflowIds ?? [],
+        };
+      },
+    },
+    {
+      name: "getApplication",
+      description:
+        "Gets application metadata (name, description, icon) and the list of associated workflow (case) IDs.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "integer", description: "Application ID" },
+        },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        console.log("=== getApplication EXECUTION STARTED ===");
+        console.log(
+          "getApplication parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("getApplication called at:", new Date().toISOString());
+
+        const appQuery = `
+          SELECT id, name, description, icon
+          FROM "${DB_TABLES.APPLICATIONS}"
+          WHERE id = $1
+        `;
+        const appRes = await pool.query(appQuery, [params.id]);
+        if (appRes.rowCount === 0) {
+          throw new Error(`No application found with id ${params.id}`);
+        }
+        const app = appRes.rows[0];
+
+        const casesQuery = `
+          SELECT id
+          FROM "${DB_TABLES.CASES}"
+          WHERE applicationid = $1
+          ORDER BY name
+        `;
+        const casesRes = await pool.query(casesQuery, [params.id]);
+        const workflowIds = casesRes.rows.map((r) => r.id as number);
+
+        return {
+          id: app.id,
+          name: app.name,
+          description: app.description,
+          icon: app.icon ?? null,
+          workflowIds,
+        };
+      },
+    },
+    {
       name: "createCase",
       description:
-        "STEP 1: Creates a new case with only name and description. Returns the case ID that you MUST use for all subsequent operations (saveField, saveView). This is the FIRST tool to call when creating a new workflow.",
+        "Creates a new case (workflow). REQUIRED: applicationid, name, description. Returns the new case ID that you MUST use for all subsequent operations (saveFields, saveView). The case will be linked to the specified application on insert.",
       parameters: {
         type: "object",
         properties: {
           name: { type: "string", description: "Case name" },
           description: { type: "string", description: "Case description" },
+          applicationid: {
+            type: "integer",
+            description: "Application ID this case belongs to (REQUIRED)",
+          },
         },
-        required: ["name", "description"],
+        required: ["name", "description", "applicationid"],
       },
       execute: async (params: CreateCaseParams) => {
         console.log("=== createCase EXECUTION STARTED ===");
         console.log("createCase parameters:", JSON.stringify(params, null, 2));
         console.log("createCase called at:", new Date().toISOString());
 
-        const { name, description } = params;
+        const { name, description } = params as any;
+        const applicationid: number | undefined = (params as any).applicationid;
 
         // Validation
         if (!name) throw new Error("Case name is required for createCase");
         if (!description)
           throw new Error("Case description is required for createCase");
+        if (
+          typeof applicationid !== "number" ||
+          !Number.isFinite(applicationid)
+        ) {
+          throw new Error(
+            "Application ID (applicationid) is required for createCase",
+          );
+        }
 
-        // Create new case with empty model
+        // Create new case with empty model and required applicationid
         const query = `
-          INSERT INTO "${DB_TABLES.CASES}" (name, description, model)
-          VALUES ($1, $2, $3)
-          RETURNING id, name, description, model
+          INSERT INTO "${DB_TABLES.CASES}" (name, description, model, applicationid)
+          VALUES ($1, $2, $3, $4)
+          RETURNING id, name, description, model, applicationid
         `;
+        const values = [
+          name,
+          description,
+          JSON.stringify({ stages: [] }),
+          applicationid,
+        ];
         console.log("createCase INSERT query:", query);
-        console.log("createCase INSERT query values:", [
-          name,
-          description,
-          JSON.stringify({ stages: [] }),
-        ]);
+        console.log("createCase INSERT query values:", values);
 
-        const result = await pool.query(query, [
-          name,
-          description,
-          JSON.stringify({ stages: [] }),
-        ]);
+        const result = await pool.query(query, values);
         const caseData = result.rows[0] || {};
 
         console.log("createCase INSERT successful:", {

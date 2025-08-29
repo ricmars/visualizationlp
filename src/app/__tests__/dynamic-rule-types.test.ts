@@ -42,10 +42,14 @@ describe("Dynamic Rule Type System", () => {
 
       // Check that the core rule types are registered
       const caseType = registeredTypes.find((rt) => rt.id === "case");
+      const applicationType = registeredTypes.find(
+        (rt) => rt.id === "application",
+      );
       const fieldType = registeredTypes.find((rt) => rt.id === "field");
       const viewType = registeredTypes.find((rt) => rt.id === "view");
 
       expect(caseType).toBeDefined();
+      expect(applicationType).toBeDefined();
       expect(fieldType).toBeDefined();
       expect(viewType).toBeDefined();
     });
@@ -55,6 +59,7 @@ describe("Dynamic Rule Type System", () => {
 
       // Should contain CREATE TABLE statements for all rule types
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Cases"');
+      expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Applications"');
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Fields"');
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Views"');
     });

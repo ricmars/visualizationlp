@@ -2,6 +2,7 @@ import { getCompleteToolsContext } from "./databasePrompt";
 
 // Add ToolResult type for tool result objects
 export type ToolResult = {
+  id?: number;
   name?: string;
   fields?: unknown[];
   ids?: unknown[];
@@ -89,7 +90,17 @@ export function createStreamProcessor(
         const resultObj: ToolResult = result as ToolResult;
         let userMessage = "Operation completed successfully";
 
-        if (toolName === "saveCase") {
+        if (toolName === "createCase") {
+          userMessage = `Created case '${(resultObj as any).name || "Unknown"}`;
+          // Inform client about newly created case ID for navigation
+          try {
+            await safeWrite({
+              event: "caseCreated",
+              id: (resultObj as any).id,
+              name: (resultObj as any).name,
+            });
+          } catch {}
+        } else if (toolName === "saveCase") {
           userMessage = `Workflow '${
             resultObj.name || "Unknown"
           }' saved successfully`;

@@ -4,6 +4,7 @@ import { ruleTypeRegistry } from "./ruleTypeRegistry";
 // Database column names
 export const DB_COLUMNS = {
   CASE_ID: "caseid",
+  APPLICATION_ID: "applicationid",
   ID: "id",
   NAME: "name",
   DESCRIPTION: "description",
@@ -11,6 +12,7 @@ export const DB_COLUMNS = {
   TYPE: "type",
   PRIMARY: "primary",
   LABEL: "label",
+  ICON: "icon",
   ORDER: "order",
   OPTIONS: "options",
   REQUIRED: "required",
@@ -21,6 +23,10 @@ export const DB_TABLES = {
   get CASES() {
     const ruleType = ruleTypeRegistry.get("case");
     return ruleType?.databaseSchema.tableName || "Cases";
+  },
+  get APPLICATIONS() {
+    const ruleType = ruleTypeRegistry.get("application");
+    return ruleType?.databaseSchema.tableName || "Applications";
   },
   get FIELDS() {
     const ruleType = ruleTypeRegistry.get("field");

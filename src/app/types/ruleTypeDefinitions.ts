@@ -64,6 +64,12 @@ export const caseRuleType: RuleTypeDefinition = {
         description: "Primary key identifier",
       },
       {
+        name: "applicationid",
+        type: "INTEGER",
+        nullable: true,
+        description: "Reference to parent application",
+      },
+      {
         name: "name",
         type: "TEXT",
         nullable: false,
@@ -82,10 +88,23 @@ export const caseRuleType: RuleTypeDefinition = {
         description: "JSON workflow model",
       },
     ],
+    foreignKeys: [
+      {
+        name: "cases_applicationid_fkey",
+        columns: ["applicationid"],
+        referenceTable: "Applications",
+        referenceColumns: ["id"],
+        onDelete: "SET NULL",
+      },
+    ],
     indexes: [
       {
         name: "cases_name_idx",
         columns: ["name"],
+      },
+      {
+        name: "cases_applicationid_idx",
+        columns: ["applicationid"],
       },
     ],
   },
@@ -127,6 +146,47 @@ export const caseRuleType: RuleTypeDefinition = {
     afterCreate: async (data, id) => {
       console.log(`Created case ${id}: ${data.name}`);
     },
+  },
+};
+
+// Application Rule Type Definition
+export const applicationRuleType: RuleTypeDefinition = {
+  id: "application",
+  name: "Application",
+  description:
+    "An application that groups multiple workflows (cases). Includes name, description, and icon.",
+  category: "app",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "Application",
+    description: "An application that groups multiple workflows (cases).",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      { name: "name", type: "string", description: "Application name" },
+      {
+        name: "description",
+        type: "string",
+        description: "Application description",
+      },
+      { name: "icon", type: "string", optional: true, description: "Icon" },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "Applications",
+    columns: [
+      { name: "id", type: "INTEGER", primaryKey: true, nullable: false },
+      { name: "name", type: "TEXT", nullable: false },
+      { name: "description", type: "TEXT", nullable: false },
+      { name: "icon", type: "TEXT", nullable: true },
+    ],
+    indexes: [{ name: "applications_name_idx", columns: ["name"] }],
   },
 };
 
@@ -452,6 +512,8 @@ export const viewRuleType: RuleTypeDefinition = {
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
+    // Register Applications first so Cases can reference it via FK
+    ruleTypeRegistry.register(applicationRuleType);
     ruleTypeRegistry.register(caseRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);

@@ -10,6 +10,9 @@
   --stage-height: 64px;
   --stage-min-width: 200px;
   --animation-duration: 500ms;
+  /* Spacing tokens */
+  --Spacing-1x: 7px;
+  --Spacing-2x: 14px;
 
   /* Stage Colors - Updated for better contrast */
   --stage-intake: #0a4b9f; /* Darker blue for better contrast */
@@ -31,6 +34,14 @@
   /* App header tokens */
   --header-height: 49px;
   --color-header-bg: #000000;
+
+  /* Input tokens */
+  --input-fg: #ffffff;
+  --input-bg: #181d2a;
+  --input-border-color: rgba(245, 248, 249, 0.4);
+  --input-radius: var(--Input-radius-Medium, 4px);
+  --input-height: 32px;
+  --input-padding: 0 4px 0 8px;
 }
 
 /* Tailwind v4 theme tokens mapped to CSS variables */
@@ -80,6 +91,34 @@ body {
   /* Semantic utility for modal surfaces */
   .modal-surface {
     @apply bg-modal text-modal-text;
+  }
+
+  /* Launchpad input style */
+  .lp-input {
+    color: var(--input-fg);
+    background-color: var(--input-bg);
+    border-radius: var(--input-radius);
+    border: 1px solid var(--input-border-color);
+    height: var(--input-height);
+    padding: var(--input-padding);
+    outline: none;
+  }
+  .lp-input:focus {
+    border-color: #8ab4ff; /* subtle focus ring */
+    box-shadow: 0 0 0 1px #8ab4ff33;
+  }
+
+  /* Textareas should not be constrained by fixed input height */
+  textarea.lp-input {
+    height: auto;
+  }
+
+  /* Interactive button style */
+  .interactive-button {
+    border-radius: 6px;
+    border: 1px solid #75d7cd;
+    background: #75d7cd;
+    padding: var(--Spacing-1x, 7px) var(--Spacing-2x, 14px);
   }
 }
 

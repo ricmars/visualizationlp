@@ -110,6 +110,7 @@ export async function POST(request: NextRequest) {
         "deleteField",
         "deleteView",
         "createCase",
+        "saveApplication",
       ];
       const needsCheckpoint = modificationTools.includes(name);
 

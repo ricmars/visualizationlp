@@ -121,6 +121,7 @@ export function createCheckpointTools(pool: Pool) {
             "deleteField",
             "deleteView",
             "createCase",
+            "saveApplication",
           ].includes(tool.name)
         ) {
           return await executeCheckpointAwareTool(
@@ -166,6 +167,10 @@ async function executeCheckpointAwareTool(
 
     case "saveCase":
       return await wrapSaveCase(originalExecute, params, pool);
+
+    case "saveApplication":
+      // Treat as update to Applications table; capture insert/update accordingly handled inside wrapper
+      return await wrapSaveApplication(originalExecute, params, pool);
 
     case "deleteField":
     case "deleteView":
@@ -248,6 +253,61 @@ async function wrapSaveCase(originalExecute: any, params: any, pool: Pool) {
       { id: caseId },
       previousData,
     );
+  }
+
+  return result;
+}
+
+async function wrapSaveApplication(
+  originalExecute: any,
+  params: any,
+  pool: Pool,
+) {
+  console.log("Wrapping saveApplication with checkpoint capture");
+
+  // Capture previous app state when updating
+  const appId = params.id as number | undefined;
+  let previousData = null;
+  if (appId) {
+    try {
+      const res = await pool.query(
+        `SELECT * FROM "${DB_TABLES.APPLICATIONS}" WHERE id = $1`,
+        [appId],
+      );
+      previousData = res.rows[0] || null;
+    } catch (e) {
+      console.warn("Could not capture previous application data:", e);
+    }
+  }
+
+  const result = await originalExecute(params);
+
+  // Capture insert or update
+  if (!appId && result?.id) {
+    await captureOperation("insert", DB_TABLES.APPLICATIONS, { id: result.id });
+  } else if (appId && previousData) {
+    await captureOperation(
+      "update",
+      DB_TABLES.APPLICATIONS,
+      { id: appId },
+      previousData,
+    );
+  }
+
+  // Also capture linking cases to application as updates to Cases
+  if (Array.isArray(params.workflowIds) && params.workflowIds.length > 0) {
+    for (const cid of params.workflowIds) {
+      try {
+        const before = await pool.query(
+          `SELECT * FROM "${DB_TABLES.CASES}" WHERE id = $1`,
+          [cid],
+        );
+        const prev = before.rows[0] || null;
+        await captureOperation("update", DB_TABLES.CASES, { id: cid }, prev);
+      } catch (e) {
+        console.warn("Could not capture case link update for case", cid, e);
+      }
+    }
   }
 
   return result;

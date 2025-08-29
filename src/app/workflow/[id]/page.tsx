@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams, useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 
 // Dynamic imports to prevent SSR issues with Pega components
@@ -118,6 +118,8 @@ interface ComposedModel {
 export default function WorkflowPage() {
   // 1. Router and params hooks
   const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const id = params?.id as string;
 
   // 2. All useState hooks
@@ -158,6 +160,10 @@ export default function WorkflowPage() {
     string | null
   >(null);
   const [selectedView, setSelectedView] = useState<string | null>(null);
+  const [applicationWorkflows, setApplicationWorkflows] = useState<
+    Array<{ id: number; name: string }>
+  >([]);
+  const [applicationId, setApplicationId] = useState<number | null>(null);
   const [newProcessName, setNewProcessName] = useState("");
 
   // Free Form selection & quick chat state
@@ -318,6 +324,61 @@ export default function WorkflowPage() {
   // replaced by useQuickChat
 
   // Resizing mouse handlers are provided by useChatPanel
+
+  // Load checkpoints from sessionStorage
+  useEffect(() => {
+    // If opened in application context, load workflows list for dropdown
+    const appIdParam = searchParams?.get("applicationId");
+    if (appIdParam) {
+      const appIdNum = parseInt(appIdParam, 10);
+      if (!Number.isNaN(appIdNum)) {
+        setApplicationId(appIdNum);
+        (async () => {
+          try {
+            const res = await fetch(
+              `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
+            );
+            if (res.ok) {
+              const data = await res.json();
+              const list =
+                (data?.data as Array<{ id: number; name: string }>) || [];
+              setApplicationWorkflows(
+                list.map((w) => ({ id: w.id, name: w.name })),
+              );
+            }
+          } catch {}
+        })();
+      }
+    }
+  }, [searchParams]);
+
+  // If not in application context, load a global list of cases for picker
+  useEffect(() => {
+    const appIdParam = searchParams?.get("applicationId");
+    if (!appIdParam) {
+      (async () => {
+        try {
+          const res = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+          if (res.ok) {
+            const data = await res.json();
+            const list =
+              (data?.data as Array<{ id: number; name: string }>) || [];
+            setApplicationWorkflows(
+              list.map((w) => ({ id: w.id, name: w.name })),
+            );
+          }
+        } catch {}
+      })();
+    }
+  }, [searchParams]);
+
+  const handleChangeWorkflow = useCallback(
+    (nextId: number) => {
+      const query = applicationId ? `?applicationId=${applicationId}` : "";
+      router.push(`/workflow/${nextId}${query}`);
+    },
+    [router, applicationId],
+  );
 
   // Load checkpoints from sessionStorage
   useEffect(() => {
@@ -606,6 +667,72 @@ export default function WorkflowPage() {
     }
   };
 
+  const handleDeleteWorkflow = async () => {
+    if (!selectedCase) return;
+    try {
+      // Delete checkpoints for this case (if any)
+      try {
+        await fetch(`/api/checkpoint?action=deleteAll`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ caseid: selectedCase.id }),
+        });
+      } catch {}
+
+      // Delete the case with cascading cleanup
+      const delRes = await fetch(
+        `/api/dynamic?ruleType=case&id=${selectedCase.id}`,
+        { method: "DELETE" },
+      );
+      if (!delRes.ok) {
+        const errorText = await delRes.text();
+        throw new Error(`Failed to delete case: ${delRes.status} ${errorText}`);
+      }
+
+      // After deletion, try to navigate to the first remaining case
+      let nextCaseId: number | null = null;
+      let query = "";
+      if (applicationId) {
+        query = `?applicationId=${applicationId}`;
+        try {
+          const listRes = await fetch(
+            `/api/database?table=${DB_TABLES.CASES}&applicationid=${applicationId}`,
+          );
+          if (listRes.ok) {
+            const data = await listRes.json();
+            const list =
+              (data?.data as Array<{ id: number }> | undefined) || [];
+            nextCaseId = list[0]?.id ?? null;
+          }
+        } catch {}
+      } else {
+        try {
+          const listRes = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+          if (listRes.ok) {
+            const data = await listRes.json();
+            const list =
+              (data?.data as Array<{ id: number }> | undefined) || [];
+            nextCaseId = list[0]?.id ?? null;
+          }
+        } catch {}
+      }
+
+      if (nextCaseId) {
+        router.push(`/workflow/${nextCaseId}${query}`);
+      } else {
+        // No cases available; navigate to home (empty pattern)
+        router.push("/");
+      }
+    } catch (error) {
+      console.error("Error deleting workflow:", error);
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to delete workflow. Please try again.",
+      );
+    }
+  };
+
   const handleFieldsReorder = async (
     selectedViewId: string,
     fieldIds: number[],
@@ -837,9 +964,12 @@ export default function WorkflowPage() {
         <WorkflowTopBar
           selectedCaseName={selectedCase?.name}
           canEdit={Boolean(selectedCase)}
-          onEditWorkflow={() => setIsEditWorkflowModalOpen(true)}
+          onEditWorkflowAction={() => setIsEditWorkflowModalOpen(true)}
           isPreviewMode={isPreviewMode}
-          onTogglePreview={() => setIsPreviewMode(!isPreviewMode)}
+          onTogglePreviewAction={() => setIsPreviewMode(!isPreviewMode)}
+          workflows={applicationWorkflows}
+          activeWorkflowId={parseInt(id)}
+          onChangeWorkflowAction={handleChangeWorkflow}
         />
 
         {/* Tabs - Only show when not in preview mode */}
@@ -1042,6 +1172,7 @@ export default function WorkflowPage() {
             isOpen={isEditWorkflowModalOpen}
             onClose={() => setIsEditWorkflowModalOpen(false)}
             onSubmit={handleEditWorkflow}
+            onDelete={handleDeleteWorkflow}
             initialData={{
               name: selectedCase?.name || "",
               description: selectedCase?.description || "",

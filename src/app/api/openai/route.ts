@@ -189,11 +189,9 @@ export async function POST(request: Request) {
       databaseTools.map((t) => t.name),
     );
 
-    // Filter out createCase if working on an existing workflow
-    let filteredTools = databaseTools;
-    if (currentCaseId) {
-      filteredTools = databaseTools.filter((t) => t.name !== "createCase");
-    }
+    // Always include all tools, even when working with an existing workflow.
+    // Users may initiate creation of a new workflow from within an existing case context.
+    const filteredTools = databaseTools;
 
     // Rely on tool descriptions and system guidance (no heuristic gating)
 
@@ -248,6 +246,19 @@ Bulk operations policy:
         let messages: ChatCompletionMessageParam[] = [
           { role: "system", content: enhancedSystemPrompt },
         ];
+        // Track newly created cases and views to enable auto-finalization if the model isn't saved
+        const createdCases = new Map<
+          number,
+          {
+            name: string;
+            description: string;
+            finalized: boolean;
+          }
+        >();
+        const viewsByCase = new Map<
+          number,
+          Array<{ id: number; name?: string }>
+        >();
 
         // If a prior history is provided from the client, include it before continuing
         if (Array.isArray(history)) {
@@ -681,35 +692,14 @@ Bulk operations policy:
               // Log context size (no trimming)
               trimMessages();
 
-              // Deduplicate createCase within the same iteration: allow only the first
-              const dedupedToolCalls: typeof toolCalls = [];
-              let seenCreateCase = false;
-              for (const tc of toolCalls) {
-                const name = tc.function.name;
-                if (name === "createCase") {
-                  if (seenCreateCase) {
-                    // Skip executing duplicate createCase; we'll emit an error tool message below
-                    dedupedToolCalls.push({
-                      ...tc,
-                      function: {
-                        ...tc.function,
-                        name: "__skip_createCase_duplicate__",
-                      },
-                    });
-                    continue;
-                  }
-                  seenCreateCase = true;
-                }
-                dedupedToolCalls.push(tc);
-              }
-              debugLog("deduping tool calls", {
-                originalCount: toolCalls.length,
-                dedupedCount: dedupedToolCalls.length,
+              // Allow multiple createCase calls in the same iteration (needed when creating multiple workflows)
+              const dedupedToolCalls: typeof toolCalls = toolCalls;
+              debugLog("tool calls (no dedup)", {
+                count: dedupedToolCalls.length,
                 names: dedupedToolCalls.map((t) => t.function.name),
               });
 
               // Execute all tool calls in parallel for better performance
-              let createdCaseId: number | null = null;
               const toolCallPromises = dedupedToolCalls.map(
                 async (toolCall) => {
                   const toolName = toolCall.function.name;
@@ -745,25 +735,6 @@ Bulk operations policy:
                     }
 
                     // No heuristic blocking: rely on tool descriptions for safety and confirmation
-
-                    // If this is a skipped duplicate createCase, emit a synthetic error tool message and return
-                    if (toolName === "__skip_createCase_duplicate__") {
-                      await processor.sendText(
-                        `\nSkipping duplicate createCase call in the same turn.`,
-                      );
-                      messages.push({
-                        role: "tool",
-                        content: JSON.stringify({
-                          error:
-                            "Duplicate createCase call skipped. A case was already created in this turn.",
-                        }),
-                        tool_call_id: toolCall.id,
-                      });
-                      return {
-                        success: false,
-                        error: "duplicate createCase skipped",
-                      };
-                    }
 
                     const tool = filteredTools.find((t) => t.name === toolName);
                     if (!tool) throw new Error(`Tool ${toolName} not found`);
@@ -802,18 +773,66 @@ Bulk operations policy:
                           : [],
                     });
 
-                    // Capture newly created case ID to prevent duplicate createCase calls
-                    if (
-                      toolName === "createCase" &&
-                      result &&
-                      (result as any).id
-                    ) {
-                      createdCaseId = Number((result as any).id) || null;
-                    }
-
                     // Don't send raw JSON tool results to the client
                     // Only send user-friendly messages for specific tools
                     const resultObj: ToolResult = result as ToolResult;
+                    // Track case/view creation and saveCase usage
+                    try {
+                      if (toolName === "createCase") {
+                        const caseId = (result as any)?.id;
+                        const caseName =
+                          (result as any)?.name ||
+                          (toolArgs as any)?.name ||
+                          "";
+                        const caseDesc =
+                          (result as any)?.description ||
+                          (toolArgs as any)?.description ||
+                          "";
+                        if (Number.isFinite(caseId)) {
+                          createdCases.set(caseId, {
+                            name: caseName,
+                            description: caseDesc,
+                            finalized: false,
+                          });
+                        }
+                      } else if (toolName === "saveCase") {
+                        const caseId =
+                          (result as any)?.id ?? (toolArgs as any)?.id;
+                        if (Number.isFinite(caseId)) {
+                          const prior = createdCases.get(caseId) || {
+                            name:
+                              (result as any)?.name ||
+                              (toolArgs as any)?.name ||
+                              "",
+                            description:
+                              (result as any)?.description ||
+                              (toolArgs as any)?.description ||
+                              "",
+                            finalized: true,
+                          };
+                          createdCases.set(caseId, {
+                            ...prior,
+                            finalized: true,
+                          });
+                        }
+                      } else if (toolName === "saveView") {
+                        const viewId = (result as any)?.id;
+                        const caseId =
+                          (result as any)?.caseid ?? (toolArgs as any)?.caseid;
+                        const viewName =
+                          (result as any)?.name || (toolArgs as any)?.name;
+                        if (
+                          Number.isFinite(caseId) &&
+                          Number.isFinite(viewId)
+                        ) {
+                          const arr = viewsByCase.get(caseId) || [];
+                          arr.push({ id: viewId, name: viewName });
+                          viewsByCase.set(caseId, arr);
+                        }
+                      }
+                    } catch (_trackErr) {
+                      // Non-fatal: tracking is best-effort
+                    }
                     if (toolName === "saveCase") {
                       await processor.sendText(
                         `\nWorkflow '${
@@ -999,18 +1018,7 @@ Bulk operations policy:
                 break;
               }
 
-              // If a new case was created in this iteration, update context to EXISTING and disable createCase for subsequent iterations
-              if (createdCaseId && Number.isInteger(createdCaseId)) {
-                currentCaseId = createdCaseId;
-                // Update filtered tools so createCase cannot be executed again in this session
-                filteredTools = filteredTools.filter(
-                  (t) => t.name !== "createCase",
-                );
-
-                // Inform the model about the updated context and restriction
-                const updatedContextLine = `Context update: caseId=${currentCaseId}; mode=EXISTING. Do NOT call createCase again; continue with saveFields, saveView, and saveCase using this caseId.`;
-                messages.push({ role: "system", content: updatedContextLine });
-              }
+              // Do not disable createCase after first creation; creating an application may require multiple workflows
 
               // Generic post-condition verification loop:
               // After any mutating tool call (saveCase/saveView/saveFields/delete*), ask the model to self-verify against the user goal.
@@ -1091,10 +1099,20 @@ Bulk operations policy:
                   .map((m) => (typeof m.content === "string" ? m.content : ""))
                   .join("\n");
 
+                // Enforce multi-workflow requirement for new applications when requested
+                const enforceTwoWorkflows = /Create a new application/i.test(
+                  enhancedPrompt,
+                );
+                const enforcementNote = enforceTwoWorkflows
+                  ? " Additionally, if creating a new application, ensure that at least two distinct workflows (two different case IDs) have been fully created and saved (fields, views, and saveCase). If fewer than two workflows exist, continue creating additional workflows now before completing."
+                  : "";
+
                 messages.push({
                   role: "system",
                   content:
-                    "Post-condition check: Verify the user's goal is truly satisfied based on the latest state. If anything is missing or inconsistent, call the appropriate tools to fix it. If everything is correct, output EXACTLY the following two lines and nothing else:\n\n[[COMPLETED]]\nTask completed successfully.",
+                    "Post-condition check: Verify the user's goal is truly satisfied based on the latest state. If anything is missing or inconsistent, call the appropriate tools to fix it." +
+                    enforcementNote +
+                    " If everything is correct, output EXACTLY the following two lines and nothing else:\n\n[[COMPLETED]]\nTask completed successfully.",
                 });
                 messages.push({
                   role: "user",
@@ -1170,7 +1188,91 @@ Bulk operations policy:
         );
         console.log(`Tool call history:`, toolCallHistory);
 
-        // Finalization is handled by the model output and tool results; no heuristic completion checks
+        // Auto-finalize any newly created cases that still have an empty model but have views
+        try {
+          const findTool = (name: string) =>
+            filteredTools.find((t) => t.name === name);
+          const getCaseTool = findTool("getCase");
+          const saveCaseTool = findTool("saveCase");
+          if (getCaseTool && saveCaseTool) {
+            for (const [caseId, meta] of createdCases.entries()) {
+              if (meta.finalized) continue;
+              const views = viewsByCase.get(caseId) || [];
+              if (views.length === 0) continue;
+
+              let caseInfo: any = null;
+              try {
+                caseInfo = await (getCaseTool as any).execute({ id: caseId });
+              } catch (e) {
+                console.warn("Auto-finalize: failed to load case", caseId, e);
+                continue;
+              }
+
+              const modelObj = (caseInfo && caseInfo.model) || { stages: [] };
+              const stagesLen = Array.isArray(modelObj.stages)
+                ? modelObj.stages.length
+                : 0;
+              if (stagesLen > 0) continue;
+
+              const primaryViewId = views[0].id;
+              const nowName =
+                caseInfo?.name || meta.name || `Workflow ${caseId}`;
+              const nowDesc = caseInfo?.description || meta.description || "";
+              const minimalModel = {
+                stages: [
+                  {
+                    id: 1,
+                    name: "Intake",
+                    order: 1,
+                    processes: [
+                      {
+                        id: 1,
+                        name: "Main",
+                        order: 1,
+                        steps: [
+                          {
+                            id: 1,
+                            type: "Collect information",
+                            name: views[0].name || "Data Entry",
+                            order: 1,
+                            viewId: primaryViewId,
+                          },
+                          {
+                            id: 2,
+                            type: "Decision",
+                            name: "Review",
+                            order: 2,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              };
+
+              try {
+                await (saveCaseTool as any).execute({
+                  id: caseId,
+                  name: nowName,
+                  description: nowDesc,
+                  model: minimalModel,
+                });
+                await processor.sendText(
+                  `\nAuto-finalized workflow '${nowName}' with a starter model.`,
+                );
+                console.log(
+                  `Auto-finalized case ${caseId} with minimal model referencing view ${primaryViewId}.`,
+                );
+              } catch (e) {
+                console.warn("Auto-finalize: saveCase failed for", caseId, e);
+              }
+            }
+          }
+        } catch (autoErr) {
+          console.warn("Auto-finalize step encountered an error:", autoErr);
+        }
+
+        // Finalization is handled by the model output and tool results; plus auto-fallback above
 
         // Commit/rollback checkpoint session depending on abort state
         try {

@@ -1,11 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreateWorkflowModal } from "./components/CreateWorkflowModal";
+import { CreateApplicationModal } from "./components/CreateApplicationModal";
 import DeleteWorkflowModal from "./components/DeleteWorkflowModal";
-import { Case } from "./types";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { FaTrash } from "react-icons/fa";
 import { fetchWithBaseUrl } from "./lib/fetchWithBaseUrl";
 import { Service } from "./services/service";
@@ -20,7 +18,14 @@ registerRuleTypes();
  * Handles workflow listing, creation, and deletion
  */
 export default function Home() {
-  const [cases, setCases] = useState<Case[]>([]);
+  const [applications, setApplications] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      icon?: string | null;
+    }>
+  >([]);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -34,19 +39,21 @@ export default function Home() {
   } | null>(null);
   const router = useRouter();
 
-  const refreshCases = async () => {
+  const refreshApplications = async () => {
     try {
       setIsLoading(true);
-      const response = await fetchWithBaseUrl(`/api/dynamic?ruleType=case`);
+      const response = await fetchWithBaseUrl(
+        `/api/dynamic?ruleType=application`,
+      );
       if (!response.ok) {
-        throw new Error(`Failed to fetch cases: ${response.status}`);
+        throw new Error(`Failed to fetch applications: ${response.status}`);
       }
       const data = await response.json();
-      setCases(data.data);
+      setApplications(data.data);
     } catch (error) {
-      console.error("Error fetching cases:", error);
+      console.error("Error fetching applications:", error);
       setError(
-        error instanceof Error ? error.message : "Failed to fetch cases",
+        error instanceof Error ? error.message : "Failed to fetch applications",
       );
     } finally {
       setIsLoading(false);
@@ -54,21 +61,21 @@ export default function Home() {
   };
 
   useEffect(() => {
-    refreshCases();
+    refreshApplications();
   }, []);
 
   const handleCreateWorkflow = async (name: string, description: string) => {
     try {
       setIsCreatingWorkflow(true);
       setError(null);
-      setCreationProgress("Initializing workflow creation...");
+      setCreationProgress("Initializing application creation...");
 
-      console.log("=== Creating New Workflow ===");
+      console.log("=== Creating New Application ===");
       console.log("Input:", { name, description });
 
       // Use the AI service to create the workflow
       const response = await Service.generateResponse(
-        `Create a new workflow with name "${name}" and description "${description}".`,
+        `Create a new application named "${name}" with description "${description}". First call saveApplication with the metadata to get the application id. Then create at least two distinct workflows for this application, using createCase with applicationid set to the new application id, followed by saveFields, saveView, and saveCase to complete each workflow. Do not finish until at least two workflows have been created and saved. If any case was created without applicationid, finalize by calling saveApplication with workflowIds to ensure associations.`,
         buildDatabaseSystemPrompt(),
       );
 
@@ -91,10 +98,9 @@ export default function Home() {
       }
 
       const decoder = new TextDecoder();
-      let createdCaseId: number | null = null;
       let isComplete = false;
 
-      setCreationProgress("Creating workflow...");
+      setCreationProgress("Creating application and workflows...");
 
       try {
         while (true) {
@@ -119,24 +125,24 @@ export default function Home() {
                 if (data.done) {
                   isComplete = true;
                   setCreationProgress(
-                    (prev) => prev + "\n✅ Workflow creation completed!",
+                    (prev) => prev + "\n✅ Application creation completed!",
                   );
                 }
 
                 // Check for timeout or other errors in the text content
                 if (data.text && data.text.includes("timeout")) {
                   throw new Error(
-                    "Workflow creation timed out. Please try again.",
+                    "Application creation timed out. Please try again.",
                   );
                 }
 
                 // Check for incomplete workflow warnings
                 if (
                   data.text &&
-                  data.text.includes("WARNING: Workflow creation incomplete")
+                  data.text.includes("WARNING: Application creation incomplete")
                 ) {
                   throw new Error(
-                    "Workflow creation was incomplete. Please try again.",
+                    "Application creation was incomplete. Please try again.",
                   );
                 }
 
@@ -155,31 +161,17 @@ export default function Home() {
       }
 
       if (!isComplete) {
-        throw new Error("Workflow creation did not complete properly");
+        throw new Error("Application creation did not complete properly");
       }
 
-      // Refresh cases to get the latest data
-      await refreshCases();
-
-      // Find the newly created case
-      const newCase = cases.find((c) => c.name === name);
-      if (newCase) {
-        setSuccessMessage("Workflow created successfully!");
-        // Close the modal and navigate to the workflow page
-        setIsCreateModalOpen(false);
-        router.push(`/workflow/${newCase.id}`);
-      } else if (createdCaseId) {
-        // If we have the case ID but it's not in the cases list yet, navigate directly
-        setIsCreateModalOpen(false);
-        router.push(`/workflow/${createdCaseId}`);
-      } else {
-        setSuccessMessage("Workflow created successfully!");
-        setIsCreateModalOpen(false);
-      }
+      // Refresh applications to get the latest data
+      await refreshApplications();
+      setSuccessMessage("Application created successfully!");
+      setIsCreateModalOpen(false);
     } catch (error) {
-      console.error("Error creating workflow:", error);
+      console.error("Error creating application:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "Failed to create workflow";
+        error instanceof Error ? error.message : "Failed to create application";
       setError(errorMessage);
       setCreationProgress((prev) => prev + "\n❌ " + errorMessage);
       // Don't close modal on error - let the user see the error in the modal
@@ -190,13 +182,13 @@ export default function Home() {
 
   const _handleDeleteWorkflow = async (name: string) => {
     try {
-      const caseToDelete = cases?.find((c) => c.name === name);
-      if (!caseToDelete) {
-        throw new Error("Workflow not found");
+      const appToDelete = applications?.find((a) => a.name === name);
+      if (!appToDelete) {
+        throw new Error("Application not found");
       }
 
       const response = await fetchWithBaseUrl(
-        `/api/dynamic?ruleType=case&id=${caseToDelete.id}`,
+        `/api/dynamic?ruleType=application&id=${appToDelete.id}`,
         {
           method: "DELETE",
         },
@@ -209,17 +201,33 @@ export default function Home() {
         );
       }
 
-      setCases((prevCases) => prevCases.filter((c) => c.name !== name));
+      setApplications((prev) => prev.filter((a) => a.name !== name));
       setDeleteTarget(null);
     } catch (error) {
-      console.error("Error deleting workflow:", error);
+      console.error("Error deleting application:", error);
       throw error;
     }
   };
 
-  const handleCardClick = (id: number) => {
-    setIsNavigatingId(id);
-    router.push(`/workflow/${id}`);
+  const handleCardClick = async (applicationId: number) => {
+    try {
+      setIsNavigatingId(applicationId);
+      // Fetch workflows for this application and open the first one
+      const res = await fetchWithBaseUrl(
+        `/api/database?table=Cases&applicationid=${applicationId}`,
+      );
+      const data = await res.json();
+      const workflows = (data?.data as Array<{ id: number }> | undefined) || [];
+      const first = workflows[0];
+      if (first?.id) {
+        router.push(`/workflow/${first.id}?applicationId=${applicationId}`);
+      } else {
+        // No workflows yet; stay on home for now
+        setIsNavigatingId(null);
+      }
+    } catch (_e) {
+      setIsNavigatingId(null);
+    }
   };
 
   return (
@@ -230,65 +238,63 @@ export default function Home() {
         </div>
       )}
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Workflows</h1>
+        <h1 className="text-2xl font-bold">Applications</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
-          className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+          className="interactive-button text-black hover:opacity-90"
         >
-          Create new workflow
+          New application
         </button>
       </div>
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
-      ) : cases.length === 0 ? (
+      ) : applications.length === 0 ? (
         <div className="flex flex-col justify-center items-center h-64 text-gray-500">
-          <p className="text-lg font-medium">No workflow available.</p>
-          <p>Click "Create new workflow" to create a new one.</p>
+          <p className="text-lg font-medium">No application available.</p>
+          <p>Click "New application" to create a new one.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {cases.map((case_) => (
-            <Link
-              prefetch
-              href={`/workflow/${case_.id}`}
-              key={case_.id}
-              onClick={() => handleCardClick(case_.id)}
+          {applications.map((app) => (
+            <div
+              key={app.id}
+              onClick={() => void handleCardClick(app.id)}
               className="group border rounded p-4 hover:shadow-lg transition-all cursor-pointer relative block"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <h2 className="text-xl font-semibold mb-1 group-hover:text-blue-700 transition-colors">
-                    {case_.name}
+                    {app.name}
                   </h2>
                   <p className="text-gray-600 mb-2 line-clamp-2">
-                    {case_.description}
+                    {app.description}
                   </p>
                 </div>
                 <button
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    setDeleteTarget({ id: case_.id, name: case_.name });
+                    setDeleteTarget({ id: app.id, name: app.name });
                   }}
                   className="inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
-                  aria-label="Delete workflow"
-                  title="Delete workflow"
+                  aria-label="Delete application"
+                  title="Delete application"
                 >
                   <FaTrash className="w-4 h-4" />
                 </button>
               </div>
-              {isNavigatingId === case_.id && (
+              {isNavigatingId === app.id && (
                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded">
                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent" />
                 </div>
               )}
-            </Link>
+            </div>
           ))}
         </div>
       )}
-      <CreateWorkflowModal
+      <CreateApplicationModal
         isOpen={isCreateModalOpen}
         onClose={() => {
           setIsCreateModalOpen(false);
@@ -299,6 +305,7 @@ export default function Home() {
         isCreating={isCreatingWorkflow}
         creationProgress={creationProgress}
         creationError={error}
+        title="Create new application"
       />
       <DeleteWorkflowModal
         isOpen={!!deleteTarget}
@@ -306,9 +313,9 @@ export default function Home() {
         caseName={deleteTarget?.name}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async (id) => {
-          const theCase = cases.find((c) => c.id === id);
-          if (!theCase) return;
-          await _handleDeleteWorkflow(theCase.name);
+          const app = applications.find((a) => a.id === id);
+          if (!app) return;
+          await _handleDeleteWorkflow(app.name);
         }}
       />
     </div>

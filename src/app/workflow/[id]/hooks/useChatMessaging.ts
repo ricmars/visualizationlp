@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Service } from "../../../services/service";
 import processToolResponse from "../utils/processToolResponse";
@@ -39,6 +40,8 @@ export default function useChatMessaging({
   setActiveStepAction,
 }: UseChatMessagingArgs) {
   const abortRef = useRef<AbortController | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const handleSendMessage = useCallback(
     async (message: string) => {
       let aiMessageId: string;
@@ -115,6 +118,7 @@ export default function useChatMessaging({
         // Keep a ref to reader for cancellation on abort
         const readerRef = { current: reader };
 
+        let newlyCreatedCaseId: number | null = null;
         try {
           while (true) {
             const { done, value } = await readerRef.current.read();
@@ -127,6 +131,10 @@ export default function useChatMessaging({
               if (line.startsWith("data: ")) {
                 try {
                   const data = JSON.parse(line.slice(6));
+                  // Capture caseCreated event for navigation
+                  if (data.event === "caseCreated" && data.id) {
+                    newlyCreatedCaseId = Number(data.id);
+                  }
 
                   // Capture usage for this response (prefer total tokens when available)
                   if (data.usage) {
@@ -292,6 +300,14 @@ export default function useChatMessaging({
                       setActiveStageAction(undefined);
                       setActiveProcessAction(undefined);
                       setActiveStepAction(undefined);
+                    }
+                    // If a new case was created, navigate to it automatically
+                    if (newlyCreatedCaseId) {
+                      const appIdParam = searchParams?.get("applicationId");
+                      const query = appIdParam
+                        ? `?applicationId=${appIdParam}`
+                        : "";
+                      router.push(`/workflow/${newlyCreatedCaseId}${query}`);
                     }
                     break;
                   }

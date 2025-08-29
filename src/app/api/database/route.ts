@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     const tableToRuleType: Record<string, string> = {
       [DB_TABLES.CASES]: "case",
+      [DB_TABLES.APPLICATIONS]: "application",
       [DB_TABLES.FIELDS]: "field",
       [DB_TABLES.VIEWS]: "view",
     };
@@ -99,6 +100,7 @@ export async function POST(request: Request) {
 
     const tableToRuleType: Record<string, string> = {
       [DB_TABLES.CASES]: "case",
+      [DB_TABLES.APPLICATIONS]: "application",
       [DB_TABLES.FIELDS]: "field",
       [DB_TABLES.VIEWS]: "view",
     };
@@ -158,6 +160,7 @@ export async function PUT(request: Request) {
 
     const tableToRuleType: Record<string, string> = {
       [DB_TABLES.CASES]: "case",
+      [DB_TABLES.APPLICATIONS]: "application",
       [DB_TABLES.FIELDS]: "field",
       [DB_TABLES.VIEWS]: "view",
     };

@@ -11,6 +11,9 @@ jest.mock("../../types/ruleTypeRegistry", () => ({
         case: {
           databaseSchema: { tableName: "Cases" },
         },
+        application: {
+          databaseSchema: { tableName: "Applications" },
+        },
         field: {
           databaseSchema: { tableName: "Fields" },
         },
@@ -28,6 +31,9 @@ jest.mock("../../types/database", () => ({
   DB_TABLES: {
     get CASES() {
       return "Cases";
+    },
+    get APPLICATIONS() {
+      return "Applications";
     },
     get FIELDS() {
       return "Fields";
@@ -96,6 +102,7 @@ describe("llmTools", () => {
             name: "Test Case",
             description: "Test Description",
             model: '{"stages": []}',
+            applicationid: 10,
           },
         ],
       };
@@ -109,11 +116,12 @@ describe("llmTools", () => {
       const result = await (createCaseTool!.execute as any)({
         name: "Test Case",
         description: "Test Description",
+        applicationid: 10,
       });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO "Cases"'),
-        ["Test Case", "Test Description", expect.any(String)],
+        ["Test Case", "Test Description", expect.any(String), 10],
       );
       expect(result).toEqual({
         id: 1,
@@ -145,8 +153,25 @@ describe("llmTools", () => {
       await expect(
         (createCaseTool!.execute as any)({
           name: "Test Case",
+          applicationid: 10,
         }),
       ).rejects.toThrow("Case description is required for createCase");
+    });
+
+    it("should throw error for missing applicationid", async () => {
+      const createCaseTool = databaseTools.find(
+        (tool: any) => tool.name === "createCase",
+      );
+      expect(createCaseTool).toBeDefined();
+
+      await expect(
+        (createCaseTool!.execute as any)({
+          name: "Test Case",
+          description: "Test Description",
+        }),
+      ).rejects.toThrow(
+        "Application ID (applicationid) is required for createCase",
+      );
     });
   });
 

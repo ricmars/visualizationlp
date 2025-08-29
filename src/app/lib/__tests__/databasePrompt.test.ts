@@ -48,7 +48,7 @@ describe("Database Prompt", () => {
       expect(context).toContain("STEP 1:");
       expect(context).toContain("STEP 2:");
       expect(context).toContain(
-        "Use these tools to complete workflow creation tasks",
+        "Use these tools to complete application and workflow creation tasks",
       );
       expect(context).toContain(
         "Each tool contains detailed instructions for proper usage",

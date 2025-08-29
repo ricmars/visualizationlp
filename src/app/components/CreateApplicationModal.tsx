@@ -1,33 +1,29 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-interface CreateWorkflowModalProps {
+interface CreateApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreate: (name: string, description: string) => Promise<void>;
   isCreating: boolean;
   creationProgress?: string;
   creationError?: string | null;
+  title?: string;
 }
 
-/**
- * Modal component for creating a new workflow
- * @param isOpen - Whether the modal is open
- * @param onClose - Function to call when the modal should close
- * @param onCreate - Function to call when the form is submitted
- * @param isCreating - Whether a workflow is currently being created
- */
-export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
+export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
   isOpen,
   onClose,
   onCreate,
   isCreating,
   creationProgress,
   creationError,
+  title,
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,15 +35,12 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
       return;
     }
     try {
-      const trimmedDescription = description.trim().slice(0, 500);
+      const trimmedDescription = description.trim().slice(0, 2000);
       await onCreate(name.trim(), trimmedDescription);
-      // Don't close the modal here - let the parent component handle it
-      // The modal will be closed when navigation happens or on error
     } catch (_error) {
       setIsSubmitting(false);
       return;
     }
-    // Reset form only on success
     setName("");
     setDescription("");
   };
@@ -56,14 +49,21 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
     e: React.ChangeEvent<HTMLTextAreaElement>,
   ) => {
     const value = e.target.value;
-    if (value.length <= 500) {
+    if (value.length <= 2000) {
       setDescription(value);
     }
   };
 
   if (!isOpen) return null;
 
-  const remainingChars = 500 - description.length;
+  const remainingChars = 2000 - description.length;
+
+  // Auto-scroll progress box to bottom whenever new progress arrives
+  useEffect(() => {
+    if (isCreating && creationProgress && progressRef.current) {
+      progressRef.current.scrollTop = progressRef.current.scrollHeight;
+    }
+  }, [isCreating, creationProgress]);
 
   return (
     <div
@@ -76,14 +76,14 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
       >
         <form onSubmit={handleSubmit} className="p-6">
           <h2 className="text-xl font-semibold text-white mb-6">
-            Create new workflow
+            {title || "Create new application"}
           </h2>
           <div className="space-y-4">
             {creationError && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
                 <div className="flex items-center mb-2">
                   <span className="text-sm font-medium text-red-800">
-                    Error creating workflow
+                    Error creating application
                   </span>
                 </div>
                 <div className="text-sm text-red-700">{creationError}</div>
@@ -94,10 +94,13 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                 <div className="flex items-center mb-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
                   <span className="text-sm font-medium text-blue-800">
-                    Creating workflow...
+                    Creating application...
                   </span>
                 </div>
-                <div className="text-sm text-blue-700 whitespace-pre-line max-h-32 overflow-y-auto">
+                <div
+                  ref={progressRef}
+                  className="text-sm text-blue-700 whitespace-pre-line max-h-32 overflow-y-auto"
+                >
                   {creationProgress}
                 </div>
               </div>
@@ -114,7 +117,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                className="mt-1 block w-full lp-input"
                 required
                 disabled={isSubmitting || isCreating}
               />
@@ -131,8 +134,9 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                   id="description"
                   value={description}
                   onChange={handleDescriptionChange}
-                  rows={3}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
+                  rows={5}
+                  maxLength={2000}
+                  className="block w-full lp-input"
                   required
                   disabled={isSubmitting || isCreating}
                 />
@@ -166,7 +170,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
               )}
               <span>
                 {isCreating
-                  ? "Creating workflow..."
+                  ? "Creating application..."
                   : isSubmitting
                   ? "Creating..."
                   : "Create"}

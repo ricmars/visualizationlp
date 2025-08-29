@@ -5,6 +5,7 @@ interface EditWorkflowModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: { name: string; description: string }) => void;
+  onDelete?: () => Promise<void> | void;
   initialData: {
     name: string;
     description: string;
@@ -15,6 +16,7 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
   isOpen,
   onClose,
   onSubmit,
+  onDelete,
   initialData,
 }) => {
   const [name, setName] = useState(initialData.name);
@@ -63,6 +65,17 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
                   Edit Workflow
                 </h3>
                 <div className="flex items-center gap-2">
+                  {onDelete && (
+                    <button
+                      onClick={async () => {
+                        await onDelete();
+                        onClose();
+                      }}
+                      className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-red-600"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <button
                     onClick={onClose}
                     className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"

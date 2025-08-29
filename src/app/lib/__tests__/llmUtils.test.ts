@@ -301,7 +301,7 @@ describe("getToolsContext", () => {
     expect(context).toContain("saveCase");
     expect(context).toContain("saveField");
     expect(context).toContain(
-      "Use these tools to complete workflow creation tasks",
+      "Use these tools to complete application and workflow creation tasks",
     );
     expect(context).toContain(
       "Each tool contains detailed instructions for proper usage",
