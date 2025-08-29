@@ -23,6 +23,20 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+
+  /* Modal tokens */
+  --color-modal-bg: #283b67;
+  --color-modal-text: #ffffff;
+
+  /* App header tokens */
+  --header-height: 49px;
+  --color-header-bg: #000000;
+}
+
+/* Tailwind v4 theme tokens mapped to CSS variables */
+@theme {
+  --color-modal: var(--color-modal-bg);
+  --color-modal-text: var(--color-modal-text);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -59,6 +73,14 @@ body {
   background-attachment: fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  padding-top: var(--header-height);
+}
+
+@layer components {
+  /* Semantic utility for modal surfaces */
+  .modal-surface {
+    @apply bg-modal text-modal-text;
+  }
 }
 
 .modal {
@@ -318,4 +340,52 @@ body {
   transition-property: transform;
   transition-duration: 300ms;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Global application header */
+.app-header {
+  height: var(--header-height);
+  width: 100%;
+  background-color: var(--color-header-bg);
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 50;
+}
+
+.app-header-content {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+}
+
+.app-header-left,
+.app-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Specific sizing for header assets */
+.app-header img.logo {
+  display: block;
+  width: 90px;
+  height: 13px;
+}
+
+.app-header img.icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* App-aware viewport height utilities */
+.h-app-screen {
+  height: calc(100vh - var(--header-height));
+}
+
+.min-h-app-screen {
+  min-height: calc(100vh - var(--header-height));
 }

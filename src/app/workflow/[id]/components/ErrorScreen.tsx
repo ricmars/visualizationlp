@@ -9,7 +9,7 @@ type ErrorScreenProps = {
 
 export default function ErrorScreen({ message }: ErrorScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen">
+    <div className="flex flex-col items-center justify-center min-h-app-screen">
       <div className="text-red-500 mb-4">{message}</div>
       <Link
         href="/"

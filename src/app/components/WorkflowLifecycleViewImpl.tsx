@@ -19,6 +19,7 @@ import ModalPortal from "./ModalPortal";
 import dynamic from "next/dynamic";
 import { StyleSheetManager } from "styled-components";
 
+import { Bootes2025DarkTheme } from "@pega/cosmos-react-core";
 const PegaLifeCycle = dynamic(
   () =>
     import("@pega/cosmos-react-build").then((mod) => ({
@@ -143,6 +144,8 @@ class ErrorBoundary extends React.Component<
   }
 }
 
+const theme = Bootes2025DarkTheme;
+
 // Stable provider composition to prevent duplicate style tags on re-renders
 const PegaProviders = React.memo(
   ({
@@ -154,6 +157,7 @@ const PegaProviders = React.memo(
   }) => (
     <StyleSheetManager target={container}>
       <PegaConfiguration
+        theme={theme}
         disableDefaultFontLoading
         styleSheetTarget={container}
         portalTarget={container}
@@ -489,7 +493,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
 
         .shadow-container > div > div:first-child {
           position: static;
-          background: #FFF;
           padding; 0;
           margin:0;
         }

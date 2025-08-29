@@ -60,12 +60,14 @@ export default function DeleteWorkflowModal({
   return (
     <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[80] modal-overlay p-4">
       <div
-        className="bg-white rounded-lg shadow-xl w-full max-w-md z-[90]"
+        className="rounded-lg shadow-xl w-full max-w-md z-[90] modal-surface"
         role="dialog"
       >
         <div className="p-6">
-          <h2 className="text-lg font-semibold mb-2">Delete workflow</h2>
-          <p className="text-sm text-gray-600">
+          <h2 className="text-lg font-semibold mb-2 text-white">
+            Delete workflow
+          </h2>
+          <p className="text-sm text-gray-200">
             Are you sure you want to delete "{caseName}"? This will permanently
             remove the workflow, all fields, views, and checkpoints for this
             case.
@@ -86,14 +88,14 @@ export default function DeleteWorkflowModal({
           <button
             onClick={onCancel}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+            className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 bg-modal"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
             disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 flex items-center gap-2 bg-modal"
           >
             {isDeleting && (
               <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />

@@ -830,9 +830,9 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-app-screen overflow-hidden">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative">
+      <div className="flex-1 flex flex-col overflow-hidden relative h-full">
         {/* Header row with title and preview switch */}
         <WorkflowTopBar
           selectedCaseName={selectedCase?.name}
@@ -853,7 +853,7 @@ export default function WorkflowPage() {
         {/* Main Content Area */}
         <main
           id="main-content-area"
-          className="flex-1 overflow-auto relative"
+          className="flex-1 overflow-auto relative h-full"
           data-main-content="true"
         >
           {isPreviewMode ? (
@@ -1052,7 +1052,7 @@ export default function WorkflowPage() {
 
       {/* Chat Panel - fixed width */}
       <div
-        className="border-l dark:border-gray-700 flex flex-col h-screen overflow-hidden text-sm"
+        className="flex flex-col h-app-screen overflow-hidden text-sm"
         style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
       >
         <div className="flex-1 overflow-hidden flex flex-col">

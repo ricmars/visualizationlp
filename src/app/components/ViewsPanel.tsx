@@ -377,9 +377,9 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
       <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+            <h2 className="text-xl font-semibold text-white flex items-center">
               Views {""}
-              <span className="ml-2 font-normal text-gray-500 dark:text-gray-400">
+              <span className="ml-2 font-normal text-white">
                 ({_views.length})
               </span>
             </h2>
@@ -389,10 +389,10 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
               <button
                 key={view.id}
                 onClick={() => handleViewSelect(view.id.toString())}
-                className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+                className={`w-full text-left px-4 py-3 rounded-lg transition-colors border ${
                   selectedView === view.id.toString()
-                    ? "bg-blue-50 dark:bg-blue-900/20 border-blue-500"
-                    : "hover:bg-gray-50 dark:hover:bg-gray-800"
+                    ? "border-white bg-[rgb(20,16,60)] text-white"
+                    : "border-transparent hover:bg-[rgb(20,16,60)] hover:text-white"
                 }`}
                 data-viewid={
                   view.isDatabaseView && view.viewData
@@ -400,12 +400,8 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                     : undefined
                 }
               >
-                <div className="font-medium text-gray-900 dark:text-gray-100">
-                  {view.name}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">
-                  {view.stageName}
-                </div>
+                <div className="font-medium">{view.name}</div>
+                <div className="text-sm opacity-80">{view.stageName}</div>
               </button>
             ))}
           </div>
@@ -588,16 +584,14 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-white dark:bg-gray-800 rounded-xl shadow-xl z-50"
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface"
         >
-          <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">
-              Edit Field
-            </h3>
+          <div className="px-4 py-3">
+            <h3 className="text-base font-semibold text-white">Edit Field</h3>
           </div>
           <div className="p-4 space-y-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              <label className="block text-sm font-medium text-white mb-1">
                 Label
               </label>
               <input
@@ -609,7 +603,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                     label: e.target.value,
                   })
                 }
-                className="w-full px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 text-sm"
+                className="w-full px-3 py-1.5 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white text-sm"
               />
             </div>
 
@@ -617,7 +611,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
               <Tooltip content="Cancel editing">
                 <button
                   onClick={() => setEditingField(null)}
-                  className="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-lg"
+                  className="px-3 py-1.5 text-sm text-white rounded-lg bg-modal"
                 >
                   Cancel
                 </button>
@@ -632,7 +626,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                       });
                     }
                   }}
-                  className="px-4 py-2 text-sm bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                  className="px-4 py-2 text-sm text-white rounded-lg font-medium bg-modal"
                 >
                   Save Changes
                 </button>

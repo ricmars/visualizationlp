@@ -12,7 +12,7 @@ export default function ChatPanelTabs({
   onChange,
 }: ChatPanelTabsProps) {
   return (
-    <div className="border-b border-gray-200 dark:border-gray-700">
+    <div>
       <div className="flex">
         <button
           onClick={() => onChange("chat")}

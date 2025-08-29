@@ -15,11 +15,8 @@ export default function FieldsHeader({
 }: FieldsHeaderProps) {
   return (
     <div className="flex items-center justify-between mb-6">
-      <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 flex items-center">
-        Fields{" "}
-        <span className="ml-2 font-normal text-gray-500 dark:text-gray-400">
-          ({count})
-        </span>
+      <h2 className="text-xl font-semibold text-white flex items-center">
+        Fields <span className="ml-2 font-normal text-white">({count})</span>
       </h2>
       <button
         ref={buttonRef}

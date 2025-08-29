@@ -229,28 +229,27 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
               position: "absolute",
               top: position.top,
               left: position.left,
-              zIndex: 1000,
               maxHeight: maxHeightPx,
             }}
-            className="w-96 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-auto"
+            className="w-96 modal-surface rounded-lg shadow-xl border overflow-auto border-gray-700 z-[5000]"
             onKeyDown={handleKeyDown}
           >
             <div className="p-4">
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  <h3 className="text-lg font-semibold text-white">
                     Add Field
                   </h3>
                 </div>
 
-                <div className="flex gap-2 p-1 bg-gray-100 dark:bg-gray-700 rounded-lg">
+                <div className="flex gap-2 p-1 rounded-lg bg-[rgb(20,16,60)]">
                   {allowExistingFields && (
                     <button
                       onClick={() => setMode("existing")}
                       className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                         mode === "existing"
-                          ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                          : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                          ? "bg-modal text-white shadow-sm"
+                          : "text-white/80 hover:text-white"
                       }`}
                     >
                       Select Existing
@@ -260,8 +259,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     onClick={() => setMode("new")}
                     className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
                       mode === "new"
-                        ? "bg-white dark:bg-gray-600 text-gray-900 dark:text-white shadow-sm"
-                        : "text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                        ? "bg-modal text-white shadow-sm"
+                        : "text-white/80 hover:text-white"
                     }`}
                   >
                     Add New
@@ -304,8 +303,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                                   selectedFieldIds.includes(
                                     field.id?.toString() || "",
                                   )
-                                    ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
-                                    : "border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700"
+                                    ? "border-white bg-[rgb(20,16,60)]"
+                                    : "border-gray-700 hover:bg-[rgb(20,16,60)]"
                                 } cursor-pointer transition-colors`}
                               >
                                 <input
@@ -318,13 +317,13 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                                       field.id?.toString() || "",
                                     )
                                   }
-                                  className="rounded border-gray-300 text-blue-500 focus:ring-blue-500 mr-3"
+                                  className="rounded border-gray-600 text-blue-500 focus:ring-blue-500 mr-3"
                                 />
                                 <div className="flex-1">
-                                  <div className="font-medium text-gray-900 dark:text-gray-100">
+                                  <div className="font-medium text-white">
                                     {field.label}
                                   </div>
-                                  <div className="text-sm text-gray-500 dark:text-gray-400">
+                                  <div className="text-sm text-white/70">
                                     Type:{" "}
                                     {getFieldTypeDisplayName(field.type as any)}
                                   </div>
@@ -337,7 +336,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   ) : (
                     <>
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-white mb-1">
                           Label
                         </label>
                         <input
@@ -351,14 +350,14 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           className={`w-full px-3 py-2 rounded-lg border ${
                             error
                               ? "border-red-500 focus:ring-red-500"
-                              : "border-gray-300 dark:border-gray-600 focus:ring-blue-500"
-                          } focus:outline-none focus:ring-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors`}
+                              : "border-gray-600 focus:ring-blue-500"
+                          } focus:outline-none focus:ring-2 bg-[rgb(20,16,60)] text-white transition-colors`}
                           placeholder="Enter field label"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-white mb-1">
                           Type
                         </label>
                         <select
@@ -366,7 +365,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           onChange={(e) =>
                             setType(e.target.value as Field["type"])
                           }
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
                         >
                           {getAllFieldTypes().map((fieldType) => (
                             <option key={fieldType} value={fieldType}>
@@ -382,11 +381,11 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           id="required"
                           checked={required}
                           onChange={(e) => setRequired(e.target.checked)}
-                          className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                          className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
                         />
                         <label
                           htmlFor="required"
-                          className="text-sm text-gray-700 dark:text-gray-300"
+                          className="text-sm text-white"
                         >
                           Required
                         </label>
@@ -398,11 +397,11 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           id="isPrimary"
                           checked={isPrimary}
                           onChange={(e) => setIsPrimary(e.target.checked)}
-                          className="rounded border-gray-300 text-blue-500 focus:ring-blue-500"
+                          className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
                         />
                         <label
                           htmlFor="isPrimary"
-                          className="text-sm text-gray-700 dark:text-gray-300"
+                          className="text-sm text-white"
                         >
                           Primary Field
                         </label>
@@ -430,28 +429,28 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                         type === "Status" ||
                         type === "ReferenceValues") && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          <label className="block text-sm font-medium text-white mb-1">
                             Options (comma-separated)
                           </label>
                           <input
                             type="text"
                             value={options}
                             onChange={(e) => setOptions(e.target.value)}
-                            className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                            className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
                             placeholder="Option 1, Option 2, Option 3"
                           />
                         </div>
                       )}
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        <label className="block text-sm font-medium text-white mb-1">
                           Sample value
                         </label>
                         <input
                           type="text"
                           value={sampleValue}
                           onChange={(e) => setSampleValue(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                          className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
                           placeholder="Enter sample value"
                         />
                       </div>
@@ -462,7 +461,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                 <div className="flex gap-3 mt-6">
                   <button
                     onClick={handleSubmit}
-                    className="flex-1 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    className="flex-1 px-4 py-2 text-white rounded-lg font-medium bg-modal"
                   >
                     {mode === "existing"
                       ? `Add Selected Field${
@@ -472,7 +471,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                   </button>
                   <button
                     onClick={onClose}
-                    className="flex-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    className="flex-1 px-4 py-2 text-white rounded-lg font-medium bg-modal"
                   >
                     Cancel
                   </button>

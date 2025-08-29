@@ -71,11 +71,11 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
       onClick={isCreating ? undefined : onClose}
     >
       <div
-        className="bg-white rounded-lg shadow-xl max-w-md w-full"
+        className="rounded-lg shadow-xl max-w-md w-full modal-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit} className="p-6">
-          <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <h2 className="text-xl font-semibold text-white mb-6">
             Create new workflow
           </h2>
           <div className="space-y-4">
@@ -105,7 +105,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
             <div>
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-white"
               >
                 Name
               </label>
@@ -114,7 +114,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                 id="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                 required
                 disabled={isSubmitting || isCreating}
               />
@@ -122,7 +122,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
             <div>
               <label
                 htmlFor="description"
-                className="block text-sm font-medium text-gray-700"
+                className="block text-sm font-medium text-white"
               >
                 Description
               </label>
@@ -132,7 +132,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                   value={description}
                   onChange={handleDescriptionChange}
                   rows={3}
-                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+                  className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-gray-900"
                   required
                   disabled={isSubmitting || isCreating}
                 />
@@ -146,7 +146,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 bg-modal"
               disabled={isSubmitting || isCreating}
             >
               {isCreating ? "Creating..." : "Cancel"}
@@ -159,7 +159,7 @@ export const CreateWorkflowModal: React.FC<CreateWorkflowModalProps> = ({
                 !name.trim() ||
                 !description.trim()
               }
-              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+              className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 flex items-center space-x-2 bg-modal"
             >
               {(isSubmitting || isCreating) && (
                 <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>

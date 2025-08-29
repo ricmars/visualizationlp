@@ -343,7 +343,7 @@ export default function ChangesPanel({ caseid, onRefresh }: ChangesPanelProps) {
       </div>
 
       {/* Footer */}
-      <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-600">
+      <div className="mt-4 pt-4">
         <div className="text-sm text-gray-600 dark:text-gray-400">
           Showing {history.length} checkpoint{history.length !== 1 ? "s" : ""}
         </div>

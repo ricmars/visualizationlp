@@ -55,7 +55,7 @@ const FieldsList: React.FC<FieldsListProps> = ({
                     <div
                       ref={provided.innerRef}
                       {...provided.draggableProps}
-                      className="flex items-center space-x-3 p-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow"
+                      className="flex items-center space-x-3 p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-gray-700 bg-[rgb(20,16,60)] text-white"
                       data-fieldid={field.id}
                     >
                       <div
@@ -66,7 +66,7 @@ const FieldsList: React.FC<FieldsListProps> = ({
                       </div>
                       <div className="flex-grow min-w-0">
                         <div className="flex items-center gap-2">
-                          <div className="font-medium text-gray-900 dark:text-gray-100 truncate">
+                          <div className="font-medium text-white truncate">
                             {field.label}
                           </div>
                           {field.primary && (
@@ -75,7 +75,7 @@ const FieldsList: React.FC<FieldsListProps> = ({
                             </span>
                           )}
                         </div>
-                        <div className="text-sm text-gray-500 dark:text-gray-400">
+                        <div className="text-sm text-white/70">
                           Type: {getFieldTypeDisplayName(field.type as any)}
                         </div>
                       </div>

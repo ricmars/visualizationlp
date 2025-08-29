@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { Bootes2025DarkTheme } from "@pega/cosmos-react-core";
 
 type GenerateModel = () => any;
 
@@ -75,7 +76,9 @@ export default function usePreviewIframe({
         }
         iframeRef.current = iframe;
         const fullModel = generateModelRef.current();
-        const updatePayload = { caseTypes: fullModel?.caseTypes };
+        const updatePayload = {
+          caseTypes: fullModel?.caseTypes,
+        };
         console.debug(
           "[preview] Posting model update to iframe",
           updatePayload,
@@ -153,6 +156,7 @@ export default function usePreviewIframe({
             const initialModel = generateModelRef.current();
             try {
               (initialModel as any).fullUpdate = true;
+              //(initialModel as any).theme = Bootes2025DarkTheme;
             } catch {}
             console.debug(
               "[preview] Posting initial model to iframe",
@@ -163,6 +167,12 @@ export default function usePreviewIframe({
               PREVIEW_ORIGIN,
             );
             hasSentInitialRef.current = true;
+            setTimeout(() => {
+              iframeRef.current?.contentWindow?.postMessage(
+                { theme: Bootes2025DarkTheme },
+                PREVIEW_ORIGIN,
+              );
+            }, 10);
           }
           if (lastQueuedUpdateRef.current) {
             iframeRef.current?.contentWindow?.postMessage(

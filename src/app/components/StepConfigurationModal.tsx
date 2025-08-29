@@ -105,7 +105,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   return (
     <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] modal-overlay">
       <div
-        className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl max-w-[95vw] w-full mx-4 my-4 z-[110] flex flex-col max-h-[calc(100%-2rem)] overflow-hidden"
+        className="rounded-lg shadow-xl max-w-4xl max-w-[95vw] w-full mx-4 my-4 z-[110] flex flex-col max-h-[calc(100%-2rem)] overflow-hidden modal-surface"
         ref={modalRef}
         role="dialog"
         data-allow-freeform-select="true"
@@ -115,13 +115,13 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             : undefined
         }
       >
-        <div className="flex justify-between items-center p-6 border-b border-gray-200 dark:border-gray-700">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+        <div className="flex justify-between items-center p-6">
+          <h2 className="text-xl font-semibold text-white">
             Configure Step: {step.name}
           </h2>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-500"
+            className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
           >
             <svg
               className="h-6 w-6"
@@ -192,11 +192,9 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
               )
             ) : (
               <div className="text-center py-8">
-                <div className="inline-block px-4 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                  <p className="text-sm text-amber-600 dark:text-amber-400">
-                    Only "Collect information" steps can have fields
-                  </p>
-                </div>
+                <p className="text-sm text-white">
+                  Only "Collect information" steps can have fields
+                </p>
               </div>
             )}
           </div>

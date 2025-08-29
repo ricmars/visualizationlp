@@ -452,6 +452,9 @@ export default function ChatInterface({
   };
 
   const markdownComponents: Components = {
+    p({ children }) {
+      return <p style={{ wordBreak: "break-word" }}>{children}</p>;
+    },
     h1({ children }) {
       const text = String(React.Children.toArray(children).join(" ")).trim();
       if (!text) return null;
@@ -540,7 +543,7 @@ export default function ChatInterface({
     <div className="flex flex-col h-full">
       {/* Checkpoint Status Bar */}
       {checkpointStatus?.activeSession && (
-        <div className="bg-blue-50 dark:bg-blue-900 border-b border-blue-200 dark:border-blue-700 px-4 py-2">
+        <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
@@ -583,7 +586,10 @@ export default function ChatInterface({
           const isAssistant = msg.sender !== "user";
           const baseBubbleClasses = isAssistant
             ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm"
-            : "bg-blue-500 text-white";
+            : "bg-gray-200 dark:bg-gray-700 text-purple-700 dark:text-purple-300";
+          const bubbleRadiusClasses = isAssistant
+            ? "rounded-xl rounded-bl-none"
+            : "rounded-xl rounded-br-none";
 
           return (
             <div
@@ -593,44 +599,53 @@ export default function ChatInterface({
               }`}
             >
               <div
-                className={`max-w-[85%] p-3 rounded-2xl text-sm ${baseBubbleClasses}`}
+                className={`max-w-[85%] flex flex-col ${
+                  msg.sender === "user" ? "items-end" : "items-start"
+                }`}
               >
                 <div
-                  className="prose prose-sm dark:prose-invert max-w-none font-sans"
-                  style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                  className={`p-3 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
                 >
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
-                    components={markdownComponents}
+                  <div
+                    className="prose prose-sm dark:prose-invert max-w-none font-sans"
+                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                   >
-                    {formatContent(msg.content)}
-                  </ReactMarkdown>
-                  {msg.isThinking && <BlinkingCursor />}
+                    <ReactMarkdown
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
+                      components={markdownComponents}
+                    >
+                      {formatContent(msg.content)}
+                    </ReactMarkdown>
+                    {msg.isThinking && <BlinkingCursor />}
+                  </div>
+
+                  {/* In-bubble status and controls, matching screenshot style */}
+                  {isAssistant && msg.isThinking && isLast && (
+                    <div className="mt-3 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                        <div className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
+                        <span className="text-xs">
+                          Generating your response…
+                        </span>
+                      </div>
+                      {onAbort && (
+                        <button
+                          onClick={() => onAbort?.()}
+                          className="px-3 py-1.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800"
+                        >
+                          Stop generating
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
 
-                {/* In-bubble status and controls, matching screenshot style */}
-                {isAssistant && msg.isThinking && isLast && (
-                  <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                      <div className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs">Generating your response…</span>
-                    </div>
-                    {onAbort && (
-                      <button
-                        onClick={() => onAbort?.()}
-                        className="px-3 py-1.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800"
-                      >
-                        Stop generating
-                      </button>
-                    )}
-                  </div>
-                )}
-
+                {/* Timestamp outside the bubble */}
                 <div
                   className={`text-xs mt-1.5 ${
                     msg.sender === "user"
-                      ? "text-blue-100"
-                      : "text-gray-500 dark:text-gray-400"
+                      ? "text-white dark:text-white text-right"
+                      : "text-white dark:text-white text-left"
                   }`}
                 >
                   {msg.timestamp.toLocaleTimeString()}
@@ -654,7 +669,7 @@ export default function ChatInterface({
       </div>
 
       {/* Message input */}
-      <div className="border-t border-gray-200 dark:border-gray-700 p-3">
+      <div className="  p-3">
         <div className="flex flex-row items-center gap-2">
           <div className="flex-1 min-w-0">
             <textarea

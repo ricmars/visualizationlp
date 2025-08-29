@@ -11,7 +11,7 @@ type WorkflowTabsProps = {
 
 export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
   return (
-    <div className="flex justify-between items-center border-b border-gray-200 dark:border-gray-700">
+    <div className="flex justify-between items-center">
       <div className="flex">
         <button
           onClick={() => onChange("workflow")}

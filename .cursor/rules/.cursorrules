@@ -505,6 +505,29 @@ it("should render correctly", () => {
 - Implement consistent design and responsive patterns across platforms
 - Use responsive design with a mobile-first approach
 
+### Styling Conventions (Global CSS First)
+
+- Do not use inline style attributes in components.
+- Avoid Tailwind utilities directly in components for visual styling (colors, spacing, typography, borders, sizes). Define semantic classes in `src/app/globals.css` using `@layer components` and `@apply`; use those classes in JSX.
+- Structural/layout utilities (e.g., `flex`, `grid`, `gap` when used purely for layout) may remain inline; all visual presentation belongs in `globals.css` semantic classes.
+- When introducing a new visual pattern, first add or extend a semantic class in `src/app/globals.css`, then reference it in components.
+
+#### Header & Iconography
+
+- Header assets must use `globals.css` sizing:
+  - `.app-header img.logo` → width: 90px; height: 13px
+  - `.app-header img.icon` → width: 16px; height: 16px
+
+#### Modals & Dark Theme
+
+- All modals (step, process, stage, configuration) use dark backgrounds with white text via semantic classes in `globals.css`; do not apply inline utilities in components.
+- Centralize the dark modal background color `rgb(14,10,42)` in `globals.css` (e.g., a semantic class using `@apply bg-[rgb(14,10,42)] text-white`), then use that class in components.
+
+#### General
+
+- Prefer semantic class names that describe intent (e.g., `.modal-surface`, `.header-action`, `.card`).
+- If a Tailwind utility is needed repeatedly, wrap it in a semantic class in `globals.css` and use that class in components.
+
 ## AI Assistant Behavior
 
 ### Code Review and Suggestions
@@ -930,3 +953,16 @@ This modal system ensures that:
 4. **Accessibility is maintained** - proper focus management and screen reader support
 
 **Breaking these rules will result in broken AI Quick Action functionality and poor user experience.**
+
+### Next.js framework conventions
+
+Use these defaults for all React/Next code in this repo:
+
+- Use `next/link` (`<Link />`) for internal navigation instead of `<a>`.
+  - Only use `<a>` for external URLs or when you explicitly need a full page load.
+- Use `next/image` (`<Image />`) for images instead of `<img>`.
+  - Always provide explicit `width` and `height` to avoid CLS; match existing CSS when present.
+  - Use `priority` for above-the-fold, critical images (e.g., the header logo).
+  - Always include descriptive `alt` text.
+- Keep styling in classes (Tailwind/CSS); avoid inline styles when a class exists.
+- These conventions satisfy Next.js lint rules: `@next/next/no-html-link-for-pages` and `@next/next/no-img-element`.

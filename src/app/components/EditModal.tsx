@@ -82,20 +82,38 @@ const EditModal: React.FC<EditModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
+      <div className="rounded-lg shadow-xl max-w-md w-full modal-surface">
         <div className="p-6">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
-            Edit{" "}
-            {type === "stage"
-              ? "Stage"
-              : type === "process"
-              ? "Process"
-              : "Step"}
-          </h3>
-          <form onSubmit={handleSubmit}>
+          <div className="flex items-center justify-between pb-4 border-b border-gray-200/30">
+            <h3 className="text-lg font-semibold text-white">
+              Edit{" "}
+              {type === "stage"
+                ? "Stage"
+                : type === "process"
+                ? "Process"
+                : "Step"}
+            </h3>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                form="edit-modal-form"
+                className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
+              >
+                Save
+              </button>
+            </div>
+          </div>
+          <form id="edit-modal-form" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                <label className="block text-sm font-medium text-white mb-1">
                   {type === "stage"
                     ? "Stage"
                     : type === "process"
@@ -109,19 +127,19 @@ const EditModal: React.FC<EditModalProps> = ({
                   value={editedName}
                   onChange={(e) => setEditedName(e.target.value)}
                   placeholder={`Enter ${type} name`}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                  className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white placeholder-white/60"
                 />
               </div>
 
               {type === "step" && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-white mb-1">
                     Step Type
                   </label>
                   <select
                     value={editedType}
                     onChange={(e) => setEditedType(e.target.value as StepType)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
+                    className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white"
                   >
                     {getAllStepTypes().map((type) => (
                       <option key={type} value={type}>
@@ -131,22 +149,6 @@ const EditModal: React.FC<EditModalProps> = ({
                   </select>
                 </div>
               )}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-              >
-                Save Changes
-              </button>
             </div>
           </form>
         </div>
