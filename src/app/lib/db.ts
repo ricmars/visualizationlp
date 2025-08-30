@@ -13,15 +13,17 @@ export const pool = new Pool({
     rejectUnauthorized: false,
     // Enable SSL for all environments (required for Neon)
   },
-  // Performance optimizations with better timeout handling
-  max: 10, // Reduced from 20 to prevent connection exhaustion
-  min: 1, // Reduced from 2 to minimize idle connections
-  idleTimeoutMillis: 60000, // Increased to 60 seconds
-  connectionTimeoutMillis: 10000, // Increased to 10 seconds
+  // Performance optimizations for better response times
+  max: 20, // Increased for better concurrency
+  min: 2, // Keep some connections ready
+  idleTimeoutMillis: 30000, // Reduced to 30 seconds for faster cleanup
+  connectionTimeoutMillis: 5000, // Reduced to 5 seconds for faster connection attempts
   // Add connection retry logic
   allowExitOnIdle: true,
   // Better error handling
-  maxUses: 7500, // Recycle connections after 7500 uses
+  maxUses: 10000, // Recycle connections after 10000 uses
+  // Statement timeout to prevent long-running queries
+  statement_timeout: 30000, // 30 seconds
 });
 
 console.log("Database pool created");
@@ -203,6 +205,28 @@ export async function initializeDatabase() {
       );
     }
 
+    // Create composite index for active checkpoints query optimization
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS checkpoints_active_status_idx ON "checkpoints" (status, caseid, applicationid, created_at DESC);
+      `);
+    } catch (_error) {
+      console.log(
+        "Index checkpoints_active_status_idx may already exist, continuing...",
+      );
+    }
+
+    // Create index for status-only queries
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS checkpoints_status_idx ON "checkpoints" (status, created_at DESC);
+      `);
+    } catch (_error) {
+      console.log(
+        "Index checkpoints_status_idx may already exist, continuing...",
+      );
+    }
+
     // Create foreign key for checkpoints caseid if it doesn't exist
     try {
       await pool.query(`
@@ -243,6 +267,7 @@ export async function resetDatabase() {
       DROP TABLE IF EXISTS "Views" CASCADE;
       DROP TABLE IF EXISTS "Fields" CASCADE;
       DROP TABLE IF EXISTS "Cases" CASCADE;
+      DROP TABLE IF EXISTS "Applications" CASCADE;
     `);
 
     // Verify tables were dropped
@@ -555,26 +580,63 @@ export const checkpointManager: CheckpointManager = {
     caseid?: number,
     applicationid?: number,
   ): Promise<Array<{ id: string; description: string; created_at: Date }>> {
-    let query = `
-      SELECT id, description, created_at
-      FROM "checkpoints"
-      WHERE status = 'active'
-    `;
+    // Use a more efficient query with proper parameter handling
+    let query: string;
     const values: unknown[] = [];
 
-    if (caseid !== undefined) {
-      query += ` AND caseid = $1`;
+    if (caseid !== undefined && applicationid !== undefined) {
+      // Both caseid and applicationid provided - use composite index
+      query = `
+        SELECT id, description, created_at
+        FROM "checkpoints"
+        WHERE status = 'active' AND caseid = $1 AND applicationid = $2
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
+      values.push(caseid, applicationid);
+    } else if (caseid !== undefined) {
+      // Only caseid provided
+      query = `
+        SELECT id, description, created_at
+        FROM "checkpoints"
+        WHERE status = 'active' AND caseid = $1
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
       values.push(caseid);
-    }
-
-    if (applicationid !== undefined) {
-      query += ` AND applicationid = $${values.length + 1}`;
+    } else if (applicationid !== undefined) {
+      // Only applicationid provided
+      query = `
+        SELECT id, description, created_at
+        FROM "checkpoints"
+        WHERE status = 'active' AND applicationid = $1
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
       values.push(applicationid);
+    } else {
+      // No filters - get all active checkpoints
+      query = `
+        SELECT id, description, created_at
+        FROM "checkpoints"
+        WHERE status = 'active'
+        ORDER BY created_at DESC
+        LIMIT 100
+      `;
     }
 
-    query += ` ORDER BY created_at DESC`;
-
+    console.log(
+      "Executing getActiveCheckpoints query:",
+      query,
+      "with values:",
+      values,
+    );
+    const startTime = Date.now();
     const result = await pool.query(query, values);
+    const duration = Date.now() - startTime;
+    console.log(
+      `Found ${result.rows.length} active checkpoints in ${duration}ms`,
+    );
 
     return result.rows;
   },

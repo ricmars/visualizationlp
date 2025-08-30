@@ -205,14 +205,19 @@ export async function POST(request: Request) {
 
     // Build lightweight system prompt
     const systemCore = buildDatabaseSystemPrompt();
-    const contextLine = `Context: caseId=${currentCaseId ?? "NEW"}; mode=${
+    const contextLine = `Context: caseId=${
+      currentCaseId ?? "NEW"
+    }; applicationId=${currentApplicationId ?? "NEW"}; mode=${
       currentCaseId ? "EXISTING" : "NEW"
     }`;
+    const applicationContextLine = currentApplicationId
+      ? `\n\nIMPORTANT: You are working within application ID ${currentApplicationId}. When creating new cases, you MUST use applicationid=${currentApplicationId}. Do NOT use any other application ID.`
+      : "";
     const enhancedSystemPrompt = `${systemCore}
 
 Use ONLY the provided tools. Tool descriptions are authoritative. Destructive tools must be called ONLY when the user is explicit; if unsure, ask for confirmation.
 ${getToolsContext(filteredTools)}
-${contextLine}
+${contextLine}${applicationContextLine}
 
 Bulk operations policy:
 - When the request implies updating or deleting ALL items (e.g., "all fields", "every view"), first call list tools to get the full set and its count.

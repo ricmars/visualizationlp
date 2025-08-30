@@ -176,7 +176,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "createCase",
       description:
-        "Creates a new case (workflow). REQUIRED: applicationid, name, description. Returns the new case ID that you MUST use for all subsequent operations (saveFields, saveView). The case will be linked to the specified application on insert.",
+        "Creates a new case (workflow). REQUIRED: applicationid, name, description. Returns the new case ID that you MUST use for all subsequent operations (saveFields, saveView). The case will be linked to the specified application on insert. CRITICAL: Use the exact applicationid from the Context if working within an existing application.",
       parameters: {
         type: "object",
         properties: {

@@ -122,8 +122,13 @@ export async function POST(request: NextRequest) {
           100,
         )}...)`;
 
-        // Get caseid from args if available, otherwise use a default
-        const caseid = args.caseid || args.caseId || 1; // Default to 1 if no caseid provided
+        // Get caseid from args - warn if defaulting to 1 for application context tracking
+        const caseid = args.caseid || args.caseId || 1;
+        if (!args.caseid && !args.caseId) {
+          console.warn(
+            "No caseid provided to MCP tool, defaulting to 1 - this may cause incorrect application context",
+          );
+        }
 
         checkpointSession = await checkpointSessionManager.beginSession(
           caseid,

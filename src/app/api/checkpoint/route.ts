@@ -11,8 +11,13 @@ export async function POST(request: NextRequest) {
     switch (action) {
       case "begin": {
         const { description, caseid, applicationid } = await request.json();
-        // Use provided caseid or default to 1
+        // Use provided caseid or default to 1, but log warning if defaulting
         const caseId = caseid || 1;
+        if (!caseid) {
+          console.warn(
+            "No caseid provided to checkpoint begin action, defaulting to 1",
+          );
+        }
         const applicationId = applicationid || undefined;
         const session = await checkpointSessionManager.beginSession(
           caseId,

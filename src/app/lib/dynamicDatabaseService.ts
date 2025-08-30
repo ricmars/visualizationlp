@@ -682,8 +682,12 @@ export class DynamicDatabaseService {
       const description = `${ruleTypeId} ${operation}`;
       const userCommand = `Dynamic DB: ${operation} ${ruleTypeId}`;
 
-      // Try to extract case ID from data
-      const caseId = data?.caseid || 1; // Default to 1 if not found
+      // Try to extract case ID from data - don't default to avoid wrong application context
+      const caseId = data?.caseid;
+      if (!caseId) {
+        console.warn("No case ID found in data for checkpoint creation");
+        return null; // Skip checkpoint creation if no case ID
+      }
 
       return await checkpointManager.beginCheckpoint(
         caseId,

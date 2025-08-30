@@ -127,10 +127,13 @@ export default function ChangesPanel({
                 {/* Checkpoint Header: date/time with restore icon */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-lg text-interactive">
-                    {new Date(checkpoint.created_at).toLocaleString(undefined, {
-                      dateStyle: "short",
-                      timeStyle: "short",
-                    })}
+                    {new Date(checkpoint.created_at + "Z").toLocaleString(
+                      undefined,
+                      {
+                        dateStyle: "short",
+                        timeStyle: "short",
+                      },
+                    )}
                   </div>
                   {checkpoint.status === "historical" && (
                     <button
@@ -148,30 +151,6 @@ export default function ChangesPanel({
                     </button>
                   )}
                 </div>
-
-                {/* Updated rules list */}
-                {/* Actions (tools executed), excluding getXXX */}
-                {Array.isArray(checkpoint.tools_executed) &&
-                  checkpoint.tools_executed.filter((t) => !/^get/i.test(t))
-                    .length > 0 && (
-                    <div className="mt-2">
-                      <div className="text-xs uppercase opacity-60 mb-1">
-                        Actions
-                      </div>
-                      <div className="flex flex-wrap gap-2 text-xs">
-                        {checkpoint.tools_executed
-                          .filter((t) => !/^get/i.test(t))
-                          .map((t, i) => (
-                            <span
-                              key={i}
-                              className="px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-interactive"
-                            >
-                              {t}
-                            </span>
-                          ))}
-                      </div>
-                    </div>
-                  )}
 
                 {/* Updated rules list */}
                 {checkpoint.updated_rules &&
