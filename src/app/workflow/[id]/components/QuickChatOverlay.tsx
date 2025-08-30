@@ -31,7 +31,7 @@ export default function QuickChatOverlay({
       className="fixed z-[110]"
       style={{ left: position.x, top: position.y }}
     >
-      <div className="w-[360px] rounded-xl shadow-2xl ring-1 ring-purple-400/40 border border-purple-300/60 dark:border-purple-700/60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-3">
+      <div className="w-[360px] min-w-[450px] rounded-xl shadow-2xl ring-1 ring-purple-400/40 border border-purple-300/60 dark:border-purple-700/60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-3">
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-600 text-white shadow">
             <FaMagic className="w-3.5 h-3.5" />

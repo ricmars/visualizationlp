@@ -59,7 +59,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
     const computePosition = () => {
       if (!isOpen || !buttonRef?.current) return;
       const buttonRect = buttonRef.current.getBoundingClientRect();
-      const estimatedWidth = 384; // Tailwind w-96
+      const estimatedWidth = 450; // Match min width requirement
       const viewportPadding = 8;
 
       // Determine bounds using the main content container
@@ -231,15 +231,30 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
               left: position.left,
               maxHeight: maxHeightPx,
             }}
-            className="w-96 modal-surface rounded-lg shadow-xl border overflow-auto border-gray-700 z-[5000]"
+            className="w-[450px] modal-surface rounded-lg shadow-xl border overflow-auto border-gray-700 z-[5000]"
             onKeyDown={handleKeyDown}
           >
             <div className="p-4">
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="lp-modal-header">
                   <h3 className="text-lg font-semibold text-white">
                     Add Field
                   </h3>
+                  <div className="flex items-center gap-2">
+                    <button onClick={onClose} className="btn-secondary px-3">
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSubmit}
+                      className="interactive-button px-3"
+                    >
+                      {mode === "existing"
+                        ? `Add Field${
+                            selectedFieldIds.length !== 1 ? "s" : ""
+                          } (${selectedFieldIds.length})`
+                        : "Save"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex gap-2 p-1 rounded-lg bg-[rgb(20,16,60)]">
@@ -282,7 +297,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                     <div>
                       {availableFields.length === 0 ? (
                         <div className="text-center py-4">
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                          <p className="text-sm text-interactive dark:text-gray-400">
                             No available fields to add.
                           </p>
                           <button
@@ -406,7 +421,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           Primary Field
                         </label>
                         <Tooltip content="Primary fields are used as identifiers and are displayed prominently in the workflow">
-                          <span className="text-gray-400 hover:text-gray-500 cursor-help">
+                          <span className="text-gray-400 hover:text-interactive cursor-help">
                             <svg
                               className="w-4 h-4"
                               fill="none"
@@ -456,25 +471,6 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                       </div>
                     </>
                   )}
-                </div>
-
-                <div className="flex gap-3 mt-6">
-                  <button
-                    onClick={handleSubmit}
-                    className="flex-1 px-4 py-2 text-white rounded-lg font-medium bg-modal"
-                  >
-                    {mode === "existing"
-                      ? `Add Selected Field${
-                          selectedFieldIds.length !== 1 ? "s" : ""
-                        } (${selectedFieldIds.length})`
-                      : "Add New Field"}
-                  </button>
-                  <button
-                    onClick={onClose}
-                    className="flex-1 px-4 py-2 text-white rounded-lg font-medium bg-modal"
-                  >
-                    Cancel
-                  </button>
                 </div>
               </div>
             </div>

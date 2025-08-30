@@ -19,19 +19,20 @@ interface CheckpointHistoryItem {
   finished_at: string;
   tools_executed: string[];
   changes_count: number;
+  updated_rules?: Array<{ name: string; type: string; operation: string }>;
 }
 
-interface ChangesHistoryProps {
+interface RulesUpdatesProps {
   isOpen: boolean;
   onClose: () => void;
   onRestore?: () => void; // Callback when restoration happens
 }
 
-export default function ChangesHistory({
+export default function RulesUpdates({
   isOpen,
   onClose,
   onRestore,
-}: ChangesHistoryProps) {
+}: RulesUpdatesProps) {
   const [history, setHistory] = useState<CheckpointHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isRestoring, setIsRestoring] = useState<string | null>(null);
@@ -51,7 +52,7 @@ export default function ChangesHistory({
         setHistory(data.history);
       }
     } catch (error) {
-      console.error("Failed to fetch checkpoint history:", error);
+      console.error("Failed to fetch rules updates:", error);
     } finally {
       setIsLoading(false);
     }
@@ -75,11 +76,9 @@ export default function ChangesHistory({
       });
 
       if (response.ok) {
-        console.log("Successfully restored to checkpoint");
         if (onRestore) {
           onRestore();
         }
-        // Refresh the page to show restored state
         window.location.reload();
       } else {
         console.error("Failed to restore checkpoint");
@@ -105,7 +104,7 @@ export default function ChangesHistory({
       case "rolled_back":
         return "text-red-600 dark:text-red-400";
       default:
-        return "text-gray-600 dark:text-gray-400";
+        return "text-white dark:text-gray-400";
     }
   };
 
@@ -131,39 +130,24 @@ export default function ChangesHistory({
           <FaUser className="w-4 h-4 text-purple-500" title="MCP Interface" />
         );
       default:
-        return <FaClock className="w-4 h-4 text-gray-500" title="API" />;
+        return <FaClock className="w-4 h-4 text-interactive" title="API" />;
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-50 modal-overlay">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
-        {/* Header */}
-        <div className="flex justify-between items-center p-6">
-          <h2 className="text-xl font-semibold flex items-center gap-2">
-            <FaClock className="text-blue-500" />
-            Changes History
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            <FaTimes className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-              <span className="ml-2">Loading history...</span>
+              <span className="ml-2">Loading rules updates...</span>
             </div>
           ) : history.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              No checkpoint history available
+            <div className="text-center py-8 text-interactive">
+              No rules updates available
             </div>
           ) : (
             <div className="space-y-4">
@@ -180,7 +164,7 @@ export default function ChangesHistory({
                         <div className="font-medium text-sm">
                           {checkpoint.description}
                         </div>
-                        <div className="text-xs text-gray-500 flex items-center gap-2">
+                        <div className="text-xs text-interactive flex items-center gap-2">
                           <span>{formatDateTime(checkpoint.created_at)}</span>
                           <span
                             className={`flex items-center gap-1 ${getStatusColor(
@@ -214,7 +198,7 @@ export default function ChangesHistory({
                   {/* User Command */}
                   {checkpoint.user_command && (
                     <div className="mb-2">
-                      <div className="text-xs text-gray-500 mb-1">
+                      <div className="text-xs text-interactive mb-1">
                         User Command:
                       </div>
                       <div className="text-sm bg-gray-100 dark:bg-gray-600 rounded p-2 font-mono">
@@ -226,7 +210,7 @@ export default function ChangesHistory({
                   )}
 
                   {/* Tools and Changes Summary */}
-                  <div className="flex items-center gap-4 text-xs text-gray-500">
+                  <div className="flex items-center gap-4 text-xs text-interactive">
                     {checkpoint.tools_executed.length > 0 && (
                       <span>Tools: {checkpoint.tools_executed.join(", ")}</span>
                     )}
@@ -235,6 +219,26 @@ export default function ChangesHistory({
                       {checkpoint.changes_count !== 1 ? "s" : ""}
                     </span>
                   </div>
+
+                  {/* Updated rules list */}
+                  {checkpoint.updated_rules &&
+                    checkpoint.updated_rules.length > 0 && (
+                      <div className="mt-3">
+                        <ul className="text-sm space-y-2">
+                          {checkpoint.updated_rules.map((r, idx) => (
+                            <li key={idx}>
+                              <div className="font-medium text-interactive">
+                                {r.name}
+                              </div>
+                              <div className="text-xs opacity-70 mt-0.5">
+                                {r.type} <span className="mx-1">•</span>{" "}
+                                {r.operation}
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
 
                   {/* Timeline Connection */}
                   {index < history.length - 1 && (
@@ -250,9 +254,6 @@ export default function ChangesHistory({
 
         {/* Footer */}
         <div className="flex justify-between items-center p-6">
-          <div className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {history.length} checkpoint{history.length !== 1 ? "s" : ""}
-          </div>
           <button
             onClick={onClose}
             className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-md"

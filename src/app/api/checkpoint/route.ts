@@ -10,12 +10,16 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "begin": {
-        const { description, caseid } = await request.json();
+        const { description, caseid, applicationid } = await request.json();
         // Use provided caseid or default to 1
         const caseId = caseid || 1;
+        const applicationId = applicationid || undefined;
         const session = await checkpointSessionManager.beginSession(
           caseId,
           description,
+          undefined, // userCommand
+          "LLM", // source
+          applicationId,
         );
 
         return NextResponse.json({
@@ -126,11 +130,18 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const caseid = searchParams.get("caseid");
+    const applicationid = searchParams.get("applicationid");
     const caseIdNum = caseid ? parseInt(caseid) : undefined;
+    const applicationIdNum = applicationid
+      ? parseInt(applicationid)
+      : undefined;
 
     const activeSession = checkpointSessionManager.getActiveSession();
     const activeCheckpoints =
-      await checkpointSessionManager.getActiveCheckpoints(caseIdNum);
+      await checkpointSessionManager.getActiveCheckpoints(
+        caseIdNum,
+        applicationIdNum,
+      );
 
     // Get additional details about checkpoints including source (LLM vs MCP)
     const checkpointDetails = activeCheckpoints.map((checkpoint) => ({

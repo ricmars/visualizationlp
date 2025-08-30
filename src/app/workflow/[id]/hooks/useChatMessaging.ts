@@ -84,11 +84,16 @@ export default function useChatMessaging({
 
         abortRef.current = new AbortController();
 
+        // Get application ID from URL params if available
+        const appIdParam = searchParams?.get("applicationId");
+        const applicationId = appIdParam ? parseInt(appIdParam, 10) : undefined;
+
         const response = await Service.generateResponse(
           message,
           selectedCase
             ? JSON.stringify({
                 currentCaseId: selectedCase.id,
+                applicationId: applicationId,
                 name: selectedCase.name,
                 stages,
                 instructions:

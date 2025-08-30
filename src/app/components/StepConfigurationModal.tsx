@@ -103,9 +103,9 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   const stepFieldIds = stepFields.map((field) => field.id!);
 
   return (
-    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100] modal-overlay">
+    <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[100] modal-overlay">
       <div
-        className="rounded-lg shadow-xl max-w-4xl max-w-[95vw] w-full mx-4 my-4 z-[110] flex flex-col max-h-[calc(100%-2rem)] overflow-hidden modal-surface"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[90] modal-surface min-w-[450px]"
         ref={modalRef}
         role="dialog"
         data-allow-freeform-select="true"
@@ -115,7 +115,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             : undefined
         }
       >
-        <div className="flex justify-between items-center p-6">
+        <div className="lp-modal-header p-6">
           <h2 className="text-xl font-semibold text-white">
             Configure Step: {step.name}
           </h2>
@@ -142,9 +142,9 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
         <div className="p-6 flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-medium">
                 Fields
-                <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
+                <span className="ml-2 text-sm font-normal">
                   ({stepFields.length})
                 </span>
               </h3>
@@ -157,7 +157,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
                     );
                     setIsAddFieldOpen(true);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                  className="interactive-button"
                 >
                   Add Field
                 </button>
@@ -167,7 +167,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             {step.type === "Collect information" ? (
               stepFields.length === 0 ? (
                 <div className="text-center py-8">
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                  <p className="text-sm text-interactive dark:text-gray-400">
                     No fields added yet. Click "Add Field" to get started.
                   </p>
                 </div>

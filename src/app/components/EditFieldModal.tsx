@@ -113,7 +113,7 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="absolute inset-0 modal-backdrop z-40 modal-overlay"
             onClick={onClose}
           />
           <motion.div
@@ -122,23 +122,20 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface min-w-[450px]"
             onKeyDown={handleKeyDown}
             tabIndex={-1}
           >
             <div className="space-y-4 p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="lp-modal-header">
                 <h3 className="text-lg font-semibold text-white">Edit Field</h3>
                 <div className="flex items-center gap-2">
-                  <button
-                    onClick={onClose}
-                    className="px-3 py-1.5 text-sm text-white rounded-lg font-medium transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-modal"
-                  >
+                  <button onClick={onClose} className="btn-secondary px-3">
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
-                    className="px-3 py-1.5 text-sm text-white rounded-lg font-medium transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800 bg-modal"
+                    className="interactive-button px-3"
                   >
                     Save
                   </button>
@@ -191,7 +188,7 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
                     Primary Field
                   </label>
                   <Tooltip content="Primary fields are used as identifiers and are displayed prominently in the workflow">
-                    <span className="text-gray-400 hover:text-gray-500 cursor-help">
+                    <span className="text-gray-400 hover:text-interactive cursor-help">
                       <svg
                         className="w-4 h-4"
                         fill="none"
@@ -221,7 +218,7 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
                     Required Field
                   </label>
                   <Tooltip content="Required fields must be filled out before proceeding">
-                    <span className="text-gray-400 hover:text-gray-500 cursor-help">
+                    <span className="text-gray-400 hover:text-interactive cursor-help">
                       <svg
                         className="w-4 h-4"
                         fill="none"

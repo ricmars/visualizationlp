@@ -71,6 +71,11 @@ import AddProcessModal from "../../components/AddProcessModal";
 import EditWorkflowModal from "../../components/EditWorkflowModal";
 import ModalPortal from "../../components/ModalPortal";
 import { StepType } from "@/app/utils/stepTypes";
+import ChangesPanel from "../../components/ChangesPanel";
+import RulesCheckoutPanel from "./components/RulesCheckoutPanel";
+const Icon = dynamic(() =>
+  import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
+);
 
 // Add ToolResult type for tool result objects
 export type ToolResult = {
@@ -143,13 +148,11 @@ export default function WorkflowPage() {
   const [activeStep, setActiveStep] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const FIXED_CHAT_PANEL_WIDTH = 500;
+  const FIXED_CHAT_PANEL_WIDTH = 400;
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  // Lifecycle is the only supported view now
   const [activeTab, setActiveTab] = usePersistentTab<
     "workflow" | "fields" | "views" | "chat" | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
-  // History UI removed; side panel always shows chat
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
@@ -165,6 +168,9 @@ export default function WorkflowPage() {
   >([]);
   const [applicationId, setApplicationId] = useState<number | null>(null);
   const [newProcessName, setNewProcessName] = useState("");
+  const [leftPanelView, setLeftPanelView] = useState<"history" | "checkout">(
+    "history",
+  );
 
   // Free Form selection & quick chat state
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
@@ -957,9 +963,59 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div className="flex h-app-screen overflow-hidden">
+    <div className="flex h-app-screen overflow-hidden app-panels px-4">
+      <aside
+        className="flex flex-col h-app-screen overflow-hidden text-sm bg-[#16244E]"
+        style={{ width: "300px", fontSize: "14px" }}
+      >
+        {/* Header with toggle */}
+        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-white">
+          <div className="text-sm font-medium opacity-80">
+            {leftPanelView === "checkout" ? "Rules checkout" : "Rules updates"}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              aria-label="Show rules updates"
+              className={`p-1 rounded hover:bg-white/10 ${
+                leftPanelView === "history" ? "bg-white/10" : ""
+              }`}
+              onClick={() => setLeftPanelView("history")}
+            >
+              <Icon name="clock" aria-hidden />
+            </button>
+            <button
+              aria-label="Show checkout"
+              className={`p-1 rounded hover:bg-white/10 ${
+                leftPanelView === "checkout" ? "bg-white/10" : ""
+              }`}
+              onClick={() => setLeftPanelView("checkout")}
+            >
+              <Icon name="folder-nested" aria-hidden />
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-hidden text-white">
+          {leftPanelView === "history" ? (
+            <div className="h-full overflow-hidden">
+              <ChangesPanel
+                caseid={selectedCase?.id}
+                applicationid={applicationId || undefined}
+                onRefresh={() =>
+                  window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT))
+                }
+              />
+            </div>
+          ) : (
+            <div className="h-full overflow-hidden">
+              <RulesCheckoutPanel caseId={selectedCase?.id} />
+            </div>
+          )}
+        </div>
+      </aside>
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative h-full">
+      <div className="flex-1 flex flex-col overflow-hidden relative h-full rounded-[12px] border border-[rgb(172,117,240)]">
         {/* Header row with title and preview switch */}
         <WorkflowTopBar
           selectedCaseName={selectedCase?.name}
@@ -1182,7 +1238,7 @@ export default function WorkflowPage() {
       </div>
 
       {/* Chat Panel - fixed width */}
-      <div
+      <aside
         className="flex flex-col h-app-screen overflow-hidden text-sm"
         style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
       >
@@ -1197,7 +1253,7 @@ export default function WorkflowPage() {
             onClearChat={handleClearChat}
           />
         </div>
-      </div>
+      </aside>
 
       {/* Free Form selection overlay */}
       {isFreeFormSelecting && (

@@ -669,79 +669,78 @@ export default function ChatInterface({
       </div>
 
       {/* Message input */}
-      <div className="  p-3">
-        <div className="flex flex-row items-center gap-2">
-          <div className="flex-1 min-w-0">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-              rows={1}
-              className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto bg-transparent text-white placeholder-white text-sm leading-relaxed transition-all duration-200 ease-in-out"
-              disabled={isLoading || isProcessing}
-            />
-          </div>
-          <button
-            onClick={() => {
-              if (!recognition) return;
-              // First time, open config modal
-              if (!hasVoiceConfig) {
-                setIsRecordModalOpen(true);
-                return;
-              }
-              // Toggle record/stop
-              if (isRecording) {
-                stopRecording();
-              } else {
-                startRecording();
-              }
-            }}
-            disabled={isLoading || isProcessing || !recognition}
-            className="flex items-center justify-center w-10 h-10 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-            title={
-              recognition
-                ? isRecording
-                  ? "Stop recording"
-                  : "Start recording"
-                : "Speech recognition not supported"
+
+      <div className="flex flex-row items-center gap-2">
+        <div className="flex-1 min-w-0">
+          <textarea
+            ref={textareaRef}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
+            rows={1}
+            className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto bg-transparent text-white placeholder-white text-sm leading-relaxed transition-all duration-200 ease-in-out"
+            disabled={isLoading || isProcessing}
+          />
+        </div>
+        <button
+          onClick={() => {
+            if (!recognition) return;
+            // First time, open config modal
+            if (!hasVoiceConfig) {
+              setIsRecordModalOpen(true);
+              return;
             }
+            // Toggle record/stop
+            if (isRecording) {
+              stopRecording();
+            } else {
+              startRecording();
+            }
+          }}
+          disabled={isLoading || isProcessing || !recognition}
+          className="flex items-center justify-center w-10 h-10 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
+          title={
+            recognition
+              ? isRecording
+                ? "Stop recording"
+                : "Start recording"
+              : "Speech recognition not supported"
+          }
+        >
+          {isRecording ? (
+            <FaStop className="w-4 h-4" />
+          ) : (
+            <FaMicrophone className="w-4 h-4" />
+          )}
+        </button>
+        {isProcessing ? (
+          <button
+            onClick={() => onAbort?.()}
+            className="flex items-center justify-center px-3 h-10 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 ease-in-out"
+            title="Stop"
           >
-            {isRecording ? (
-              <FaStop className="w-4 h-4" />
+            <FaStop className="w-4 h-4 mr-1" /> Stop
+          </button>
+        ) : (
+          <button
+            onClick={handleSendMessage}
+            disabled={isLoading || !message.trim()}
+            className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
+            title="Send message"
+          >
+            {isLoading ? (
+              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             ) : (
-              <FaMicrophone className="w-4 h-4" />
+              <FaArrowUp className="w-4 h-4" />
             )}
           </button>
-          {isProcessing ? (
-            <button
-              onClick={() => onAbort?.()}
-              className="flex items-center justify-center px-3 h-10 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 ease-in-out"
-              title="Stop"
-            >
-              <FaStop className="w-4 h-4 mr-1" /> Stop
-            </button>
-          ) : (
-            <button
-              onClick={handleSendMessage}
-              disabled={isLoading || !message.trim()}
-              className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-              title="Send message"
-            >
-              {isLoading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-              ) : (
-                <FaArrowUp className="w-4 h-4" />
-              )}
-            </button>
-          )}
-        </div>
+        )}
       </div>
       {isRecordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 modal-backdrop modal-overlay"
             onClick={closeRecordModal}
           ></div>
           <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-3 p-4 border border-gray-200 dark:border-gray-700">
@@ -750,7 +749,7 @@ export default function ChatInterface({
             </h4>
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                <label className="block text-xs text-white dark:text-gray-300 mb-1">
                   Language
                 </label>
                 <select
@@ -771,7 +770,7 @@ export default function ChatInterface({
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 dark:text-gray-300 mb-1">
+                <label className="block text-xs text-white dark:text-gray-300 mb-1">
                   Audio output device
                 </label>
                 <div className="flex items-center gap-2">

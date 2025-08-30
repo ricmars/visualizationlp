@@ -23,7 +23,7 @@ const Modal: React.FC<ModalProps> = ({ isOpen, onClose, children }) => {
   return (
     <>
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay"
+        className="absolute inset-0 modal-backdrop z-[80] modal-overlay"
         onClick={onClose}
       />
       <div
@@ -84,7 +84,7 @@ const EditModal: React.FC<EditModalProps> = ({
     <Modal isOpen={isOpen} onClose={onClose}>
       <div className="rounded-lg shadow-xl max-w-md w-full modal-surface">
         <div className="p-6">
-          <div className="flex items-center justify-between pb-4 border-b border-gray-200/30">
+          <div className="lp-modal-header">
             <h3 className="text-lg font-semibold text-white">
               Edit{" "}
               {type === "stage"
@@ -97,14 +97,14 @@ const EditModal: React.FC<EditModalProps> = ({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
+                className="btn-secondary px-3"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 form="edit-modal-form"
-                className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
+                className="interactive-button px-3"
               >
                 Save
               </button>

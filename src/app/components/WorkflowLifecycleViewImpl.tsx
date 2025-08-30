@@ -145,6 +145,7 @@ class ErrorBoundary extends React.Component<
 }
 
 const theme = Bootes2025DarkTheme;
+theme.base["font-family"] = "Montserrat, Helvetica, sans-serif";
 
 // Stable provider composition to prevent duplicate style tags on re-renders
 const PegaProviders = React.memo(
@@ -743,7 +744,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                       },
                       {
                         id: "rename",
-                        text: "Rename step",
+                        text: "Edit step",
                         visual: <PegaIcon name="pencil" />,
                         onClick: (data: any) => {
                           for (const stage of stages) {
@@ -1038,7 +1039,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
         )}
       </ModalPortal>
 
-      {/* Rename Step Modal */}
       <ModalPortal isOpen={!!stepEdit}>
         {stepEdit && (
           <EditModal

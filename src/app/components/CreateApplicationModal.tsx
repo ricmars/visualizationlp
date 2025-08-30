@@ -54,10 +54,6 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
     }
   };
 
-  if (!isOpen) return null;
-
-  const remainingChars = 2000 - description.length;
-
   // Auto-scroll progress box to bottom whenever new progress arrives
   useEffect(() => {
     if (isCreating && creationProgress && progressRef.current) {
@@ -65,19 +61,47 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
     }
   }, [isCreating, creationProgress]);
 
+  if (!isOpen) return null;
+
+  const remainingChars = 2000 - description.length;
+
   return (
     <div
-      className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50"
+      className="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50 modal-overlay"
       onClick={isCreating ? undefined : onClose}
     >
       <div
-        className="rounded-lg shadow-xl max-w-md w-full modal-surface"
+        className="rounded-lg shadow-xl max-w-md w-full modal-surface min-w-[450px]"
         onClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit} className="p-6">
-          <h2 className="text-xl font-semibold text-white mb-6">
-            {title || "Create new application"}
-          </h2>
+          <div className="lp-modal-header mb-2">
+            <h2 className="text-lg font-semibold text-white">
+              {title || "Create new application"}
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                disabled={isSubmitting || isCreating}
+                className="btn-secondary px-3"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={
+                  isSubmitting ||
+                  isCreating ||
+                  !name.trim() ||
+                  !description.trim()
+                }
+                className="interactive-button px-3"
+              >
+                {isCreating ? "Creating application..." : "Create"}
+              </button>
+            </div>
+          </div>
           <div className="space-y-4">
             {creationError && (
               <div className="bg-red-50 border border-red-200 rounded-md p-4">
@@ -140,43 +164,13 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
                   required
                   disabled={isSubmitting || isCreating}
                 />
-                <div className="absolute right-2 text-sm text-gray-500">
+                <div className="absolute right-2 text-sm text-interactive">
                   {remainingChars} characters remaining
                 </div>
               </div>
             </div>
           </div>
-          <div className="mt-6 flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 bg-modal"
-              disabled={isSubmitting || isCreating}
-            >
-              {isCreating ? "Creating..." : "Cancel"}
-            </button>
-            <button
-              type="submit"
-              disabled={
-                isSubmitting ||
-                isCreating ||
-                !name.trim() ||
-                !description.trim()
-              }
-              className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 flex items-center space-x-2 bg-modal"
-            >
-              {(isSubmitting || isCreating) && (
-                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
-              )}
-              <span>
-                {isCreating
-                  ? "Creating application..."
-                  : isSubmitting
-                  ? "Creating..."
-                  : "Create"}
-              </span>
-            </button>
-          </div>
+          <div className="mt-6" />
           {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
         </form>
       </div>

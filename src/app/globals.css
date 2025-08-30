@@ -13,6 +13,8 @@
   /* Spacing tokens */
   --Spacing-1x: 7px;
   --Spacing-2x: 14px;
+  /* App layout */
+  --panel-gutter: 24px; /* Space between left/main and main/right panels */
 
   /* Stage Colors - Updated for better contrast */
   --stage-intake: #0a4b9f; /* Darker blue for better contrast */
@@ -42,6 +44,11 @@
   --input-radius: var(--Input-radius-Medium, 4px);
   --input-height: 32px;
   --input-padding: 0 4px 0 8px;
+
+  /* Interactive color tokens */
+  --color-interactive: #75d7cd;
+  --color-interactive-hover: #8be4da;
+  --color-interactive-active: #68cfc4;
 }
 
 /* Tailwind v4 theme tokens mapped to CSS variables */
@@ -83,14 +90,26 @@ body {
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, system-ui, -apple-system, Segoe UI,
+    Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   padding-top: var(--header-height);
 }
 
 @layer components {
   /* Semantic utility for modal surfaces */
   .modal-surface {
-    @apply bg-modal text-modal-text;
+    @apply bg-modal text-modal-text min-w-[450px];
+  }
+
+  /* App panels horizontal gutter */
+  .app-panels {
+    gap: var(--panel-gutter);
+  }
+
+  /* Unified modal backdrop: subtle 20% opacity with slight blur */
+  .modal-backdrop {
+    @apply bg-black/20 backdrop-blur-[2px];
   }
 
   /* Launchpad input style */
@@ -118,7 +137,101 @@ body {
     border-radius: 6px;
     border: 1px solid #75d7cd;
     background: #75d7cd;
+    color: #0b132b;
     padding: var(--Spacing-1x, 7px) var(--Spacing-2x, 14px);
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background-color 120ms ease, box-shadow 120ms ease,
+      border-color 120ms ease, color 120ms ease, transform 80ms ease;
+  }
+  .interactive-button:hover {
+    background: #8be4da;
+    box-shadow: 0 0 0 2px rgba(117, 215, 205, 0.25) inset;
+  }
+  .interactive-button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(117, 215, 205, 0.5);
+  }
+  .interactive-button:active {
+    transform: translateY(0.5px);
+    background: #68cfc4;
+  }
+  .interactive-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Secondary button style */
+  .btn-secondary {
+    border-radius: 6px;
+    border: 1px solid #75d7cd;
+    background: rgba(21, 17, 44, 0.5);
+    height: 32px;
+    padding: var(--Spacing-1x) 0;
+    color: #75d7cd;
+    min-width: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background-color 120ms ease, box-shadow 120ms ease,
+      border-color 120ms ease, color 120ms ease;
+  }
+  .btn-secondary:hover {
+    background: rgba(21, 17, 44, 0.65);
+    box-shadow: 0 0 0 2px rgba(117, 215, 205, 0.25) inset;
+  }
+  .btn-secondary:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(117, 215, 205, 0.5);
+  }
+  .btn-secondary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
+  /* Consistent modal/overlay header with bottom border */
+  .lp-modal-header {
+    @apply flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  /* Interactive text utility */
+  .text-interactive {
+    color: var(--color-interactive);
+  }
+
+  /* Toggle (Preview switch) */
+  .lp-toggle {
+    position: relative;
+  }
+  .lp-toggle-track {
+    @apply block w-14 h-8 rounded-full transition-colors duration-200 ease-in-out;
+    background-color: rgb(229 231 235); /* gray-200 */
+    border: 1px solid var(--color-interactive);
+  }
+  .dark .lp-toggle-track {
+    background-color: rgb(55 65 81); /* gray-700 */
+  }
+  /* Focus ring using interactive color */
+  .lp-toggle input[type="checkbox"]:focus + .lp-toggle-track {
+    box-shadow: 0 0 0 2px rgba(117, 215, 205, 0.5);
+  }
+  /* Checked state uses interactive color */
+  .lp-toggle input[type="checkbox"]:checked + .lp-toggle-track {
+    background-color: var(--color-interactive);
+  }
+  .lp-toggle-dot {
+    @apply absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all duration-200 ease-in-out shadow-sm;
+  }
+  /* Move the dot when checked */
+  .lp-toggle
+    input[type="checkbox"]:checked
+    + .lp-toggle-track
+    + .lp-toggle-dot {
+    transform: translateX(24px);
   }
 }
 

@@ -49,7 +49,7 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm z-40"
+            className="absolute inset-0 modal-backdrop z-40 modal-overlay"
             onClick={onClose}
           />
           <motion.div
@@ -71,20 +71,17 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
                         await onDelete();
                         onClose();
                       }}
-                      className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-red-600"
+                      className="btn-secondary px-3"
                     >
                       Delete
                     </button>
                   )}
-                  <button
-                    onClick={onClose}
-                    className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
-                  >
+                  <button onClick={onClose} className="btn-secondary px-3">
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
-                    className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 bg-modal"
+                    className="interactive-button px-3"
                   >
                     Save
                   </button>

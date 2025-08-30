@@ -69,29 +69,27 @@ export default function WorkflowTopBar({
           {canEdit && (
             <button
               onClick={onEditWorkflowAction}
-              className="ml-3 p-1.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="ml-3 btn-secondary w-8"
               aria-label="Edit workflow"
             >
-              <FaPencilAlt className="w-4 h-4 text-gray-500" />
+              <FaPencilAlt className="w-4 h-4" />
             </button>
           )}
         </div>
       </div>
 
       <label className="flex items-center cursor-pointer group">
-        <div className="relative">
+        <div className="lp-toggle">
           <input
             type="checkbox"
-            className="sr-only peer"
+            className="sr-only"
             checked={isPreviewMode}
             onChange={onTogglePreviewAction}
           />
-          <div className="block bg-gray-200 dark:bg-gray-700 w-14 h-8 rounded-full transition-colors duration-200 ease-in-out peer-checked:bg-blue-600 dark:peer-checked:bg-blue-500 group-hover:bg-gray-300 dark:group-hover:bg-gray-600 peer-checked:group-hover:bg-blue-700 dark:peer-checked:group-hover:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-500 peer-focus:ring-offset-2 dark:peer-focus:ring-offset-gray-900"></div>
-          <div
-            className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-all duration-200 ease-in-out shadow-sm peer-checked:translate-x-6 peer-checked:bg-white group-hover:scale-95`}
-          ></div>
+          <div className="lp-toggle-track"></div>
+          <div className={`lp-toggle-dot`}></div>
         </div>
-        <div className="ml-3 text-sm font-medium text-white transition-colors duration-200">
+        <div className="ml-3 text-sm font-medium text-interactive transition-colors duration-200">
           Preview
         </div>
       </label>

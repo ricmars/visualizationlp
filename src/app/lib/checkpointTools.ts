@@ -194,30 +194,141 @@ async function wrapCreateCase(originalExecute: any, params: any, _pool: Pool) {
   return result;
 }
 
-async function wrapSaveFields(originalExecute: any, params: any, _pool: Pool) {
+async function wrapSaveFields(originalExecute: any, params: any, pool: Pool) {
   console.log("Wrapping saveFields with checkpoint capture");
 
-  // Note: saveFields is complex as it can insert multiple fields
-  // We'll let the original function execute and then capture based on returned IDs
+  // Determine intended operations and capture previous state for updates
+  const fields: Array<any> = Array.isArray(params?.fields) ? params.fields : [];
+  const preUpdateState: Array<{
+    op: "insert" | "update";
+    prev?: any;
+    id?: number;
+  }> = [];
+
+  for (const field of fields) {
+    const { id, name, caseid } = field || {};
+    if (typeof id === "number") {
+      // Explicit update by id
+      try {
+        const prevRes = await pool.query(
+          `SELECT * FROM "${DB_TABLES.FIELDS}" WHERE id = $1`,
+          [id],
+        );
+        preUpdateState.push({
+          op: "update",
+          prev: prevRes.rows[0] || null,
+          id,
+        });
+      } catch (e) {
+        console.warn(
+          "wrapSaveFields: failed to load previous field by id",
+          id,
+          e,
+        );
+        preUpdateState.push({ op: "update", prev: null, id });
+      }
+    } else if (name && caseid) {
+      // Might be update by (name, caseid) or an insert
+      try {
+        const existing = await pool.query(
+          `SELECT * FROM "${DB_TABLES.FIELDS}" WHERE name = $1 AND caseid = $2`,
+          [name, caseid],
+        );
+        if ((existing.rowCount ?? 0) > 0) {
+          preUpdateState.push({
+            op: "update",
+            prev: existing.rows[0] || null,
+            id: existing.rows[0]?.id,
+          });
+        } else {
+          preUpdateState.push({ op: "insert" });
+        }
+      } catch (e) {
+        console.warn(
+          "wrapSaveFields: failed to detect existing field by (name, caseid)",
+          name,
+          caseid,
+          e,
+        );
+        // Default to insert if uncertain
+        preUpdateState.push({ op: "insert" });
+      }
+    } else {
+      // Missing identifiers — default to insert
+      preUpdateState.push({ op: "insert" });
+    }
+  }
+
+  // Execute original saveFields
   const result = await originalExecute(params);
 
-  // Capture insert operations for all created fields
-  if (result.ids && Array.isArray(result.ids)) {
-    for (const fieldId of result.ids) {
-      await captureOperation("insert", DB_TABLES.FIELDS, { id: fieldId });
+  // Capture per-field operations using the same ordering
+  const returnedIds: number[] = Array.isArray(result?.ids)
+    ? (result.ids as number[])
+    : [];
+  for (let i = 0; i < preUpdateState.length; i++) {
+    const state = preUpdateState[i];
+    if (state.op === "insert") {
+      const newId = returnedIds[i];
+      if (typeof newId === "number") {
+        await captureOperation("insert", DB_TABLES.FIELDS, { id: newId });
+      } else if (
+        result?.fields &&
+        Array.isArray(result.fields) &&
+        result.fields[i]?.id
+      ) {
+        // Fallback if ids array misaligned
+        await captureOperation("insert", DB_TABLES.FIELDS, {
+          id: result.fields[i].id,
+        });
+      }
+    } else if (
+      state.op === "update" &&
+      typeof (state.id ?? state.prev?.id) === "number"
+    ) {
+      const targetId = (state.id ?? state.prev?.id) as number;
+      await captureOperation(
+        "update",
+        DB_TABLES.FIELDS,
+        { id: targetId },
+        state.prev || undefined,
+      );
     }
   }
 
   return result;
 }
 
-async function wrapSaveView(originalExecute: any, params: any, _pool: Pool) {
+async function wrapSaveView(originalExecute: any, params: any, pool: Pool) {
   console.log("Wrapping saveView with checkpoint capture");
+  const viewId = params?.id as number | undefined;
+  let previousData: any = null;
+  if (typeof viewId === "number") {
+    try {
+      const prev = await pool.query(
+        `SELECT * FROM "${DB_TABLES.VIEWS}" WHERE id = $1`,
+        [viewId],
+      );
+      previousData = prev.rows[0] || null;
+    } catch (e) {
+      console.warn("wrapSaveView: failed to load previous view", viewId, e);
+    }
+  }
 
   const result = await originalExecute(params);
 
-  // Capture the insert operation
-  if (result.id) {
+  if (typeof viewId === "number") {
+    // Update
+    if (previousData) {
+      await captureOperation(
+        "update",
+        DB_TABLES.VIEWS,
+        { id: viewId },
+        previousData,
+      );
+    }
+  } else if (result?.id) {
+    // Insert
     await captureOperation("insert", DB_TABLES.VIEWS, { id: result.id });
   }
 
@@ -364,6 +475,7 @@ export class CheckpointSessionManager {
     description?: string,
     userCommand?: string,
     source = "LLM",
+    applicationid?: number,
   ): Promise<CheckpointSession> {
     if (this.activeSession) {
       console.warn("Starting new checkpoint session while another is active");
@@ -375,6 +487,7 @@ export class CheckpointSessionManager {
       description,
       userCommand,
       source,
+      applicationid,
     );
     setCurrentCheckpoint(checkpointId);
     setCurrentCaseId(caseid);
@@ -421,8 +534,8 @@ export class CheckpointSessionManager {
     return this.activeSession;
   }
 
-  async getActiveCheckpoints(caseid?: number) {
-    return await checkpointManager.getActiveCheckpoints(caseid);
+  async getActiveCheckpoints(caseid?: number, applicationid?: number) {
+    return await checkpointManager.getActiveCheckpoints(caseid, applicationid);
   }
 
   async restoreToCheckpoint(checkpointId: string): Promise<void> {
@@ -436,8 +549,8 @@ export class CheckpointSessionManager {
     console.log("Restored to checkpoint:", checkpointId);
   }
 
-  async getCheckpointHistory(caseid?: number) {
-    return await checkpointManager.getCheckpointHistory(caseid);
+  async getCheckpointHistory(caseid?: number, applicationid?: number) {
+    return await checkpointManager.getCheckpointHistory(caseid, applicationid);
   }
 
   async deleteCheckpoint(checkpointId: string): Promise<void> {
@@ -478,21 +591,6 @@ export function createCheckpointWrapper(
   tool: SharedTool<any, any>,
   pool: Pool,
 ) {
-  // Only wrap database modification tools
-  const modificationTools = [
-    "saveFields",
-    "saveCase",
-    "saveView",
-    "deleteField",
-    "deleteView",
-    "createCase",
-  ];
-
-  if (!modificationTools.includes(tool.name)) {
-    // Return read-only tools unchanged
-    return tool;
-  }
-
   return {
     ...tool,
     execute: async (params: any) => {

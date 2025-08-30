@@ -58,15 +58,36 @@ export default function DeleteWorkflowModal({
   };
 
   return (
-    <div className="absolute inset-0 bg-black bg-opacity-40 flex items-center justify-center z-[80] modal-overlay p-4">
+    <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[80] modal-overlay p-4">
       <div
-        className="rounded-lg shadow-xl w-full max-w-md z-[90] modal-surface"
+        className="rounded-lg shadow-xl w-full max-w-md z-[90] modal-surface min-w-[450px]"
         role="dialog"
       >
         <div className="p-6">
-          <h2 className="text-lg font-semibold mb-2 text-white">
-            Delete workflow
-          </h2>
+          <div className="lp-modal-header">
+            <h2 className="text-lg font-semibold text-white">
+              Delete workflow
+            </h2>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={onCancel}
+                disabled={isDeleting}
+                className="btn-secondary px-3"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={isDeleting}
+                className="interactive-button px-3 flex items-center gap-2"
+              >
+                {isDeleting && (
+                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                )}
+                Delete
+              </button>
+            </div>
+          </div>
           <p className="text-sm text-gray-200">
             Are you sure you want to delete "{caseName}"? This will permanently
             remove the workflow, all fields, views, and checkpoints for this
@@ -84,25 +105,7 @@ export default function DeleteWorkflowModal({
             </div>
           )}
         </div>
-        <div className="px-6 pb-6 flex justify-end gap-3">
-          <button
-            onClick={onCancel}
-            disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 bg-modal"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleConfirm}
-            disabled={isDeleting}
-            className="px-4 py-2 text-sm font-medium text-white rounded-md disabled:opacity-50 flex items-center gap-2 bg-modal"
-          >
-            {isDeleting && (
-              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-            )}
-            Delete
-          </button>
-        </div>
+        <div className="px-6 pb-6" />
       </div>
     </div>
   );

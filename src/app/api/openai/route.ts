@@ -150,6 +150,7 @@ export async function POST(request: Request) {
 
     // Parse system context to check if we're working with an existing workflow
     let currentCaseId: number | null = null;
+    let currentApplicationId: number | undefined = undefined;
     let _isExistingWorkflow = false;
     if (systemContext) {
       try {
@@ -157,10 +158,13 @@ export async function POST(request: Request) {
         console.log("Parsed system context:", contextData);
         if (contextData.currentCaseId) {
           currentCaseId = contextData.currentCaseId;
+          currentApplicationId = contextData.applicationId;
           _isExistingWorkflow = true;
           console.log(
             "Detected existing workflow with case ID:",
             currentCaseId,
+            "and application ID:",
+            currentApplicationId,
           );
         }
       } catch (_parseError) {
@@ -393,6 +397,7 @@ Bulk operations policy:
             `LLM Tool Execution: ${enhancedPrompt.substring(0, 50)}...`,
             prompt, // Store the original user command
             "LLM",
+            currentApplicationId,
           );
           console.log("Started checkpoint session:", checkpointSession.id);
         } else {

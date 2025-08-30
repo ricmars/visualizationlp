@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CreateApplicationModal } from "./components/CreateApplicationModal";
-import DeleteWorkflowModal from "./components/DeleteWorkflowModal";
+import DeleteApplicationModal from "./components/DeleteApplicationModal";
 import { useRouter } from "next/navigation";
 import { FaTrash } from "react-icons/fa";
 import { fetchWithBaseUrl } from "./lib/fetchWithBaseUrl";
@@ -180,35 +180,6 @@ export default function Home() {
     }
   };
 
-  const _handleDeleteWorkflow = async (name: string) => {
-    try {
-      const appToDelete = applications?.find((a) => a.name === name);
-      if (!appToDelete) {
-        throw new Error("Application not found");
-      }
-
-      const response = await fetchWithBaseUrl(
-        `/api/dynamic?ruleType=application&id=${appToDelete.id}`,
-        {
-          method: "DELETE",
-        },
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(
-          `Failed to delete workflow: ${response.status} ${errorText}`,
-        );
-      }
-
-      setApplications((prev) => prev.filter((a) => a.name !== name));
-      setDeleteTarget(null);
-    } catch (error) {
-      console.error("Error deleting application:", error);
-      throw error;
-    }
-  };
-
   const handleCardClick = async (applicationId: number) => {
     try {
       setIsNavigatingId(applicationId);
@@ -251,7 +222,7 @@ export default function Home() {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
         </div>
       ) : applications.length === 0 ? (
-        <div className="flex flex-col justify-center items-center h-64 text-gray-500">
+        <div className="flex flex-col justify-center items-center h-64 text-interactive">
           <p className="text-lg font-medium">No application available.</p>
           <p>Click "New application" to create a new one.</p>
         </div>
@@ -261,14 +232,23 @@ export default function Home() {
             <div
               key={app.id}
               onClick={() => void handleCardClick(app.id)}
-              className="group border rounded p-4 hover:shadow-lg transition-all cursor-pointer relative block"
+              role="button"
+              tabIndex={0}
+              aria-label={`Open application ${app.name}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  void handleCardClick(app.id);
+                }
+              }}
+              className="border border-white/30 rounded p-4 transition-all cursor-pointer relative block focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 hover:border-white active:border-white/80"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-xl font-semibold mb-1 group-hover:text-blue-700 transition-colors">
+                  <h2 className="text-xl font-semibold mb-1 text-white">
                     {app.name}
                   </h2>
-                  <p className="text-gray-600 mb-2 line-clamp-2">
+                  <p className="text-white mb-2 line-clamp-2">
                     {app.description}
                   </p>
                 </div>
@@ -278,7 +258,7 @@ export default function Home() {
                     e.stopPropagation();
                     setDeleteTarget({ id: app.id, name: app.name });
                   }}
-                  className="inline-flex items-center justify-center w-9 h-9 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors focus:outline-none focus:ring-2 focus:ring-red-500"
+                  className="btn-secondary w-8"
                   aria-label="Delete application"
                   title="Delete application"
                 >
@@ -307,15 +287,14 @@ export default function Home() {
         creationError={error}
         title="Create new application"
       />
-      <DeleteWorkflowModal
+      <DeleteApplicationModal
         isOpen={!!deleteTarget}
-        caseId={deleteTarget?.id}
-        caseName={deleteTarget?.name}
+        applicationId={deleteTarget?.id}
+        applicationName={deleteTarget?.name}
         onCancel={() => setDeleteTarget(null)}
         onConfirm={async (id) => {
-          const app = applications.find((a) => a.id === id);
-          if (!app) return;
-          await _handleDeleteWorkflow(app.name);
+          setApplications((prev) => prev.filter((a) => a.id !== id));
+          setDeleteTarget(null);
         }}
       />
     </div>

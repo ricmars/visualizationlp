@@ -413,32 +413,19 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         {selectedView ? (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
+              <h3 className="text-lg font-medium">
                 {allViews.find((v) => v.id.toString() === selectedView)?.name ||
                   selectedView}
               </h3>
-              <Tooltip content="Add new field">
+              <Tooltip content="Add Field">
                 <motion.button
                   ref={addFieldButtonRef}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => setIsAddFieldOpen(true)}
-                  className="inline-flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 shadow-sm text-sm"
-                  aria-label="Add new field"
+                  className="interactive-button"
+                  aria-label="Add Field"
                 >
-                  <svg
-                    className="w-4 h-4 mr-1.5"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M12 4v16m8-8H4"
-                    />
-                  </svg>
                   Add Field
                 </motion.button>
               </Tooltip>
@@ -446,7 +433,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
 
             {selectedViewFields.length === 0 ? (
               <div className="text-center py-8">
-                <p className="text-sm text-gray-500 dark:text-gray-400">
+                <p className="text-sm text-interactive dark:text-gray-400">
                   No fields added yet. Click "Add Field" to get started.
                 </p>
               </div>
@@ -463,7 +450,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
             )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 dark:text-gray-400 mt-8">
+          <div className="text-center text-interactive dark:text-gray-400 mt-8">
             Select a view to see its fields
           </div>
         )}
@@ -586,37 +573,16 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
           exit={{ opacity: 0, scale: 0.95 }}
           className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface"
         >
-          <div className="px-4 py-3">
-            <h3 className="text-base font-semibold text-white">Edit Field</h3>
-          </div>
-          <div className="p-4 space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-white mb-1">
-                Label
-              </label>
-              <input
-                type="text"
-                value={editingField.label}
-                onChange={(e) =>
-                  setEditingField({
-                    ...editingField,
-                    label: e.target.value,
-                  })
-                }
-                className="w-full px-3 py-1.5 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white text-sm"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 mt-4">
-              <Tooltip content="Cancel editing">
+          <div className="space-y-4 p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
+              <h3 className="text-lg font-semibold text-white">Edit Field</h3>
+              <div className="flex items-center gap-2">
                 <button
                   onClick={() => setEditingField(null)}
-                  className="px-3 py-1.5 text-sm text-white rounded-lg bg-modal"
+                  className="btn-secondary px-3"
                 >
                   Cancel
                 </button>
-              </Tooltip>
-              <Tooltip content="Save field changes">
                 <button
                   onClick={() => {
                     if (editingField) {
@@ -626,11 +592,30 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                       });
                     }
                   }}
-                  className="px-4 py-2 text-sm text-white rounded-lg font-medium bg-modal"
+                  className="interactive-button px-3"
                 >
-                  Save Changes
+                  Save
                 </button>
-              </Tooltip>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-white mb-1">
+                  Label
+                </label>
+                <input
+                  type="text"
+                  value={editingField.label}
+                  onChange={(e) =>
+                    setEditingField({
+                      ...editingField,
+                      label: e.target.value,
+                    })
+                  }
+                  className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
+                />
+              </div>
             </div>
           </div>
         </motion.div>

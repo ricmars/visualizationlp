@@ -28,7 +28,7 @@ export default function ChatPanelHeader({
         </button>
         <button
           onClick={onClearChat}
-          className="px-3 py-1 text-xs text-gray-600 dark:text-gray-300 hover:text-red-600 dark:hover:text-red-400 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-red-200 dark:hover:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-1 active:bg-red-50 dark:active:bg-red-900/20 transition-all duration-200 ease-in-out bg-white dark:bg-gray-900"
+          className="px-3 py-1 text-xs text-white rounded-lg border border-gray-200"
           title="Clear chat history"
         >
           Clear All

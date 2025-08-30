@@ -20,13 +20,15 @@ export default function WorkflowList({
 }: WorkflowListProps) {
   if (!cases) {
     return (
-      <div className="text-center text-gray-500 py-8">Loading workflows...</div>
+      <div className="text-center text-interactive py-8">
+        Loading workflows...
+      </div>
     );
   }
 
   if (cases.length === 0) {
     return (
-      <div className="text-center text-gray-500 py-8">
+      <div className="text-center text-interactive py-8">
         No workflows found. Create your first workflow to get started.
       </div>
     );
@@ -51,7 +53,7 @@ export default function WorkflowList({
               <FaTrash />
             </button>
           </div>
-          <p className="text-gray-600 mb-4 line-clamp-2">
+          <p className="text-white mb-4 line-clamp-2">
             {workflow.description || "No description provided"}
           </p>
           <button

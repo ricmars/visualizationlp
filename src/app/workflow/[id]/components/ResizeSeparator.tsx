@@ -24,7 +24,7 @@ export default function ResizeSeparator({
       <button
         type="button"
         onClick={onToggle}
-        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 h-7 w-7 rounded-full bg-white dark:bg-gray-900 shadow ring-1 ring-gray-300 dark:ring-gray-700 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
+        className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 h-7 w-7 rounded-full bg-white dark:bg-gray-900 shadow ring-1 ring-gray-300 dark:ring-gray-700 flex items-center justify-center text-white dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
         aria-label={isExpanded ? "Collapse chat panel" : "Expand chat panel"}
         title={isExpanded ? "Collapse" : "Expand"}
       >
@@ -34,7 +34,7 @@ export default function ResizeSeparator({
           <FaChevronLeft className="h-4 w-4" />
         )}
       </button>
-      <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 text-gray-400 dark:text-gray-500 pointer-events-none">
+      <div className="absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 text-gray-400 dark:text-interactive pointer-events-none">
         <FaGripVertical className="h-3 w-3" />
       </div>
     </div>

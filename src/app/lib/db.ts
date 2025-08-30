@@ -169,6 +169,7 @@ export async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS "checkpoints" (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         caseid INTEGER NOT NULL,
+        applicationid INTEGER,
         description TEXT,
         user_command TEXT,
         status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'committed', 'rolled_back', 'historical')),
@@ -188,6 +189,17 @@ export async function initializeDatabase() {
     } catch (_error) {
       console.log(
         "Index checkpoints_caseid_idx may already exist, continuing...",
+      );
+    }
+
+    // Create index for checkpoints applicationid
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS checkpoints_applicationid_idx ON "checkpoints" (applicationid, created_at DESC);
+      `);
+    } catch (_error) {
+      console.log(
+        "Index checkpoints_applicationid_idx may already exist, continuing...",
       );
     }
 
@@ -270,6 +282,7 @@ export interface CheckpointManager {
     description?: string,
     userCommand?: string,
     source?: string,
+    applicationid?: number,
   ): Promise<string>;
   commitCheckpoint(checkpointId: string): Promise<void>;
   rollbackCheckpoint(checkpointId: string): Promise<void>;
@@ -285,8 +298,12 @@ export interface CheckpointManager {
   recordToolExecution(checkpointId: string, toolName: string): Promise<void>;
   getActiveCheckpoints(
     caseid?: number,
+    applicationid?: number,
   ): Promise<Array<{ id: string; description: string; created_at: Date }>>;
-  getCheckpointHistory(caseid?: number): Promise<
+  getCheckpointHistory(
+    caseid?: number,
+    applicationid?: number,
+  ): Promise<
     Array<{
       id: string;
       description: string;
@@ -310,16 +327,17 @@ export const checkpointManager: CheckpointManager = {
     description = "LLM Tool Execution",
     userCommand?: string,
     source = "LLM",
+    applicationid?: number,
   ): Promise<string> {
     console.log("Creating new checkpoint:", description, "for case:", caseid);
 
     const result = await pool.query(
       `
-      INSERT INTO "checkpoints" (caseid, description, user_command, status, source)
-      VALUES ($1, $2, $3, 'active', $4)
+      INSERT INTO "checkpoints" (caseid, applicationid, description, user_command, status, source)
+      VALUES ($1, $2, $3, $4, 'active', $5)
       RETURNING id
     `,
-      [caseid, description, userCommand, source],
+      [caseid, applicationid, description, userCommand, source],
     );
 
     const checkpointId = result.rows[0].id;
@@ -535,6 +553,7 @@ export const checkpointManager: CheckpointManager = {
 
   async getActiveCheckpoints(
     caseid?: number,
+    applicationid?: number,
   ): Promise<Array<{ id: string; description: string; created_at: Date }>> {
     let query = `
       SELECT id, description, created_at
@@ -546,6 +565,11 @@ export const checkpointManager: CheckpointManager = {
     if (caseid !== undefined) {
       query += ` AND caseid = $1`;
       values.push(caseid);
+    }
+
+    if (applicationid !== undefined) {
+      query += ` AND applicationid = $${values.length + 1}`;
+      values.push(applicationid);
     }
 
     query += ` ORDER BY created_at DESC`;
@@ -628,7 +652,10 @@ export const checkpointManager: CheckpointManager = {
     );
   },
 
-  async getCheckpointHistory(caseid?: number): Promise<
+  async getCheckpointHistory(
+    caseid?: number,
+    applicationid?: number,
+  ): Promise<
     Array<{
       id: string;
       description: string;
@@ -660,6 +687,11 @@ export const checkpointManager: CheckpointManager = {
     if (caseid !== undefined) {
       query += ` AND caseid = $1`;
       values.push(caseid);
+    }
+
+    if (applicationid !== undefined) {
+      query += ` AND applicationid = $${values.length + 1}`;
+      values.push(applicationid);
     }
 
     query += ` ORDER BY created_at DESC LIMIT 50`;

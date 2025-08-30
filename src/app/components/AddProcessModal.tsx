@@ -80,7 +80,7 @@ const AddProcessModal: React.FC<AddProcessModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay"
+            className="absolute inset-0 modal-backdrop z-[80] modal-overlay"
             onClick={onClose}
           />
           <motion.div
@@ -89,27 +89,26 @@ const AddProcessModal: React.FC<AddProcessModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[90] modal-surface"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[90] modal-surface min-w-[450px]"
             tabIndex={-1}
             role="dialog"
           >
             <div className="space-y-4 p-6">
-              <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="lp-modal-header">
                 <h3 className="text-lg font-semibold text-white">
-                  Add New Process
+                  Add Process
                 </h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onClose}
-                    className="px-3 py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
-                    style={{ backgroundColor: "var(--color-modal-bg)" }}
+                    className="btn-secondary px-3"
                     aria-label="Cancel"
                   >
                     Cancel
                   </button>
                   <button
                     onClick={handleSubmit}
-                    className="px-3 bg-modal py-1.5 text-sm font-medium text-white rounded-lg transition-colors hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 dark:focus:ring-offset-gray-800"
+                    className="interactive-button px-3"
                   >
                     Save
                   </button>

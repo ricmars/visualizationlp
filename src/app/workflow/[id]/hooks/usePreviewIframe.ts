@@ -156,7 +156,6 @@ export default function usePreviewIframe({
             const initialModel = generateModelRef.current();
             try {
               (initialModel as any).fullUpdate = true;
-              //(initialModel as any).theme = Bootes2025DarkTheme;
             } catch {}
             console.debug(
               "[preview] Posting initial model to iframe",

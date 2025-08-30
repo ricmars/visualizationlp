@@ -60,7 +60,7 @@ const FieldsList: React.FC<FieldsListProps> = ({
                     >
                       <div
                         {...provided.dragHandleProps}
-                        className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 cursor-grab active:cursor-grabbing"
+                        className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-white dark:hover:text-gray-300 cursor-grab active:cursor-grabbing"
                       >
                         <FaGripVertical className="w-4 h-4" />
                       </div>
@@ -82,17 +82,17 @@ const FieldsList: React.FC<FieldsListProps> = ({
                       <div className="flex items-center space-x-1">
                         <button
                           onClick={() => onEditField(field)}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          className="btn-secondary w-8"
                           title="Edit field"
                         >
-                          <FaPencilAlt className="w-4 h-4 text-blue-500" />
+                          <FaPencilAlt className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => onDeleteField(field)}
-                          className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                          className="btn-secondary w-8"
                           title="Delete field"
                         >
-                          <FaTrash className="w-4 h-4 text-red-500" />
+                          <FaTrash className="w-4 h-4" />
                         </button>
                       </div>
                     </div>
