@@ -1,6 +1,12 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 
 interface ResponsiveContextType {
   isMobile: boolean;
@@ -11,16 +17,18 @@ interface ResponsiveContextType {
   setIsLeftPanelModalOpen: (open: boolean) => void;
 }
 
-const ResponsiveContext = createContext<ResponsiveContextType | undefined>(undefined);
+const ResponsiveContext = createContext<ResponsiveContextType | undefined>(
+  undefined,
+);
 
 export function ResponsiveProvider({ children }: { children: ReactNode }) {
   const [screenWidth, setScreenWidth] = useState(0);
   const [isLeftPanelModalOpen, setIsLeftPanelModalOpen] = useState(false);
 
   // Responsive breakpoints
-  const isMobile = screenWidth < 800;
-  const isTablet = screenWidth >= 800 && screenWidth < 1200;
-  const isDesktop = screenWidth >= 1200;
+  const isMobile = screenWidth < 1200;
+  const isTablet = screenWidth >= 1200 && screenWidth < 1600;
+  const isDesktop = screenWidth >= 1600;
 
   // Update screen width on resize
   useEffect(() => {
