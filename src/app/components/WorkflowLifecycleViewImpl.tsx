@@ -383,6 +383,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
     // preventing vertical scrollbars from appearing
     overflowX: "auto",
     overflowY: "hidden",
+    background: "transparent",
   };
 
   // Memoize the stages mapping to prevent unnecessary recalculations
@@ -496,6 +497,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
           position: static;
           padding; 0;
           margin:0;
+          background: transparent;
         }
 
         /* Ensure inner content can extend horizontally */
@@ -509,6 +511,10 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
 
         .shadow-container button {
           color: #FFF;
+        }
+
+        .shadow-container div[data-testid="intake:stage:"]:before {
+          background: transparent;
         }
       `;
 
@@ -528,7 +534,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
     if (shadowRootRef.current && reactRootRef.current) {
       console.log("🔧 Rendering Pega LifeCycle in Shadow DOM");
       // Ensure container does not block modals rendered outside
-      shadowContainer.style.background = "#FFF";
       shadowContainer.style.border = "none";
       shadowContainer.style.position = "static";
       shadowContainer.style.overflowX = "auto";
