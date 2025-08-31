@@ -543,13 +543,13 @@ body {
 }
 
 /* Responsive breakpoints */
-@media (max-width: 1399px) {
+@media (max-width: 1599px) {
   .app-panels {
     gap: 0;
   }
 }
 
-@media (max-width: 999px) {
+@media (max-width: 1199px) {
   .app-panels {
     gap: 0;
     padding-left: 0;
