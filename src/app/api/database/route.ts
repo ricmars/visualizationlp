@@ -8,25 +8,26 @@ import { registerRuleTypes } from "@/app/types/ruleTypeDefinitions";
 // Ensure rule types are registered when this route is first loaded
 registerRuleTypes();
 
+// Centralized mapping from table names to rule type IDs
+const tableToRuleType: Record<string, string> = {
+  [DB_TABLES.CASES]: "case",
+  [DB_TABLES.APPLICATIONS]: "application",
+  [DB_TABLES.FIELDS]: "field",
+  [DB_TABLES.VIEWS]: "view",
+};
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
     const id = searchParams.get("id");
 
-    if (!table || !Object.values(DB_TABLES).includes(table as any)) {
+    if (!table) {
       return NextResponse.json(
         { error: "Invalid table parameter" },
         { status: 400 },
       );
     }
-
-    const tableToRuleType: Record<string, string> = {
-      [DB_TABLES.CASES]: "case",
-      [DB_TABLES.APPLICATIONS]: "application",
-      [DB_TABLES.FIELDS]: "field",
-      [DB_TABLES.VIEWS]: "view",
-    };
 
     const ruleTypeId = tableToRuleType[table];
     if (!ruleTypeId) {
@@ -91,19 +92,12 @@ export async function POST(request: Request) {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
 
-    if (!table || !Object.values(DB_TABLES).includes(table as any)) {
+    if (!table) {
       return NextResponse.json(
         { error: "Invalid table parameter" },
         { status: 400 },
       );
     }
-
-    const tableToRuleType: Record<string, string> = {
-      [DB_TABLES.CASES]: "case",
-      [DB_TABLES.APPLICATIONS]: "application",
-      [DB_TABLES.FIELDS]: "field",
-      [DB_TABLES.VIEWS]: "view",
-    };
 
     const ruleTypeId = tableToRuleType[table];
     if (!ruleTypeId) {
@@ -144,7 +138,7 @@ export async function PUT(request: Request) {
     const table = searchParams.get("table");
     const id = searchParams.get("id");
 
-    if (!table || !Object.values(DB_TABLES).includes(table as any)) {
+    if (!table) {
       return NextResponse.json(
         { error: "Invalid table parameter" },
         { status: 400 },
@@ -158,14 +152,8 @@ export async function PUT(request: Request) {
       );
     }
 
-    const tableToRuleType: Record<string, string> = {
-      [DB_TABLES.CASES]: "case",
-      [DB_TABLES.APPLICATIONS]: "application",
-      [DB_TABLES.FIELDS]: "field",
-      [DB_TABLES.VIEWS]: "view",
-    };
-
     const ruleTypeId = tableToRuleType[table];
+
     if (!ruleTypeId) {
       return NextResponse.json({ error: "Unsupported table" }, { status: 400 });
     }
@@ -205,7 +193,7 @@ export async function DELETE(request: Request) {
     const table = searchParams.get("table");
     const id = searchParams.get("id");
 
-    if (!table || !Object.values(DB_TABLES).includes(table as any)) {
+    if (!table) {
       return NextResponse.json(
         { error: "Invalid table parameter" },
         { status: 400 },
@@ -218,12 +206,6 @@ export async function DELETE(request: Request) {
         { status: 400 },
       );
     }
-
-    const tableToRuleType: Record<string, string> = {
-      [DB_TABLES.CASES]: "case",
-      [DB_TABLES.FIELDS]: "field",
-      [DB_TABLES.VIEWS]: "view",
-    };
 
     const ruleTypeId = tableToRuleType[table];
     if (!ruleTypeId) {

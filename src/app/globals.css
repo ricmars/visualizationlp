@@ -541,3 +541,109 @@ body {
 .min-h-app-screen {
   min-height: calc(100vh - var(--header-height));
 }
+
+/* Responsive breakpoints */
+@media (max-width: 1199px) {
+  .app-panels {
+    gap: 0;
+  }
+}
+
+@media (max-width: 799px) {
+  .app-panels {
+    gap: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  /* Ensure main content takes full width on mobile */
+  .flex-1 {
+    flex: 1 1 100%;
+  }
+}
+
+/* Floating modal animations */
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.floating-modal-enter {
+  animation: slideInFromBottom 0.3s ease-out;
+}
+
+.floating-left-modal-enter {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+/* Full screen modal styles */
+.floating-modal-enter.w-full.h-full {
+  animation: none;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.floating-left-modal-enter.w-full.h-full {
+  animation: none;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.floating-modal-enter.w-full.h-full > div {
+  border-radius: 0;
+  border: none;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.floating-left-modal-enter.w-full.h-full > div {
+  border-radius: 0;
+  border: none;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Ensure proper flex behavior for modal content */
+.floating-modal-enter.w-full.h-full .flex-1,
+.floating-left-modal-enter.w-full.h-full .flex-1 {
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Force full viewport dimensions for expanded modals */
+.floating-modal-enter.w-full.h-full {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+}
+
+.floating-left-modal-enter.w-full.h-full {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+}

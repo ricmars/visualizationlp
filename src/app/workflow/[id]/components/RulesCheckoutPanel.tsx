@@ -10,6 +10,12 @@ import {
   FaFolder,
   FaFolderOpen,
 } from "react-icons/fa";
+import ModalPortal from "../../../components/ModalPortal";
+import EditFieldModal from "../../../components/EditFieldModal";
+import EditWorkflowModal from "../../../components/EditWorkflowModal";
+import ViewEditModal from "../../../components/ViewEditModal";
+import { Field, Stage } from "../../../types";
+import { DB_TABLES } from "../../../types/database";
 
 interface RuleChange {
   id: string;
@@ -38,17 +44,39 @@ interface RuleCheckoutData {
 type RulesCheckoutPanelProps = {
   caseId?: number;
   applicationId?: number;
+  stages?: Stage[];
+  fields?: Field[];
 };
 
 export default function RulesCheckoutPanel({
   caseId,
   applicationId,
+  stages = [],
+  fields = [],
 }: RulesCheckoutPanelProps) {
   const [data, setData] = useState<RuleCheckoutData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
     new Set(),
   );
+
+  // Modal state management
+  const [editingField, setEditingField] = useState<Field | null>(null);
+  const [editingWorkflow, setEditingWorkflow] = useState<{
+    name: string;
+    description: string;
+  } | null>(null);
+  const [editingView, setEditingView] = useState<{
+    id: number;
+    name: string;
+    model: any;
+    caseid: number;
+  } | null>(null);
+  const [editingApplication, setEditingApplication] = useState<{
+    id: number;
+    name: string;
+    description: string;
+  } | null>(null);
 
   const fetchCheckoutData = useCallback(async () => {
     setIsLoading(true);
@@ -118,6 +146,258 @@ export default function RulesCheckoutPanel({
     return <FaFolder className={iconClass} />;
   };
 
+  // Extract table name from rule ID
+  const getTableFromRuleId = (ruleId: string): string | null => {
+    // Rule ID format: ${checkpoint.id}-${table}-${id}
+    // Checkpoint ID is a UUID with hyphens, so we need to handle this carefully
+    const lastDashIndex = ruleId.lastIndexOf("-");
+    if (lastDashIndex === -1) return null;
+
+    const beforeLastDash = ruleId.substring(0, lastDashIndex);
+    const secondLastDashIndex = beforeLastDash.lastIndexOf("-");
+    if (secondLastDashIndex === -1) return null;
+
+    // Extract the table name between the second-to-last and last dash
+    const table = ruleId.substring(secondLastDashIndex + 1, lastDashIndex);
+    return table;
+  };
+
+  // Check if a view is linked to a collect info step
+  const isViewLinkedToCollectStep = useCallback(
+    (viewId: number): boolean => {
+      for (const stage of stages) {
+        for (const process of stage.processes) {
+          for (const step of process.steps) {
+            if (step.type === "Collect information" && step.viewId === viewId) {
+              return true;
+            }
+          }
+        }
+      }
+      return false;
+    },
+    [stages],
+  );
+
+  // Handle rule click
+  const handleRuleClick = async (rule: RuleChange) => {
+    const table = getTableFromRuleId(rule.id);
+    if (!table) {
+      console.error("Could not extract table from rule ID:", rule.id);
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `/api/checkpoint/rule?ruleId=${encodeURIComponent(
+          rule.id,
+        )}&table=${encodeURIComponent(table)}`,
+      );
+
+      if (!response.ok) {
+        console.error("Failed to fetch rule data:", response.statusText);
+        return;
+      }
+
+      const result = await response.json();
+      if (!result.success) {
+        console.error("Failed to fetch rule data:", result.error);
+        return;
+      }
+
+      const ruleData = result.data;
+
+      // Open appropriate modal based on rule type
+      switch (table) {
+        case "Fields":
+          setEditingField(ruleData as Field);
+          break;
+        case "Cases":
+          setEditingWorkflow({
+            name: ruleData.name,
+            description: ruleData.description,
+          });
+          break;
+        case "Views":
+          setEditingView(ruleData);
+          break;
+        case "Applications":
+          setEditingApplication(ruleData);
+          break;
+        default:
+          console.error("Unsupported table type:", table);
+      }
+    } catch (error) {
+      console.error("Error fetching rule data:", error);
+    }
+  };
+
+  // Handle field update
+  const handleFieldUpdate = async (updates: Partial<Field>) => {
+    if (!editingField) return;
+
+    const requestData = {
+      table: DB_TABLES.FIELDS,
+      data: {
+        name: editingField.name, // Keep the original name
+        caseid: editingField.caseid, // Keep the original caseid
+        label: updates.label,
+        type: updates.type,
+        primary:
+          updates.primary !== undefined
+            ? updates.primary
+            : editingField.primary,
+        required:
+          updates.required !== undefined
+            ? updates.required
+            : editingField.required,
+        options: updates.options || editingField.options || [],
+        sampleValue:
+          updates.sampleValue !== undefined
+            ? updates.sampleValue
+            : editingField.sampleValue,
+        description: updates.description || editingField.description || "",
+        order: updates.order || editingField.order || 0,
+      },
+    };
+
+    console.log("Sending field update data:", requestData);
+    console.log("Editing field:", editingField);
+
+    try {
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.FIELDS}&id=${editingField.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(requestData),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the checkout data
+        await fetchCheckoutData();
+        setEditingField(null);
+      } else {
+        const errorText = await response.text();
+        console.error("Failed to update field:", response.statusText);
+        console.error("Error response:", errorText);
+      }
+    } catch (error) {
+      console.error("Error updating field:", error);
+    }
+  };
+
+  // Handle workflow update
+  const handleWorkflowUpdate = async (data: {
+    name: string;
+    description: string;
+  }) => {
+    if (!editingWorkflow) return;
+
+    try {
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.CASES}&id=${caseId}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            table: DB_TABLES.CASES,
+            data: {
+              name: data.name,
+              description: data.description,
+            },
+          }),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the checkout data
+        await fetchCheckoutData();
+        setEditingWorkflow(null);
+      } else {
+        console.error("Failed to update workflow:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error updating workflow:", error);
+    }
+  };
+
+  // Handle view update
+  const handleViewUpdate = async (updates: { name: string; model: any }) => {
+    if (!editingView) return;
+
+    try {
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.VIEWS}&id=${editingView.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            table: DB_TABLES.VIEWS,
+            data: {
+              name: updates.name,
+              model: JSON.stringify(updates.model),
+            },
+          }),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the checkout data
+        await fetchCheckoutData();
+        setEditingView(null);
+      } else {
+        console.error("Failed to update view:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error updating view:", error);
+    }
+  };
+
+  // Handle application update
+  const handleApplicationUpdate = async (data: {
+    name: string;
+    description: string;
+  }) => {
+    if (!editingApplication) return;
+
+    try {
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.APPLICATIONS}&id=${editingApplication.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            table: DB_TABLES.APPLICATIONS,
+            data: {
+              name: data.name,
+              description: data.description,
+            },
+          }),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the checkout data
+        await fetchCheckoutData();
+        setEditingApplication(null);
+      } else {
+        console.error("Failed to update application:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error updating application:", error);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full text-white">
       {/* Tree Navigation */}
@@ -174,7 +454,8 @@ export default function RulesCheckoutPanel({
                       {category.rules.map((rule) => (
                         <div
                           key={rule.id}
-                          className="flex items-center gap-2 p-2 rounded-md text-white/80"
+                          className="flex items-center gap-2 p-2 rounded-md text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
+                          onClick={() => handleRuleClick(rule)}
                         >
                           <div className="flex items-center gap-2 min-w-0 flex-1">
                             {getOperationIcon(rule.operation)}
@@ -192,6 +473,58 @@ export default function RulesCheckoutPanel({
           </div>
         )}
       </div>
+
+      {/* Modals */}
+      <ModalPortal isOpen={!!editingField}>
+        {editingField && (
+          <EditFieldModal
+            isOpen={!!editingField}
+            onClose={() => setEditingField(null)}
+            onSubmit={handleFieldUpdate}
+            field={editingField}
+          />
+        )}
+      </ModalPortal>
+
+      <ModalPortal isOpen={!!editingWorkflow}>
+        {editingWorkflow && (
+          <EditWorkflowModal
+            isOpen={!!editingWorkflow}
+            onClose={() => setEditingWorkflow(null)}
+            onSubmit={handleWorkflowUpdate}
+            initialData={editingWorkflow}
+          />
+        )}
+      </ModalPortal>
+
+      {/* View Edit Modal */}
+      <ModalPortal isOpen={!!editingView}>
+        {editingView && (
+          <ViewEditModal
+            isOpen={!!editingView}
+            onClose={() => setEditingView(null)}
+            onSubmit={handleViewUpdate}
+            initialData={editingView}
+            isCollectInfoStep={isViewLinkedToCollectStep(editingView.id)}
+            fields={fields}
+          />
+        )}
+      </ModalPortal>
+
+      {/* Application Edit Modal */}
+      <ModalPortal isOpen={!!editingApplication}>
+        {editingApplication && (
+          <EditWorkflowModal
+            isOpen={!!editingApplication}
+            onClose={() => setEditingApplication(null)}
+            onSubmit={handleApplicationUpdate}
+            initialData={{
+              name: editingApplication.name,
+              description: editingApplication.description,
+            }}
+          />
+        )}
+      </ModalPortal>
     </div>
   );
 }

@@ -169,6 +169,7 @@ export async function GET(request: NextRequest) {
 
     // Collect all rule changes from all checkpoints
     const allRuleChanges: RuleChange[] = [];
+    const seenRules = new Set<string>(); // Track unique rules by table-id combination
 
     for (const checkpoint of history) {
       const checkpointEntries = undoLogByCheckpoint.get(checkpoint.id) || [];
@@ -261,18 +262,25 @@ export async function GET(request: NextRequest) {
             break;
         }
 
-        if (name && type && category) {
-          allRuleChanges.push({
-            id: `${checkpoint.id}-${table}-${id || "unknown"}`,
-            name,
-            type,
-            category,
-            operation,
-            checkpointId: checkpoint.id,
-            checkpointDescription: checkpoint.description,
-            checkpointCreatedAt: checkpoint.created_at.toISOString(),
-            checkpointSource: checkpoint.source,
-          });
+        if (name && type && category && id) {
+          // Create a unique key for this rule (table-id combination)
+          const uniqueKey = `${table}-${id}`;
+          
+          // Only add if we haven't seen this rule before
+          if (!seenRules.has(uniqueKey)) {
+            seenRules.add(uniqueKey);
+            allRuleChanges.push({
+              id: `${checkpoint.id}-${table}-${id}`,
+              name,
+              type,
+              category,
+              operation,
+              checkpointId: checkpoint.id,
+              checkpointDescription: checkpoint.description,
+              checkpointCreatedAt: checkpoint.created_at.toISOString(),
+              checkpointSource: checkpoint.source,
+            });
+          }
         }
       }
     }

@@ -73,6 +73,10 @@ import ModalPortal from "../../components/ModalPortal";
 import { StepType } from "@/app/utils/stepTypes";
 import ChangesPanel from "../../components/ChangesPanel";
 import RulesCheckoutPanel from "./components/RulesCheckoutPanel";
+import FloatingChatModal from "./components/FloatingChatModal";
+import FloatingLeftPanelModal from "./components/FloatingLeftPanelModal";
+import FloatingChatIcon from "./components/FloatingChatIcon";
+import { useResponsive } from "../../contexts/ResponsiveContext";
 const Icon = dynamic(() =>
   import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
 );
@@ -171,6 +175,18 @@ export default function WorkflowPage() {
   const [leftPanelView, setLeftPanelView] = useState<"history" | "checkout">(
     "history",
   );
+
+  // Responsive state
+  const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+
+  // Use responsive context
+  const {
+    isMobile,
+    isTablet,
+    isDesktop,
+    isLeftPanelModalOpen,
+    setIsLeftPanelModalOpen,
+  } = useResponsive();
 
   // Free Form selection & quick chat state
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
@@ -963,62 +979,77 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div className="flex h-app-screen overflow-hidden app-panels px-4">
-      <aside
-        className="flex flex-col h-app-screen overflow-hidden text-sm bg-[#16244E]"
-        style={{ width: "300px", fontSize: "14px" }}
-      >
-        {/* Header with toggle */}
-        <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-white">
-          <div className="text-sm font-medium opacity-80">
-            {leftPanelView === "checkout" ? "Rules checkout" : "Rules updates"}
+    <div
+      className={`flex h-app-screen overflow-hidden app-panels ${
+        isMobile ? "px-2" : "px-4"
+      }`}
+    >
+      {/* Left Panel - Hidden on mobile, shown on tablet/desktop */}
+      {!isMobile && (
+        <aside
+          className="flex flex-col h-app-screen overflow-hidden text-sm bg-[#16244E]"
+          style={{ width: "300px", fontSize: "14px" }}
+        >
+          {/* Header with toggle */}
+          <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-white">
+            <div className="text-sm font-medium opacity-80">
+              {leftPanelView === "checkout"
+                ? "Rules checkout"
+                : "Rules updates"}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                aria-label="Show rules updates"
+                className={`p-1 rounded hover:bg-white/10 ${
+                  leftPanelView === "history" ? "bg-white/10" : ""
+                }`}
+                onClick={() => setLeftPanelView("history")}
+              >
+                <Icon name="clock" aria-hidden />
+              </button>
+              <button
+                aria-label="Show checkout"
+                className={`p-1 rounded hover:bg-white/10 ${
+                  leftPanelView === "checkout" ? "bg-white/10" : ""
+                }`}
+                onClick={() => setLeftPanelView("checkout")}
+              >
+                <Icon name="folder-nested" aria-hidden />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <button
-              aria-label="Show rules updates"
-              className={`p-1 rounded hover:bg-white/10 ${
-                leftPanelView === "history" ? "bg-white/10" : ""
-              }`}
-              onClick={() => setLeftPanelView("history")}
-            >
-              <Icon name="clock" aria-hidden />
-            </button>
-            <button
-              aria-label="Show checkout"
-              className={`p-1 rounded hover:bg-white/10 ${
-                leftPanelView === "checkout" ? "bg-white/10" : ""
-              }`}
-              onClick={() => setLeftPanelView("checkout")}
-            >
-              <Icon name="folder-nested" aria-hidden />
-            </button>
-          </div>
-        </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-hidden text-white">
-          {leftPanelView === "history" ? (
-            <div className="h-full overflow-hidden">
-              <ChangesPanel
-                caseid={selectedCase?.id}
-                applicationid={applicationId || undefined}
-                onRefresh={() =>
-                  window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT))
-                }
-              />
-            </div>
-          ) : (
-            <div className="h-full overflow-hidden">
-              <RulesCheckoutPanel
-                caseId={selectedCase?.id}
-                applicationId={applicationId || undefined}
-              />
-            </div>
-          )}
-        </div>
-      </aside>
+          {/* Content */}
+          <div className="flex-1 overflow-hidden text-white">
+            {leftPanelView === "history" ? (
+              <div className="h-full overflow-hidden">
+                <ChangesPanel
+                  caseid={selectedCase?.id}
+                  applicationid={applicationId || undefined}
+                  onRefresh={() =>
+                    window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT))
+                  }
+                />
+              </div>
+            ) : (
+              <div className="h-full overflow-hidden">
+                <RulesCheckoutPanel
+                  caseId={selectedCase?.id}
+                  applicationId={applicationId || undefined}
+                  stages={workflowModel.stages}
+                  fields={fields}
+                />
+              </div>
+            )}
+          </div>
+        </aside>
+      )}
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden relative h-full rounded-[12px] border border-[rgb(172,117,240)]">
+      <div
+        className={`flex-1 flex flex-col overflow-hidden relative h-full rounded-[12px] border border-[rgb(172,117,240)] ${
+          isMobile ? "ml-0 rounded-lg" : ""
+        }`}
+      >
         {/* Header row with title and preview switch */}
         <WorkflowTopBar
           selectedCaseName={selectedCase?.name}
@@ -1240,23 +1271,25 @@ export default function WorkflowPage() {
         </ModalPortal>
       </div>
 
-      {/* Chat Panel - fixed width */}
-      <aside
-        className="flex flex-col h-app-screen overflow-hidden text-sm"
-        style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
-      >
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <ChatPanelContent
-            messages={messages}
-            onSendMessage={(message) => void handleSendMessage(message)}
-            onAbort={() => handleAbort()}
-            isProcessing={isProcessing}
-            caseId={parseInt(id)}
-            onQuickAction={beginFreeFormSelection}
-            onClearChat={handleClearChat}
-          />
-        </div>
-      </aside>
+      {/* Chat Panel - fixed width - Hidden on tablet/mobile */}
+      {isDesktop && (
+        <aside
+          className="flex flex-col h-app-screen overflow-hidden text-sm"
+          style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
+        >
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <ChatPanelContent
+              messages={messages}
+              onSendMessage={(message) => void handleSendMessage(message)}
+              onAbort={() => handleAbort()}
+              isProcessing={isProcessing}
+              caseId={parseInt(id)}
+              onQuickAction={beginFreeFormSelection}
+              onClearChat={handleClearChat}
+            />
+          </div>
+        </aside>
+      )}
 
       {/* Free Form selection overlay */}
       {isFreeFormSelecting && (
@@ -1287,6 +1320,41 @@ export default function WorkflowPage() {
           }}
         />
       )}
+
+      {/* Responsive floating components */}
+
+      {/* Floating Chat Icon - Show on tablet/mobile */}
+      {(isTablet || isMobile) && (
+        <FloatingChatIcon
+          onClick={() => setIsChatModalOpen(true)}
+          hasUnreadMessages={messages.length > 0}
+        />
+      )}
+
+      {/* Floating Chat Modal */}
+      <FloatingChatModal
+        isOpen={isChatModalOpen}
+        onClose={() => setIsChatModalOpen(false)}
+        messages={messages}
+        onSendMessage={(message) => void handleSendMessage(message)}
+        onAbort={() => handleAbort()}
+        isProcessing={isProcessing}
+        caseId={parseInt(id)}
+        onQuickAction={beginFreeFormSelection}
+        onClearChat={handleClearChat}
+      />
+
+      {/* Floating Left Panel Modal */}
+      <FloatingLeftPanelModal
+        isOpen={isLeftPanelModalOpen}
+        onClose={() => setIsLeftPanelModalOpen(false)}
+        leftPanelView={leftPanelView}
+        onViewChange={setLeftPanelView}
+        caseId={selectedCase?.id}
+        applicationId={applicationId || undefined}
+        stages={workflowModel.stages}
+        fields={fields}
+      />
     </div>
   );
 }
