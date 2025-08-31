@@ -151,7 +151,7 @@ export default function RulesUpdates({
             </div>
           ) : (
             <div className="space-y-4">
-              {history.map((checkpoint, index) => (
+              {history.map((checkpoint) => (
                 <div
                   key={checkpoint.id}
                   className="border border-gray-200 dark:border-gray-600 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700"
@@ -239,13 +239,6 @@ export default function RulesUpdates({
                         </ul>
                       </div>
                     )}
-
-                  {/* Timeline Connection */}
-                  {index < history.length - 1 && (
-                    <div className="flex justify-center mt-4">
-                      <div className="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
-                    </div>
-                  )}
                 </div>
               ))}
             </div>

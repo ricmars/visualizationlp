@@ -3,6 +3,24 @@ import { checkpointSessionManager } from "../../../lib/checkpointTools";
 import { pool } from "../../../lib/db";
 import { DB_TABLES } from "../../../types/database";
 
+interface RuleChange {
+  id: string;
+  name: string;
+  type: string;
+  category: string;
+  operation: string;
+  checkpointId: string;
+  checkpointDescription: string;
+  checkpointCreatedAt: string;
+  checkpointSource: string;
+}
+
+interface CategoryGroup {
+  category: string;
+  categoryName: string;
+  rules: RuleChange[];
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -13,13 +31,25 @@ export async function GET(request: NextRequest) {
       ? parseInt(applicationid)
       : undefined;
 
+    if (!caseIdNum && !applicationIdNum) {
+      return NextResponse.json(
+        { error: "Either caseid or applicationid is required" },
+        { status: 400 },
+      );
+    }
+
+    // Get all checkpoints for the application/case
     const history = await checkpointSessionManager.getCheckpointHistory(
       caseIdNum,
       applicationIdNum,
     );
 
     if (history.length === 0) {
-      return NextResponse.json({ history: [] });
+      return NextResponse.json({
+        categories: [],
+        totalChanges: 0,
+        totalCheckpoints: 0,
+      });
     }
 
     // Get all checkpoint IDs
@@ -137,10 +167,10 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Process and augment checkpoints
-    const augmented = history.map((checkpoint) => {
-      const updates: Array<{ name: string; type: string; operation: string }> =
-        [];
+    // Collect all rule changes from all checkpoints
+    const allRuleChanges: RuleChange[] = [];
+
+    for (const checkpoint of history) {
       const checkpointEntries = undoLogByCheckpoint.get(checkpoint.id) || [];
 
       for (const row of checkpointEntries) {
@@ -157,6 +187,7 @@ export async function GET(request: NextRequest) {
 
         let name: string | undefined;
         let type: string | undefined;
+        let category: string | undefined;
         let id: number | undefined;
 
         try {
@@ -180,10 +211,11 @@ export async function GET(request: NextRequest) {
           }
         };
 
-        // Map table to rule type and get name/type
+        // Map table to rule type, category, and get name/type
         switch (table) {
           case DB_TABLES.FIELDS:
             type = "Field";
+            category = "data";
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;
@@ -197,6 +229,7 @@ export async function GET(request: NextRequest) {
 
           case DB_TABLES.VIEWS:
             type = "View";
+            category = "ui";
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;
@@ -207,6 +240,7 @@ export async function GET(request: NextRequest) {
 
           case DB_TABLES.CASES:
             type = "Case";
+            category = "workflow";
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;
@@ -217,6 +251,7 @@ export async function GET(request: NextRequest) {
 
           case DB_TABLES.APPLICATIONS:
             type = "Application";
+            category = "app";
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;
@@ -226,25 +261,69 @@ export async function GET(request: NextRequest) {
             break;
         }
 
-        if (name && type) {
-          updates.push({ name, type, operation });
+        if (name && type && category) {
+          allRuleChanges.push({
+            id: `${checkpoint.id}-${table}-${id || "unknown"}`,
+            name,
+            type,
+            category,
+            operation,
+            checkpointId: checkpoint.id,
+            checkpointDescription: checkpoint.description,
+            checkpointCreatedAt: checkpoint.created_at.toISOString(),
+            checkpointSource: checkpoint.source,
+          });
         }
       }
+    }
 
-      return {
-        ...checkpoint,
-        created_at: checkpoint.created_at.toISOString(),
-        finished_at: checkpoint.finished_at?.toISOString(),
-        updated_rules: updates,
-      };
+    // Group changes by category
+    const categoryMap = new Map<string, RuleChange[]>();
+    const categoryNames: Record<string, string> = {
+      workflow: "Workflow",
+      ui: "View",
+      data: "Field",
+      app: "Application",
+    };
+
+    for (const change of allRuleChanges) {
+      if (!categoryMap.has(change.category)) {
+        categoryMap.set(change.category, []);
+      }
+      categoryMap.get(change.category)!.push(change);
+    }
+
+    // Convert to array format and sort
+    const categories: CategoryGroup[] = Array.from(categoryMap.entries()).map(
+      ([category, rules]) => ({
+        category,
+        categoryName: categoryNames[category] || category,
+        rules: rules.sort(
+          (a, b) =>
+            new Date(b.checkpointCreatedAt).getTime() -
+            new Date(a.checkpointCreatedAt).getTime(),
+        ),
+      }),
+    );
+
+    // Sort categories by order: app, workflow, ui, data
+    const categoryOrder = ["app", "workflow", "ui", "data"];
+    categories.sort((a, b) => {
+      const aIndex = categoryOrder.indexOf(a.category);
+      const bIndex = categoryOrder.indexOf(b.category);
+      return aIndex - bIndex;
     });
 
-    return NextResponse.json({ history: augmented });
+    return NextResponse.json({
+      categories,
+      totalChanges: allRuleChanges.length,
+      totalCheckpoints: history.length,
+    });
   } catch (error) {
-    console.error("Error fetching checkpoint history:", error);
+    console.error("Error fetching rule checkout data:", error);
     return NextResponse.json(
       {
-        error: "Failed to fetch checkpoint history",
+        error: "Failed to fetch rule checkout data",
         details: error instanceof Error ? error.message : String(error),
       },
       { status: 500 },

@@ -122,13 +122,13 @@ export default function ChangesPanel({
           </div>
         ) : (
           <div className="space-y-4">
-            {history.map((checkpoint, index) => (
+            {history.map((checkpoint) => (
               <div key={checkpoint.id}>
                 {/* Checkpoint Header: date/time with restore icon */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-lg text-interactive">
-                    {new Date(checkpoint.created_at + "Z").toLocaleString(
-                      undefined,
+                    {new Date(checkpoint.created_at).toLocaleString(
+                      navigator.language,
                       {
                         dateStyle: "short",
                         timeStyle: "short",
@@ -171,13 +171,6 @@ export default function ChangesPanel({
                       </ul>
                     </div>
                   )}
-
-                {/* Timeline Connection */}
-                {index < history.length - 1 && (
-                  <div className="flex justify-center mt-4">
-                    <div className="w-px h-4 bg-gray-300 dark:bg-gray-600"></div>
-                  </div>
-                )}
               </div>
             ))}
           </div>

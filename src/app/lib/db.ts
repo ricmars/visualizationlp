@@ -153,6 +153,17 @@ export async function initializeDatabase() {
       console.log("Index undo_log_caseid_idx may already exist, continuing...");
     }
 
+    // Create index for batch checkpoint queries (optimized for ANY() operations)
+    try {
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS undo_log_checkpoint_batch_idx ON "undo_log" (checkpoint_id) INCLUDE (operation, table_name, primary_key, previous_data, created_at);
+      `);
+    } catch (_error) {
+      console.log(
+        "Index undo_log_checkpoint_batch_idx may already exist, continuing...",
+      );
+    }
+
     // Create foreign key for undo_log caseid if it doesn't exist
     try {
       await pool.query(`

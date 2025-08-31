@@ -1009,7 +1009,10 @@ export default function WorkflowPage() {
             </div>
           ) : (
             <div className="h-full overflow-hidden">
-              <RulesCheckoutPanel caseId={selectedCase?.id} />
+              <RulesCheckoutPanel
+                caseId={selectedCase?.id}
+                applicationId={applicationId || undefined}
+              />
             </div>
           )}
         </div>
