@@ -506,6 +506,10 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
         .shadow-container article {
           border: 1px solid rgba(0, 0, 0, .2);
         }
+
+        .shadow-container button {
+          color: #FFF;
+        }
       `;
 
       shadowRoot.insertBefore(globalStyle, shadowRoot.firstChild);

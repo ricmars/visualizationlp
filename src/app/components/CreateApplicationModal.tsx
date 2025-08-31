@@ -98,7 +98,7 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
                 }
                 className="interactive-button px-3"
               >
-                {isCreating ? "Creating application..." : "Create"}
+                Create
               </button>
             </div>
           </div>

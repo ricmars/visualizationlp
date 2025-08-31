@@ -19,8 +19,8 @@
   "dependencies": {
     "@hello-pangea/dnd": "18.0.1",
     "@modelcontextprotocol/sdk": "1.17.4",
-    "@pega/cosmos-react-build": "9.0.0-build.4.5",
-    "@pega/cosmos-react-core": "9.0.0-build.4.5",
+    "@pega/cosmos-react-build": "9.0.0-build.5.0",
+    "@pega/cosmos-react-core": "9.0.0-build.5.0",
     "@tailwindcss/typography": "0.5.16",
     "@types/pg": "8.15.5",
     "@types/uuid": "10.0.0",
