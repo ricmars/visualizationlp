@@ -16,6 +16,7 @@ import EditWorkflowModal from "../../../components/EditWorkflowModal";
 import ViewEditModal from "../../../components/ViewEditModal";
 import { Field, Stage } from "../../../types";
 import { DB_TABLES } from "../../../types/database";
+import { MODEL_UPDATED_EVENT } from "../utils/constants";
 
 interface RuleChange {
   id: string;
@@ -113,6 +114,20 @@ export default function RulesCheckoutPanel({
     fetchCheckoutData();
     // Expand all categories by default
     setExpandedCategories(new Set(["app", "workflow", "ui", "data"]));
+
+    // Listen for model updates to refresh checkout data
+    const handler = () => fetchCheckoutData();
+    try {
+      window.addEventListener(MODEL_UPDATED_EVENT, handler as EventListener);
+    } catch {}
+    return () => {
+      try {
+        window.removeEventListener(
+          MODEL_UPDATED_EVENT,
+          handler as EventListener,
+        );
+      } catch {}
+    };
   }, [fetchCheckoutData]);
 
   const toggleCategory = (category: string) => {
