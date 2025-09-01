@@ -402,6 +402,42 @@ export default function WorkflowPage() {
     [router, applicationId],
   );
 
+  // Function to refresh application workflows list
+  const refreshApplicationWorkflows = useCallback(async () => {
+    const appIdParam = searchParams?.get("applicationId");
+    if (appIdParam) {
+      const appIdNum = parseInt(appIdParam, 10);
+      if (!Number.isNaN(appIdNum)) {
+        try {
+          const res = await fetch(
+            `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const list =
+              (data?.data as Array<{ id: number; name: string }>) || [];
+            setApplicationWorkflows(
+              list.map((w) => ({ id: w.id, name: w.name })),
+            );
+          }
+        } catch {}
+      }
+    } else {
+      // If not in application context, refresh global list
+      try {
+        const res = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+        if (res.ok) {
+          const data = await res.json();
+          const list =
+            (data?.data as Array<{ id: number; name: string }>) || [];
+          setApplicationWorkflows(
+            list.map((w) => ({ id: w.id, name: w.name })),
+          );
+        }
+      } catch {}
+    }
+  }, [searchParams]);
+
   // Load checkpoints from sessionStorage
   useEffect(() => {
     const savedCheckpoints = sessionStorage.getItem(
@@ -494,6 +530,7 @@ export default function WorkflowPage() {
     selectedCase,
     stages: workflowModel.stages,
     refreshWorkflowDataAction: refreshWorkflowData,
+    refreshApplicationWorkflowsAction: refreshApplicationWorkflows,
     setSelectedViewAction: setSelectedView,
     setActiveStageAction: setActiveStage,
     setActiveProcessAction: setActiveProcess,
@@ -515,6 +552,7 @@ export default function WorkflowPage() {
     setIsProcessingAction: setIsProcessing,
     selectedCase,
     refreshWorkflowDataAction: refreshWorkflowData,
+    refreshApplicationWorkflowsAction: refreshApplicationWorkflows,
     setSelectedViewAction: setSelectedView,
     setActiveStageAction: setActiveStage,
     setActiveProcessAction: setActiveProcess,

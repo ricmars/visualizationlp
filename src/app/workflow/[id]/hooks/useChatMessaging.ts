@@ -21,6 +21,7 @@ type UseChatMessagingArgs = {
   selectedCase: MinimalCase | null;
   stages: Stage[];
   refreshWorkflowDataAction: () => Promise<void>;
+  refreshApplicationWorkflowsAction?: () => Promise<void>;
   setSelectedViewAction: (next: string | null) => void;
   setActiveStageAction: (next: string | undefined) => void;
   setActiveProcessAction: (next: string | undefined) => void;
@@ -34,6 +35,7 @@ export default function useChatMessaging({
   selectedCase,
   stages,
   refreshWorkflowDataAction,
+  refreshApplicationWorkflowsAction,
   setSelectedViewAction,
   setActiveStageAction,
   setActiveProcessAction,
@@ -306,8 +308,12 @@ export default function useChatMessaging({
                       setActiveProcessAction(undefined);
                       setActiveStepAction(undefined);
                     }
-                    // If a new case was created, navigate to it automatically
+                    // If a new case was created, refresh application workflows and navigate to it
                     if (newlyCreatedCaseId) {
+                      // Refresh the application workflows list to include the new workflow
+                      if (refreshApplicationWorkflowsAction) {
+                        await refreshApplicationWorkflowsAction();
+                      }
                       const appIdParam = searchParams?.get("applicationId");
                       const query = appIdParam
                         ? `?applicationId=${appIdParam}`
@@ -381,6 +387,7 @@ export default function useChatMessaging({
       selectedCase?.name,
       stages,
       refreshWorkflowDataAction,
+      refreshApplicationWorkflowsAction,
       setSelectedViewAction,
       setActiveStageAction,
       setActiveProcessAction,

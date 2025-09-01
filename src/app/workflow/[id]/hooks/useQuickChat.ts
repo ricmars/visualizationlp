@@ -20,6 +20,7 @@ type UseQuickChatArgs = {
   setIsProcessingAction: (next: boolean) => void;
   selectedCase: { id: number; name: string } | null;
   refreshWorkflowDataAction: () => Promise<void>;
+  refreshApplicationWorkflowsAction?: () => Promise<void>;
   setSelectedViewAction: (next: string | null) => void;
   setActiveStageAction: (next: string | undefined) => void;
   setActiveProcessAction: (next: string | undefined) => void;
@@ -40,6 +41,7 @@ export function useQuickChat({
   setIsProcessingAction,
   selectedCase,
   refreshWorkflowDataAction,
+  refreshApplicationWorkflowsAction,
   setSelectedViewAction,
   setActiveStageAction,
   setActiveProcessAction,
@@ -65,6 +67,7 @@ export function useQuickChat({
     selectedCase,
     stages,
     refreshWorkflowDataAction,
+    refreshApplicationWorkflowsAction,
     setSelectedViewAction,
     setActiveStageAction,
     setActiveProcessAction,
