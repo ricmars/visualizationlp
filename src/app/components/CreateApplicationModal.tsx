@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { LLMResponseDisplay } from "./LLMResponseDisplay";
 
 interface CreateApplicationModalProps {
   isOpen: boolean;
@@ -114,18 +115,18 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
               </div>
             )}
             {isCreating && creationProgress && (
-              <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+              <div className="bg-[rgb(14,10,42)] border border-blue-200 rounded-md p-4">
                 <div className="flex items-center mb-2">
                   <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
-                  <span className="text-sm font-medium text-blue-800">
+                  <span className="text-sm font-medium text-white">
                     Creating application...
                   </span>
                 </div>
                 <div
                   ref={progressRef}
-                  className="text-sm text-blue-700 whitespace-pre-line max-h-32 overflow-y-auto"
+                  className="text-sm text-white max-h-32 overflow-y-auto"
                 >
-                  {creationProgress}
+                  <LLMResponseDisplay content={creationProgress} />
                 </div>
               </div>
             )}
