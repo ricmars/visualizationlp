@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { CreateApplicationModal } from "./components/CreateApplicationModal";
 import DeleteApplicationModal from "./components/DeleteApplicationModal";
+import EditApplicationModal from "./components/EditApplicationModal";
 import { useRouter } from "next/navigation";
-import { FaTrash } from "react-icons/fa";
+import { FaTrash, FaPencilAlt } from "react-icons/fa";
 import { fetchWithBaseUrl } from "./lib/fetchWithBaseUrl";
 import { Service } from "./services/service";
 import { buildDatabaseSystemPrompt } from "./lib/databasePrompt";
@@ -36,6 +37,11 @@ export default function Home() {
   const [deleteTarget, setDeleteTarget] = useState<{
     id: number;
     name: string;
+  } | null>(null);
+  const [editTarget, setEditTarget] = useState<{
+    id: number;
+    name: string;
+    description: string;
   } | null>(null);
   const router = useRouter();
 
@@ -201,6 +207,50 @@ export default function Home() {
     }
   };
 
+  const handleEditApplication = async (data: {
+    name: string;
+    description: string;
+  }) => {
+    if (!editTarget) return;
+
+    try {
+      const response = await fetchWithBaseUrl(
+        `/api/database?table=Applications&id=${editTarget.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: data.name,
+            description: data.description,
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to update application: ${response.status} ${errorText}`,
+        );
+      }
+
+      // Update the application in the local state
+      setApplications((prev) =>
+        prev.map((app) =>
+          app.id === editTarget.id
+            ? { ...app, name: data.name, description: data.description }
+            : app,
+        ),
+      );
+
+      setEditTarget(null);
+    } catch (error) {
+      console.error("Error updating application:", error);
+      alert("Failed to update application. Please try again.");
+    }
+  };
+
   return (
     <div className="container mx-auto p-4">
       {successMessage && (
@@ -252,18 +302,36 @@ export default function Home() {
                     {app.description}
                   </p>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setDeleteTarget({ id: app.id, name: app.name });
-                  }}
-                  className="btn-secondary w-8"
-                  aria-label="Delete application"
-                  title="Delete application"
-                >
-                  <FaTrash className="w-4 h-4" />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setEditTarget({
+                        id: app.id,
+                        name: app.name,
+                        description: app.description,
+                      });
+                    }}
+                    className="btn-secondary w-8"
+                    aria-label="Edit application"
+                    title="Edit application"
+                  >
+                    <FaPencilAlt className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setDeleteTarget({ id: app.id, name: app.name });
+                    }}
+                    className="btn-secondary w-8"
+                    aria-label="Delete application"
+                    title="Delete application"
+                  >
+                    <FaTrash className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               {isNavigatingId === app.id && (
                 <div className="absolute inset-0 bg-white/70 flex items-center justify-center rounded">
@@ -296,6 +364,16 @@ export default function Home() {
           setApplications((prev) => prev.filter((a) => a.id !== id));
           setDeleteTarget(null);
         }}
+      />
+      <EditApplicationModal
+        isOpen={!!editTarget}
+        onClose={() => setEditTarget(null)}
+        onSubmit={handleEditApplication}
+        initialData={
+          editTarget
+            ? { name: editTarget.name, description: editTarget.description }
+            : { name: "", description: "" }
+        }
       />
     </div>
   );
