@@ -535,11 +535,11 @@ body {
 
 /* App-aware viewport height utilities */
 .h-app-screen {
-  height: calc(100vh - var(--header-height));
+  height: calc(100vh - 8px - var(--header-height));
 }
 
 .min-h-app-screen {
-  min-height: calc(100vh - var(--header-height));
+  min-height: calc(100vh - 8px - var(--header-height));
 }
 
 /* Responsive breakpoints */
