@@ -416,7 +416,7 @@ export default function RulesCheckoutPanel({
   return (
     <div className="flex flex-col h-full text-white">
       {/* Tree Navigation */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
@@ -427,7 +427,7 @@ export default function RulesCheckoutPanel({
             No rule changes found
           </div>
         ) : (
-          <div className="p-3">
+          <div className="px-3">
             {data.categories.map((category) => {
               const isExpanded = expandedCategories.has(category.category);
               const hasRules = category.rules.length > 0;

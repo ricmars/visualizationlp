@@ -1061,15 +1061,11 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div
-      className={`flex h-app-screen overflow-hidden app-panels ${
-        isMobile ? "px-2" : "px-4"
-      }`}
-    >
+    <div className={`flex h-app-screen app-panels ${isMobile ? "px-2" : ""}`}>
       {/* Left Panel - Hidden on mobile, shown on tablet/desktop */}
       {!isMobile && (
         <aside
-          className="flex flex-col h-app-screen overflow-hidden text-sm bg-[#16244E]"
+          className="flex flex-col h-app-screen text-sm bg-[#16244E]"
           style={{ width: "300px", fontSize: "14px" }}
         >
           {/* Header with toggle */}
@@ -1102,9 +1098,9 @@ export default function WorkflowPage() {
           </div>
 
           {/* Content */}
-          <div className="flex-1 overflow-hidden text-white">
+          <div className="p-2 overflow-y-auto flex-1 text-white">
             {leftPanelView === "history" ? (
-              <div className="h-full overflow-hidden">
+              <div className="h-full">
                 <ChangesPanel
                   caseid={selectedCase?.id}
                   applicationid={applicationId || undefined}
@@ -1114,7 +1110,7 @@ export default function WorkflowPage() {
                 />
               </div>
             ) : (
-              <div className="h-full overflow-hidden">
+              <div className="h-full">
                 <RulesCheckoutPanel
                   caseId={selectedCase?.id}
                   applicationId={applicationId || undefined}
@@ -1128,7 +1124,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col overflow-hidden relative h-full rounded-[12px] border border-[rgb(172,117,240)] ${
+        className={`flex-1 flex flex-col relative h-full min-h-0 rounded-[12px] border border-[rgb(172,117,240)] ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
@@ -1356,10 +1352,10 @@ export default function WorkflowPage() {
       {/* Chat Panel - fixed width - Hidden on tablet/mobile */}
       {isDesktop && (
         <aside
-          className="flex flex-col h-app-screen overflow-hidden text-sm"
+          className="flex flex-col h-app-screen text-sm"
           style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
         >
-          <div className="flex-1 overflow-hidden flex flex-col">
+          <div className="flex-1 flex flex-col">
             <ChatPanelContent
               messages={messages}
               onSendMessage={(message) => void handleSendMessage(message)}

@@ -108,9 +108,9 @@ export default function ChangesPanel({
   };
 
   return (
-    <div className="p-6 h-full overflow-hidden flex flex-col">
+    <div className="h-full flex flex-col">
       {/* Content */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1">
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
