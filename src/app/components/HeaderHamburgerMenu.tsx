@@ -9,8 +9,8 @@ export default function HeaderHamburgerMenu() {
     useResponsive();
   const pathname = usePathname();
 
-  // Only show hamburger menu on mobile and when on a workflow page
-  if (!isMobile || !pathname.startsWith("/workflow/")) {
+  // Only show hamburger menu on mobile and when on an application page
+  if (!isMobile || !pathname.startsWith("/application/")) {
     return null;
   }
 

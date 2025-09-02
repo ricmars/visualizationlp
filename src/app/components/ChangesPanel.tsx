@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { MODEL_UPDATED_EVENT } from "@/app/workflow/[id]/utils/constants";
+import { MODEL_UPDATED_EVENT } from "@/app/application/[id]/utils/constants";
 import { FaUndo } from "react-icons/fa";
 
 interface CheckpointHistoryItem {

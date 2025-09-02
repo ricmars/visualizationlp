@@ -87,8 +87,9 @@ export default function useChatMessaging({
         abortRef.current = new AbortController();
 
         // Get application ID from URL params if available
-        const appIdParam = searchParams?.get("applicationId");
-        const applicationId = appIdParam ? parseInt(appIdParam, 10) : undefined;
+        // Application id is in path now; we don't have direct access here, rely on URL path if needed
+        // Keep as undefined for tool context; callers pass refresh action tied to current app
+        const applicationId = undefined;
 
         const response = await Service.generateResponse(
           message,
@@ -314,11 +315,12 @@ export default function useChatMessaging({
                       if (refreshApplicationWorkflowsAction) {
                         await refreshApplicationWorkflowsAction();
                       }
-                      const appIdParam = searchParams?.get("applicationId");
-                      const query = appIdParam
-                        ? `?applicationId=${appIdParam}`
-                        : "";
-                      router.push(`/workflow/${newlyCreatedCaseId}${query}`);
+                      const params = new URLSearchParams(
+                        searchParams?.toString() || "",
+                      );
+                      params.set("workflow", String(newlyCreatedCaseId));
+                      const path = window.location.pathname; // /application/{id}
+                      router.push(`${path}?${params.toString()}`);
                     }
                     break;
                   }

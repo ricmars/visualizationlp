@@ -130,7 +130,10 @@ export default function WorkflowPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  const id = params?.id as string;
+  // In the new route, path param is applicationId, query param is workflow id
+  const applicationIdParam = params?.id as string;
+  const workflowIdQuery = searchParams?.get("workflow");
+  const id = workflowIdQuery || "";
 
   // 2. All useState hooks
   const {
@@ -179,6 +182,7 @@ export default function WorkflowPage() {
 
   // Responsive state
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   // Use responsive context
   const {
@@ -350,38 +354,15 @@ export default function WorkflowPage() {
 
   // Load checkpoints from sessionStorage
   useEffect(() => {
-    // If opened in application context, load workflows list for dropdown
-    const appIdParam = searchParams?.get("applicationId");
-    if (appIdParam) {
-      const appIdNum = parseInt(appIdParam, 10);
-      if (!Number.isNaN(appIdNum)) {
-        setApplicationId(appIdNum);
-        (async () => {
-          try {
-            const res = await fetch(
-              `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
-            );
-            if (res.ok) {
-              const data = await res.json();
-              const list =
-                (data?.data as Array<{ id: number; name: string }>) || [];
-              setApplicationWorkflows(
-                list.map((w) => ({ id: w.id, name: w.name })),
-              );
-            }
-          } catch {}
-        })();
-      }
-    }
-  }, [searchParams]);
-
-  // If not in application context, load a global list of cases for picker
-  useEffect(() => {
-    const appIdParam = searchParams?.get("applicationId");
-    if (!appIdParam) {
+    // Path provides application id; query provides workflow id
+    const appIdNum = parseInt(applicationIdParam, 10);
+    if (!Number.isNaN(appIdNum)) {
+      setApplicationId(appIdNum);
       (async () => {
         try {
-          const res = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+          const res = await fetch(
+            `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
+          );
           if (res.ok) {
             const data = await res.json();
             const list =
@@ -393,14 +374,17 @@ export default function WorkflowPage() {
         } catch {}
       })();
     }
-  }, [searchParams]);
+  }, [applicationIdParam]);
+
+  // If not in application context, load a global list of cases for picker
+  // No global list needed anymore since application context is required by path
 
   const handleChangeWorkflow = useCallback(
     async (nextId: number) => {
-      const query = applicationId ? `?applicationId=${applicationId}` : "";
-
-      // Update the URL without triggering a full navigation
-      router.replace(`/workflow/${nextId}${query}`, { scroll: false });
+      // Update just the workflow query param on the same path
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.set("workflow", String(nextId));
+      router.push(`/application/${applicationId}?${params.toString()}`);
 
       // Manually refresh the workflow data for the new ID
       // This will update the main area without refreshing the entire page
@@ -417,7 +401,7 @@ export default function WorkflowPage() {
           setSelectedCase(caseData.data);
         }
 
-        // Fetch the new model
+        // Fetch the new model without resetting the whole page
         const newModel = await _fetchCaseData(newId);
         setModel(() => newModel);
 
@@ -445,15 +429,16 @@ export default function WorkflowPage() {
         setActiveStep(undefined);
         setSelectedView(null);
 
-        // Keep chat messages and left panel state intact
-        // The checkpoints will be loaded from sessionStorage for the new workflow ID
+        // Keep chat messages and left panel state intact; history/checkout persists per application
 
         // Dispatch model update event for preview iframe
         window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
       } catch (error) {
         console.error("Error switching workflow:", error);
         // If there's an error, fall back to full navigation
-        router.push(`/workflow/${nextId}${query}`);
+        const params = new URLSearchParams(searchParams?.toString() || "");
+        params.set("workflow", String(nextId));
+        router.push(`/application/${applicationId}?${params.toString()}`);
       }
     },
     [
@@ -464,12 +449,13 @@ export default function WorkflowPage() {
       setFields,
       setViews,
       _fetchCaseData,
+      searchParams,
     ],
   );
 
   // Function to refresh application workflows list
   const refreshApplicationWorkflows = useCallback(async () => {
-    const appIdParam = searchParams?.get("applicationId");
+    const appIdParam = applicationIdParam;
     if (appIdParam) {
       const appIdNum = parseInt(appIdParam, 10);
       if (!Number.isNaN(appIdNum)) {
@@ -487,23 +473,8 @@ export default function WorkflowPage() {
           }
         } catch {}
       }
-    } else {
-      // If not in application context, refresh global list
-      try {
-        const res = await fetchWithBaseUrl(
-          `/api/database?table=${DB_TABLES.CASES}`,
-        );
-        if (res.ok) {
-          const data = await res.json();
-          const list =
-            (data?.data as Array<{ id: number; name: string }>) || [];
-          setApplicationWorkflows(
-            list.map((w) => ({ id: w.id, name: w.name })),
-          );
-        }
-      } catch {}
     }
-  }, [searchParams]);
+  }, [applicationIdParam]);
 
   // Load checkpoints from sessionStorage
   useEffect(() => {
@@ -626,7 +597,13 @@ export default function WorkflowPage() {
     setActiveStepAction: setActiveStep,
   });
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading) {
+      setHasLoadedOnce(true);
+    }
+  }, [loading]);
+
+  if (loading && !hasLoadedOnce) {
     return <LoadingScreen />;
   }
 
@@ -818,9 +795,7 @@ export default function WorkflowPage() {
 
       // After deletion, try to navigate to the first remaining case
       let nextCaseId: number | null = null;
-      let query = "";
       if (applicationId) {
-        query = `?applicationId=${applicationId}`;
         try {
           const listRes = await fetch(
             `/api/database?table=${DB_TABLES.CASES}&applicationid=${applicationId}`,
@@ -845,7 +820,9 @@ export default function WorkflowPage() {
       }
 
       if (nextCaseId) {
-        router.push(`/workflow/${nextCaseId}${query}`);
+        const params = new URLSearchParams();
+        params.set("workflow", String(nextCaseId));
+        router.push(`/application/${applicationId}?${params.toString()}`);
       } else {
         // No cases available; navigate to home (empty pattern)
         router.push("/");
