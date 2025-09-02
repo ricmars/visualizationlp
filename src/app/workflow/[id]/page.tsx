@@ -66,6 +66,7 @@ import EditFieldModal from "../../components/EditFieldModal";
 import { DB_TABLES } from "../../types/database";
 // view model helpers used inside useViewMutations (kept for types, not used here)
 // fetchWithBaseUrl used in hooks/utilities
+import { fetchWithBaseUrl } from "../../lib/fetchWithBaseUrl";
 import AddStageModal from "../../components/AddStageModal";
 import AddProcessModal from "../../components/AddProcessModal";
 import EditWorkflowModal from "../../components/EditWorkflowModal";
@@ -395,11 +396,75 @@ export default function WorkflowPage() {
   }, [searchParams]);
 
   const handleChangeWorkflow = useCallback(
-    (nextId: number) => {
+    async (nextId: number) => {
       const query = applicationId ? `?applicationId=${applicationId}` : "";
-      router.push(`/workflow/${nextId}${query}`);
+
+      // Update the URL without triggering a full navigation
+      router.replace(`/workflow/${nextId}${query}`, { scroll: false });
+
+      // Manually refresh the workflow data for the new ID
+      // This will update the main area without refreshing the entire page
+      try {
+        // Update the local ID state first
+        const newId = nextId.toString();
+
+        // Fetch and update the workflow data for the new ID
+        const caseResponse = await fetchWithBaseUrl(
+          `/api/database?table=${DB_TABLES.CASES}&id=${newId}`,
+        );
+        if (caseResponse.ok) {
+          const caseData = await caseResponse.json();
+          setSelectedCase(caseData.data);
+        }
+
+        // Fetch the new model
+        const newModel = await _fetchCaseData(newId);
+        setModel(() => newModel);
+
+        // Fetch new fields
+        const fieldsResponse = await fetchWithBaseUrl(
+          `/api/database?table=${DB_TABLES.FIELDS}&caseid=${newId}`,
+        );
+        if (fieldsResponse.ok) {
+          const fieldsResult = await fieldsResponse.json();
+          setFields(fieldsResult.data);
+        }
+
+        // Fetch new views
+        const viewsResponse = await fetchWithBaseUrl(
+          `/api/database?table=${DB_TABLES.VIEWS}&caseid=${newId}`,
+        );
+        if (viewsResponse.ok) {
+          const viewsData = await viewsResponse.json();
+          setViews(viewsData.data);
+        }
+
+        // Reset workflow-specific state
+        setActiveStage(undefined);
+        setActiveProcess(undefined);
+        setActiveStep(undefined);
+        setSelectedView(null);
+
+        // Keep chat messages and left panel state intact
+        // The checkpoints will be loaded from sessionStorage for the new workflow ID
+
+        // Dispatch model update event for preview iframe
+        window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
+      } catch (error) {
+        console.error("Error switching workflow:", error);
+        // If there's an error, fall back to full navigation
+        router.push(`/workflow/${nextId}${query}`);
+      }
     },
-    [router, applicationId],
+    [
+      router,
+      applicationId,
+      setSelectedCase,
+      setModel,
+      setFields,
+      setViews,
+      _fetchCaseData,
+    ],
   );
 
   // Function to refresh application workflows list
@@ -409,7 +474,7 @@ export default function WorkflowPage() {
       const appIdNum = parseInt(appIdParam, 10);
       if (!Number.isNaN(appIdNum)) {
         try {
-          const res = await fetch(
+          const res = await fetchWithBaseUrl(
             `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
           );
           if (res.ok) {
@@ -425,7 +490,9 @@ export default function WorkflowPage() {
     } else {
       // If not in application context, refresh global list
       try {
-        const res = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+        const res = await fetchWithBaseUrl(
+          `/api/database?table=${DB_TABLES.CASES}`,
+        );
         if (res.ok) {
           const data = await res.json();
           const list =
