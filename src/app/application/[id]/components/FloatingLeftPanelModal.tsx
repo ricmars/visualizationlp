@@ -136,7 +136,7 @@ export default function FloatingLeftPanelModal({
           {/* Content */}
           <div className="flex-1 min-h-0">
             {leftPanelView === "history" ? (
-              <div className="h-full">
+              <div className="px-2 h-full overflow-y-auto">
                 <ChangesPanel
                   caseid={caseId}
                   applicationid={applicationId}
@@ -146,7 +146,7 @@ export default function FloatingLeftPanelModal({
                 />
               </div>
             ) : (
-              <div className="h-full">
+              <div className="h-full overflow-y-auto">
                 <RulesCheckoutPanel
                   caseId={caseId}
                   applicationId={applicationId}
