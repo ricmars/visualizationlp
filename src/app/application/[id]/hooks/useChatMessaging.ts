@@ -19,6 +19,7 @@ type UseChatMessagingArgs = {
   setMessagesAction: (updater: (prev: ChatMessage[]) => ChatMessage[]) => void;
   setIsProcessingAction: (next: boolean) => void;
   selectedCase: MinimalCase | null;
+  applicationId?: number | null;
   stages: Stage[];
   refreshWorkflowDataAction: () => Promise<void>;
   refreshApplicationWorkflowsAction?: () => Promise<void>;
@@ -33,6 +34,7 @@ export default function useChatMessaging({
   setMessagesAction,
   setIsProcessingAction,
   selectedCase,
+  applicationId,
   stages,
   refreshWorkflowDataAction,
   refreshApplicationWorkflowsAction,
@@ -86,17 +88,13 @@ export default function useChatMessaging({
 
         abortRef.current = new AbortController();
 
-        // Get application ID from URL params if available
-        // Application id is in path now; we don't have direct access here, rely on URL path if needed
-        // Keep as undefined for tool context; callers pass refresh action tied to current app
-        const applicationId = undefined;
-
         const response = await Service.generateResponse(
           message,
           selectedCase
             ? JSON.stringify({
                 currentCaseId: selectedCase.id,
-                applicationId: applicationId,
+                applicationId:
+                  typeof applicationId === "number" ? applicationId : undefined,
                 name: selectedCase.name,
                 stages,
                 instructions:
