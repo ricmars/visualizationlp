@@ -13,7 +13,7 @@ import {
 import ModalPortal from "../../../components/ModalPortal";
 import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
-import ViewEditModal from "../../../components/ViewEditModal";
+import StepConfigurationModal from "../../../components/StepConfigurationModal";
 import { Field, Stage } from "../../../types";
 import { DB_TABLES } from "../../../types/database";
 import { MODEL_UPDATED_EVENT } from "../utils/constants";
@@ -52,7 +52,6 @@ type RulesCheckoutPanelProps = {
 export default function RulesCheckoutPanel({
   caseId,
   applicationId,
-  stages = [],
   fields = [],
 }: RulesCheckoutPanelProps) {
   const [data, setData] = useState<RuleCheckoutData | null>(null);
@@ -177,22 +176,70 @@ export default function RulesCheckoutPanel({
     return table;
   };
 
-  // Check if a view is linked to a collect info step
-  const isViewLinkedToCollectStep = useCallback(
-    (viewId: number): boolean => {
-      for (const stage of stages) {
-        for (const process of stage.processes) {
-          for (const step of process.steps) {
-            if (step.type === "Collect information" && step.viewId === viewId) {
-              return true;
+  // Resolve a pseudo-step from a view record for the StepConfigurationModal
+  const makePseudoStepFromView = (view: {
+    id: number;
+    name: string;
+    model: any;
+  }) => {
+    let parsedModel: any = view.model;
+    try {
+      parsedModel =
+        typeof view.model === "string" ? JSON.parse(view.model) : view.model;
+    } catch {}
+    const modelFields = Array.isArray(parsedModel?.fields)
+      ? parsedModel.fields
+      : [];
+    return {
+      id: view.id,
+      stageId: 0,
+      processId: 0,
+      stepId: view.id,
+      name: view.name,
+      fields: modelFields.map((f: any) => ({
+        fieldId: Number(f.fieldId),
+        required: !!f.required,
+      })),
+      type: "Collect information",
+    };
+  };
+
+  // View model adapters for StepConfigurationModal handlers
+  const updateViewModel = async (
+    view: { id: number; name: string; model: any },
+    nextFields: Array<{ fieldId: number; required?: boolean }>,
+  ) => {
+    const nextModel = {
+      ...((typeof view.model === "string"
+        ? (() => {
+            try {
+              return JSON.parse(view.model);
+            } catch {
+              return {};
             }
-          }
-        }
-      }
+          })()
+        : view.model) || {}),
+      fields: nextFields,
+    };
+
+    const response = await fetch(
+      `/api/database?table=${DB_TABLES.VIEWS}&id=${view.id}`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          table: DB_TABLES.VIEWS,
+          data: { name: view.name, model: JSON.stringify(nextModel) },
+        }),
+      },
+    );
+    if (!response.ok) {
+      console.error("Failed to update view model");
       return false;
-    },
-    [stages],
-  );
+    }
+    await fetchCheckoutData();
+    return true;
+  };
 
   // Handle rule click
   const handleRuleClick = async (rule: RuleChange) => {
@@ -342,40 +389,6 @@ export default function RulesCheckoutPanel({
     }
   };
 
-  // Handle view update
-  const handleViewUpdate = async (updates: { name: string; model: any }) => {
-    if (!editingView) return;
-
-    try {
-      const response = await fetch(
-        `/api/database?table=${DB_TABLES.VIEWS}&id=${editingView.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            table: DB_TABLES.VIEWS,
-            data: {
-              name: updates.name,
-              model: JSON.stringify(updates.model),
-            },
-          }),
-        },
-      );
-
-      if (response.ok) {
-        // Refresh the checkout data
-        await fetchCheckoutData();
-        setEditingView(null);
-      } else {
-        console.error("Failed to update view:", response.statusText);
-      }
-    } catch (error) {
-      console.error("Error updating view:", error);
-    }
-  };
-
   // Handle application update
   const handleApplicationUpdate = async (data: {
     name: string;
@@ -411,6 +424,80 @@ export default function RulesCheckoutPanel({
     } catch (error) {
       console.error("Error updating application:", error);
     }
+  };
+
+  // View model field adapters for StepConfigurationModal when editing a View
+  const onViewAddField = async (field: {
+    label: string;
+    type: Field["type"];
+    options?: string[];
+    required?: boolean;
+    primary?: boolean;
+  }): Promise<string> => {
+    // Create the Field in DB first (reuse existing endpoint expectations)
+    const request = await fetch(`/api/database?table=${DB_TABLES.FIELDS}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        table: DB_TABLES.FIELDS,
+        data: {
+          caseid: editingView?.caseid,
+          name: field.label.replace(/\s+/g, "_").toLowerCase(),
+          label: field.label,
+          type: field.type,
+          primary: field.primary ?? false,
+          description: "",
+          order: 0,
+          options: field.options || [],
+          required: field.required ?? false,
+        },
+      }),
+    });
+    const resp = await request.json();
+    // We return the field name since upstream handlers expect it, though ViewsPanel uses names→ids mapping
+    return (resp?.data?.name as string) || field.label;
+  };
+
+  const onViewAddExistingField = async (stepId: number, fieldIds: number[]) => {
+    if (!editingView) return;
+    const current = makePseudoStepFromView(editingView);
+    const existingIds = new Set(
+      current.fields.map((f: { fieldId: any }) => f.fieldId),
+    );
+    const nextFields = [
+      ...current.fields,
+      ...fieldIds
+        .filter((id) => !existingIds.has(id))
+        .map((id) => ({ fieldId: id, required: false })),
+    ];
+    await updateViewModel(editingView, nextFields);
+  };
+
+  const onViewUpdateField = async (updates: Partial<Field>) => {
+    // Update the Field itself in DB (label/type/etc.)
+    if (!updates.id) return;
+    await fetch(`/api/database?table=${DB_TABLES.FIELDS}&id=${updates.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ table: DB_TABLES.FIELDS, data: updates }),
+    });
+    await fetchCheckoutData();
+  };
+
+  const onViewDeleteField = async (field: Field) => {
+    if (!editingView) return;
+    const current = makePseudoStepFromView(editingView);
+    const nextFields = current.fields.filter(
+      (f: { fieldId: number | undefined }) => f.fieldId !== field.id,
+    );
+    await updateViewModel(editingView, nextFields);
+  };
+
+  const onViewFieldChange = (
+    _fieldId: number,
+    _value: string | number | boolean,
+  ) => {
+    // No-op for view editing preview in checkout panel
   };
 
   return (
@@ -512,16 +599,19 @@ export default function RulesCheckoutPanel({
         )}
       </ModalPortal>
 
-      {/* View Edit Modal */}
+      {/* View Edit uses StepConfigurationModal for consistent styles */}
       <ModalPortal isOpen={!!editingView}>
         {editingView && (
-          <ViewEditModal
+          <StepConfigurationModal
             isOpen={!!editingView}
             onClose={() => setEditingView(null)}
-            onSubmit={handleViewUpdate}
-            initialData={editingView}
-            isCollectInfoStep={isViewLinkedToCollectStep(editingView.id)}
+            step={makePseudoStepFromView(editingView)}
             fields={fields}
+            onFieldChange={onViewFieldChange}
+            onAddField={onViewAddField}
+            onAddExistingField={onViewAddExistingField}
+            onUpdateField={onViewUpdateField}
+            onDeleteField={onViewDeleteField}
           />
         )}
       </ModalPortal>

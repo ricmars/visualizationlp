@@ -117,7 +117,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
       >
         <div className="lp-modal-header p-6">
           <h2 className="text-xl font-semibold text-white">
-            Configure Step: {step.name}
+            {`Edit View: ${step.name}`}
           </h2>
           <button
             onClick={onClose}
@@ -142,25 +142,27 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
         <div className="p-6 flex-1 min-h-0 overflow-y-auto">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">
-                Fields
-                <span className="ml-2 text-sm font-normal">
-                  ({stepFields.length})
-                </span>
-              </h3>
               {step.type === "Collect information" ? (
-                <button
-                  ref={addFieldButtonRef}
-                  onClick={() => {
-                    console.log(
-                      "🟦 StepConfigurationModal: open AddFieldModal",
-                    );
-                    setIsAddFieldOpen(true);
-                  }}
-                  className="interactive-button"
-                >
-                  Add Field
-                </button>
+                <>
+                  <h3 className="text-lg font-medium">
+                    Fields
+                    <span className="ml-2 text-sm font-normal">
+                      ({stepFields.length})
+                    </span>
+                  </h3>
+                  <button
+                    ref={addFieldButtonRef}
+                    onClick={() => {
+                      console.log(
+                        "🟦 StepConfigurationModal: open AddFieldModal",
+                      );
+                      setIsAddFieldOpen(true);
+                    }}
+                    className="interactive-button"
+                  >
+                    Add Field
+                  </button>
+                </>
               ) : null}
             </div>
 
