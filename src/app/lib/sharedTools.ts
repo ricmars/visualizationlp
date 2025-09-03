@@ -580,7 +580,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 options: {
                   type: "array",
                   items: { type: "string" },
-                  description: "Array of options for dropdown/radio fields",
+                  description:
+                    "Array of options (only include when type is 'Dropdown' or 'RadioButtons')",
                 },
                 required: {
                   type: "boolean",

@@ -300,15 +300,33 @@ export default function WorkflowPage() {
             value = dv;
           }
         }
-        return {
+        // Normalize options: only include for Dropdown; ensure it's an array
+        let normalizedOptions: string[] | undefined = undefined;
+        if (f?.type === "Dropdown" || f?.type === "RadioButtons") {
+          const rawOptions = (f as any)?.options;
+          if (Array.isArray(rawOptions)) {
+            normalizedOptions = rawOptions as string[];
+          } else if (typeof rawOptions === "string") {
+            try {
+              const parsed = JSON.parse(rawOptions);
+              if (Array.isArray(parsed)) normalizedOptions = parsed as string[];
+            } catch {
+              normalizedOptions = undefined;
+            }
+          }
+        }
+        const base: PreviewField = {
           ID: f?.id !== undefined && f?.id !== null ? String(f.id) : undefined,
           name: f.name,
           label: f.label,
           type: f.type,
           primary: f.primary,
-          options: f.options,
           value,
         } as PreviewField;
+        if (normalizedOptions && normalizedOptions.length > 0) {
+          (base as any).options = normalizedOptions;
+        }
+        return base;
       });
 
       return {
