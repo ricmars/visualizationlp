@@ -55,8 +55,7 @@ import { v4 as uuidv4 } from "uuid";
 import ViewsPanel from "../../components/ViewsPanel";
 import FieldsList from "../../components/FieldsList";
 //
-import WorkflowTopBar from "./components/WorkflowTopBar";
-import DataHeader from "./components/DataHeader";
+import ApplicationMenuBar from "./components/ApplicationMenuBar";
 import DataPanel from "./components/DataPanel";
 import EditDataObjectModal from "./components/EditDataObjectModal";
 import AddDataObjectModal from "./components/AddDataObjectModal";
@@ -76,6 +75,7 @@ import AddProcessModal from "../../components/AddProcessModal";
 import EditWorkflowModal from "../../components/EditWorkflowModal";
 import ModalPortal from "../../components/ModalPortal";
 import { StepType } from "@/app/utils/stepTypes";
+import { FaPencilAlt } from "react-icons/fa";
 import ChangesPanel from "../../components/ChangesPanel";
 import RulesCheckoutPanel from "./components/RulesCheckoutPanel";
 import FloatingChatModal from "./components/FloatingChatModal";
@@ -182,6 +182,8 @@ export default function WorkflowPage() {
   const [isAddStageModalOpen, setIsAddStageModalOpen] = useState(false);
   const [isAddProcessModalOpen, setIsAddProcessModalOpen] = useState(false);
   const [isEditWorkflowModalOpen, setIsEditWorkflowModalOpen] = useState(false);
+  const [isCreateWorkflowModalOpen, setIsCreateWorkflowModalOpen] =
+    useState(false);
   const [selectedStageForProcess, setSelectedStageForProcess] = useState<
     string | null
   >(null);
@@ -190,10 +192,14 @@ export default function WorkflowPage() {
     Array<{ id: number; name: string }>
   >([]);
   const [applicationId, setApplicationId] = useState<number | null>(null);
+  const [applicationName, setApplicationName] = useState<string>("");
   const [newProcessName, setNewProcessName] = useState("");
   const [leftPanelView, setLeftPanelView] = useState<"history" | "checkout">(
     "history",
   );
+  const [selectedDataObjectId, setSelectedDataObjectId] = useState<
+    number | null
+  >(null);
 
   // Responsive state
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -404,6 +410,16 @@ export default function WorkflowPage() {
               list.map((w) => ({ id: w.id, name: w.name })),
             );
           }
+          // Fetch application info for header
+          try {
+            const appRes = await fetch(
+              `/api/database?table=${DB_TABLES.APPLICATIONS}&id=${appIdNum}`,
+            );
+            if (appRes.ok) {
+              const appJson = await appRes.json();
+              setApplicationName(appJson?.data?.name || "");
+            }
+          } catch {}
         } catch {}
       })();
     }
@@ -414,6 +430,8 @@ export default function WorkflowPage() {
 
   const handleChangeWorkflow = useCallback(
     async (nextId: number) => {
+      // Clear any selected data object when switching workflow
+      setSelectedDataObjectId(null);
       // Update just the workflow query param on the same path
       const params = new URLSearchParams(searchParams?.toString() || "");
       params.set("workflow", String(nextId));
@@ -484,6 +502,16 @@ export default function WorkflowPage() {
       _fetchCaseData,
       searchParams,
     ],
+  );
+
+  const handleSelectDataObject = useCallback((dataObjectId: number) => {
+    setSelectedDataObjectId(dataObjectId);
+  }, []);
+
+  const selectedDataObject = useMemo(
+    () =>
+      (dataObjects || []).find((d) => d.id === selectedDataObjectId) || null,
+    [dataObjects, selectedDataObjectId],
   );
 
   // Function to refresh application workflows list
@@ -745,6 +773,42 @@ export default function WorkflowPage() {
     } catch (error) {
       console.error("Error adding stage:", error);
       throw new Error("Failed to add stage");
+    }
+  };
+
+  const handleCreateWorkflow = async (data: {
+    name: string;
+    description: string;
+  }) => {
+    if (!applicationId) return;
+    try {
+      const payload = {
+        name: data.name,
+        description: data.description,
+        hasWorkflow: true,
+        applicationid: applicationId,
+        model: { name: data.name, stages: [] },
+      } as any;
+      const res = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.OBJECTS}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!res.ok) {
+        const t = await res.text();
+        throw new Error(`Failed to create workflow: ${res.status} ${t}`);
+      }
+      const json = await res.json();
+      const newId: number | undefined = json?.data?.id;
+      await refreshWorkflowData();
+      if (newId) {
+        await handleChangeWorkflow(newId);
+      }
+    } catch (e) {
+      console.error("Error creating workflow:", e);
     }
   };
 
@@ -1188,24 +1252,79 @@ export default function WorkflowPage() {
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
-        {/* Header row with title and preview switch */}
-        <WorkflowTopBar
-          selectedCaseName={selectedCase?.name}
-          canEdit={Boolean(selectedCase)}
-          onEditWorkflowAction={() => setIsEditWorkflowModalOpen(true)}
-          isPreviewMode={isPreviewMode}
-          onTogglePreviewAction={() => setIsPreviewMode(!isPreviewMode)}
+        {/* Application Menu Bar */}
+        <ApplicationMenuBar
+          applicationName={applicationName || selectedCase?.name}
           workflows={applicationWorkflows}
+          dataObjects={dataObjects || []}
           activeWorkflowId={parseInt(id)}
           onChangeWorkflowAction={handleChangeWorkflow}
+          onSelectDataObjectAction={handleSelectDataObject}
+          onOpenCreateWorkflowAction={() => setIsCreateWorkflowModalOpen(true)}
+          onOpenCreateDataObjectAction={() => setIsAddDataObjectModalOpen(true)}
+          isPreviewMode={isPreviewMode}
+          onTogglePreviewAction={() => setIsPreviewMode(!isPreviewMode)}
         />
 
-        {/* Tabs - Only show when not in preview mode */}
+        {/* Page heading (above tabs) */}
         {!isPreviewMode && (
+          <div className="px-4 py-3 border-b border-white/10">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-xl font-semibold text-white">
+                  {selectedDataObjectId !== null
+                    ? selectedDataObject?.name
+                    : selectedCase?.name}
+                </h2>
+                <button
+                  className="btn-secondary w-8"
+                  aria-label={
+                    selectedDataObjectId !== null
+                      ? "Edit data object"
+                      : "Edit workflow"
+                  }
+                  onClick={() => {
+                    if (selectedDataObjectId !== null) {
+                      if (selectedDataObject?.id)
+                        setEditingDataObjectId(selectedDataObject.id);
+                    } else {
+                      setIsEditWorkflowModalOpen(true);
+                    }
+                  }}
+                >
+                  <FaPencilAlt className="w-4 h-4" />
+                </button>
+              </div>
+              {selectedDataObjectId !== null ? (
+                selectedDataObject?.description ? (
+                  <p className="text-white/80 text-sm">
+                    {selectedDataObject.description}
+                  </p>
+                ) : null
+              ) : selectedCase?.description ? (
+                <p className="text-white/80 text-sm">
+                  {selectedCase.description}
+                </p>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {/* Tabs - Above content */}
+        {!isPreviewMode && selectedDataObjectId === null && (
           <WorkflowTabs
             active={activeTab as any}
             onChange={setActiveTab as any}
           />
+        )}
+        {!isPreviewMode && selectedDataObjectId !== null && (
+          <div className="flex justify-between items-center">
+            <div className="flex">
+              <button className="px-4 py-2 text-sm font-medium text-white border-b-2 border-blue-400">
+                Fields
+              </button>
+            </div>
+          </div>
         )}
 
         {/* Main Content Area */}
@@ -1218,7 +1337,55 @@ export default function WorkflowPage() {
             <div className="w-full h-full" ref={previewContainerRef} />
           ) : (
             <>
-              {activeTab === "workflow" && (
+              {selectedDataObjectId !== null ? (
+                <div className="flex flex-col h-full">
+                  <div className="flex-1 min-h-0">
+                    <DataPanel
+                      selectedId={selectedDataObjectId}
+                      dataObjects={dataObjects || []}
+                      fields={[...fields, ...dataObjectFields]}
+                      onAddNewFieldAndAttachAction={async (
+                        dataObjectId,
+                        field,
+                      ) => {
+                        await handleAddNewFieldAndAttach(dataObjectId, field);
+                      }}
+                      onRemoveFieldFromDataObjectAction={(
+                        dataObjectId,
+                        field,
+                      ) => handleRemoveFieldFromDataObject(dataObjectId, field)}
+                      onReorderFieldsInDataObjectAction={(
+                        dataObjectId,
+                        fieldIds,
+                      ) =>
+                        handleReorderFieldsInDataObject(dataObjectId, fieldIds)
+                      }
+                      onEditDataObjectAction={(did: number) =>
+                        setEditingDataObjectId(did)
+                      }
+                      onDeleteDataObjectAction={async (did: number) => {
+                        try {
+                          const res = await fetchWithBaseUrl(
+                            `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
+                            { method: "DELETE" },
+                          );
+                          if (!res.ok) {
+                            const t = await res.text();
+                            throw new Error(
+                              `Failed to delete data object: ${res.status} ${t}`,
+                            );
+                          }
+                        } catch (e) {
+                          console.error("Error deleting data object:", e);
+                        } finally {
+                          await refreshWorkflowData();
+                          setSelectedDataObjectId(null);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              ) : activeTab === "workflow" ? (
                 <>
                   <WorkflowLifecycleView
                     stages={workflowModel.stages}
@@ -1280,8 +1447,8 @@ export default function WorkflowPage() {
                     }
                   />
                 </>
-              )}
-              {activeTab === "fields" && (
+              ) : null}
+              {selectedDataObjectId === null && activeTab === "fields" && (
                 <div className="p-6">
                   <FieldsHeader
                     count={fields.length}
@@ -1298,62 +1465,7 @@ export default function WorkflowPage() {
                   />
                 </div>
               )}
-              {activeTab === "data" && (
-                <div className="flex flex-col h-full">
-                  <div className="px-4 py-2">
-                    <DataHeader
-                      count={(dataObjects || []).length}
-                      onAddDataObjectAction={() =>
-                        setIsAddDataObjectModalOpen(true)
-                      }
-                    />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <DataPanel
-                      dataObjects={dataObjects || []}
-                      fields={[...fields, ...dataObjectFields]}
-                      onAddNewFieldAndAttachAction={async (
-                        dataObjectId,
-                        field,
-                      ) => {
-                        await handleAddNewFieldAndAttach(dataObjectId, field);
-                      }}
-                      onRemoveFieldFromDataObjectAction={(
-                        dataObjectId,
-                        field,
-                      ) => handleRemoveFieldFromDataObject(dataObjectId, field)}
-                      onReorderFieldsInDataObjectAction={(
-                        dataObjectId,
-                        fieldIds,
-                      ) =>
-                        handleReorderFieldsInDataObject(dataObjectId, fieldIds)
-                      }
-                      onEditDataObjectAction={(id: number) =>
-                        setEditingDataObjectId(id)
-                      }
-                      onDeleteDataObjectAction={async (id: number) => {
-                        try {
-                          const res = await fetchWithBaseUrl(
-                            `/api/database?table=${DB_TABLES.OBJECTS}&id=${id}`,
-                            { method: "DELETE" },
-                          );
-                          if (!res.ok) {
-                            const t = await res.text();
-                            throw new Error(
-                              `Failed to delete data object: ${res.status} ${t}`,
-                            );
-                          }
-                        } catch (e) {
-                          console.error("Error deleting data object:", e);
-                        } finally {
-                          await refreshWorkflowData();
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
-              )}
-              {activeTab === "views" && (
+              {selectedDataObjectId === null && activeTab === "views" && (
                 <>
                   <ViewsHeader />
                   <ViewsPanel
@@ -1510,6 +1622,17 @@ export default function WorkflowPage() {
               name: selectedCase?.name || "",
               description: selectedCase?.description || "",
             }}
+          />
+        </ModalPortal>
+        <ModalPortal isOpen={isCreateWorkflowModalOpen}>
+          <EditWorkflowModal
+            isOpen={isCreateWorkflowModalOpen}
+            onClose={() => setIsCreateWorkflowModalOpen(false)}
+            onSubmit={async (data) => {
+              await handleCreateWorkflow(data);
+              setIsCreateWorkflowModalOpen(false);
+            }}
+            initialData={{ name: "", description: "" }}
           />
         </ModalPortal>
         <ModalPortal isOpen={!!editingDataObjectId}>

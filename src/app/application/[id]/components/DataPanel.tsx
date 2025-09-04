@@ -20,6 +20,7 @@ type DataObject = {
 type DataPanelProps = {
   dataObjects: DataObject[];
   fields: Field[];
+  selectedId?: number | null;
   onAddNewFieldAndAttachAction: (
     dataObjectId: number,
     field: {
@@ -46,6 +47,7 @@ type DataPanelProps = {
 export default function DataPanel({
   dataObjects,
   fields,
+  selectedId,
   onAddNewFieldAndAttachAction,
   onRemoveFieldFromDataObjectAction,
   onReorderFieldsInDataObjectAction,
@@ -57,6 +59,13 @@ export default function DataPanel({
   >(null);
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
+
+  // Keep internal selection in sync with external selection
+  React.useEffect(() => {
+    if (typeof selectedId === "number" || selectedId === null) {
+      setSelectedDataObjectId(selectedId ?? null);
+    }
+  }, [selectedId]);
 
   const selectedDataObject = useMemo(
     () => dataObjects.find((d) => d.id === selectedDataObjectId) || null,
