@@ -56,6 +56,10 @@ import ViewsPanel from "../../components/ViewsPanel";
 import FieldsList from "../../components/FieldsList";
 //
 import WorkflowTopBar from "./components/WorkflowTopBar";
+import DataHeader from "./components/DataHeader";
+import DataPanel from "./components/DataPanel";
+import EditDataObjectModal from "./components/EditDataObjectModal";
+import AddDataObjectModal from "./components/AddDataObjectModal";
 import WorkflowTabs from "./components/WorkflowTabs";
 import FieldsHeader from "./components/FieldsHeader";
 import ViewsHeader from "./components/ViewsHeader";
@@ -78,6 +82,7 @@ import FloatingChatModal from "./components/FloatingChatModal";
 import FloatingLeftPanelModal from "./components/FloatingLeftPanelModal";
 import FloatingChatIcon from "./components/FloatingChatIcon";
 import { useResponsive } from "../../contexts/ResponsiveContext";
+import useDataObjectMutations from "./hooks/useDataObjectMutations";
 const Icon = dynamic(() =>
   import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
 );
@@ -143,6 +148,9 @@ export default function WorkflowPage() {
     setFields,
     views,
     setViews,
+    dataObjects,
+    setDataObjects,
+    systemsOfRecord,
     selectedCase,
     setSelectedCaseAction: setSelectedCase,
     loading,
@@ -159,11 +167,16 @@ export default function WorkflowPage() {
   const FIXED_CHAT_PANEL_WIDTH = 400;
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [activeTab, setActiveTab] = usePersistentTab<
-    "workflow" | "fields" | "views" | "chat" | "history"
+    "workflow" | "fields" | "data" | "views" | "chat" | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
+  const [isAddDataObjectModalOpen, setIsAddDataObjectModalOpen] =
+    useState(false);
+  const [editingDataObjectId, setEditingDataObjectId] = useState<number | null>(
+    null,
+  );
   const [isAddStageModalOpen, setIsAddStageModalOpen] = useState(false);
   const [isAddProcessModalOpen, setIsAddProcessModalOpen] = useState(false);
   const [isEditWorkflowModalOpen, setIsEditWorkflowModalOpen] = useState(false);
@@ -212,8 +225,8 @@ export default function WorkflowPage() {
   } = useFreeFormSelection({
     activeTab,
     selectedView,
-    onOpenQuickChat: () => setIsQuickChatOpen(true),
-    resolveExternalIds: (rect) =>
+    onOpenQuickChatAction: () => setIsQuickChatOpen(true),
+    resolveExternalIdsAction: (rect) =>
       isPreviewMode
         ? requestSelectedIdsInRect(rect)
         : Promise.resolve({ fieldIds: [], viewIds: [] }),
@@ -550,6 +563,18 @@ export default function WorkflowPage() {
     });
 
   const {
+    handleAddNewFieldAndAttach,
+    handleRemoveFieldFromDataObject,
+    handleReorderFieldsInDataObject,
+  } = useDataObjectMutations({
+    selectedCase,
+    fields,
+    setFields,
+    dataObjects: dataObjects || [],
+    setDataObjects,
+  });
+
+  const {
     handleAddStep,
     handleAddProcess,
     handleDeleteStep,
@@ -622,6 +647,17 @@ export default function WorkflowPage() {
       setHasLoadedOnce(true);
     }
   }, [loading]);
+
+  // Wire DataPanel edit-field events to open EditFieldModal
+  useEffect(() => {
+    const handler = (e: any) => {
+      const field = e?.detail?.field;
+      if (field) setEditingField(field);
+    };
+    window.addEventListener("edit-field", handler as EventListener);
+    return () =>
+      window.removeEventListener("edit-field", handler as EventListener);
+  }, []);
 
   if (loading && !hasLoadedOnce) {
     return <LoadingScreen />;
@@ -1258,6 +1294,50 @@ export default function WorkflowPage() {
                   />
                 </div>
               )}
+              {activeTab === "data" && (
+                <div className="flex flex-col h-full">
+                  <div className="px-4 py-2">
+                    <DataHeader
+                      count={(dataObjects || []).length}
+                      onAddDataObjectAction={() =>
+                        setIsAddDataObjectModalOpen(true)
+                      }
+                    />
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <DataPanel
+                      dataObjects={dataObjects || []}
+                      fields={fields}
+                      onAddNewFieldAndAttachAction={async (
+                        dataObjectId,
+                        field,
+                      ) => {
+                        await handleAddNewFieldAndAttach(dataObjectId, field);
+                      }}
+                      onRemoveFieldFromDataObjectAction={(
+                        dataObjectId,
+                        field,
+                      ) => handleRemoveFieldFromDataObject(dataObjectId, field)}
+                      onReorderFieldsInDataObjectAction={(
+                        dataObjectId,
+                        fieldIds,
+                      ) =>
+                        handleReorderFieldsInDataObject(dataObjectId, fieldIds)
+                      }
+                      onEditDataObjectAction={(id: number) =>
+                        setEditingDataObjectId(id)
+                      }
+                      onDeleteDataObjectAction={async (id: number) => {
+                        await fetchWithBaseUrl(
+                          `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${id}`,
+                          { method: "DELETE" },
+                        );
+                        await refreshWorkflowData();
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
               {activeTab === "views" && (
                 <>
                   <ViewsHeader />
@@ -1309,12 +1389,47 @@ export default function WorkflowPage() {
           />
         </ModalPortal>
 
+        <ModalPortal isOpen={isAddDataObjectModalOpen}>
+          <AddDataObjectModal
+            isOpen={isAddDataObjectModalOpen}
+            onCloseAction={() => setIsAddDataObjectModalOpen(false)}
+            caseId={parseInt(id)}
+            systemsOfRecord={systemsOfRecord || []}
+            onCreateSorAction={async (name: string, icon?: string) => {
+              const res = await fetchWithBaseUrl(
+                `/api/database?table=${DB_TABLES.SYSTEMS_OF_RECORD}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({ name, icon }),
+                },
+              );
+              const data = await res.json();
+              await refreshWorkflowData();
+              return data.data;
+            }}
+            onSaveAction={async (data) => {
+              await fetchWithBaseUrl(
+                `/api/database?table=${DB_TABLES.DATA_OBJECTS}`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(data),
+                },
+              );
+              await refreshWorkflowData();
+            }}
+          />
+        </ModalPortal>
+
         <ModalPortal isOpen={!!editingField}>
           {editingField && (
             <EditFieldModal
               isOpen={!!editingField}
               onClose={() => setEditingField(null)}
-              onSubmit={handleUpdateField}
+              onSubmit={(updates) =>
+                handleUpdateField({ ...updates, id: editingField.id })
+              }
               field={editingField}
             />
           )}
@@ -1366,6 +1481,39 @@ export default function WorkflowPage() {
               description: selectedCase?.description || "",
             }}
           />
+        </ModalPortal>
+        <ModalPortal isOpen={!!editingDataObjectId}>
+          {editingDataObjectId && (
+            <EditDataObjectModal
+              isOpen={!!editingDataObjectId}
+              onCloseAction={() => setEditingDataObjectId(null)}
+              systemsOfRecord={systemsOfRecord || []}
+              initialData={
+                (dataObjects || []).find((d) => d.id === editingDataObjectId)!
+              }
+              onSaveAction={async (updates) => {
+                const current = (dataObjects || []).find(
+                  (d) => d.id === updates.id,
+                );
+                if (!current) return;
+                await fetchWithBaseUrl(
+                  `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${updates.id}`,
+                  {
+                    method: "PUT",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      name: updates.name,
+                      description: updates.description,
+                      caseid: current.caseid,
+                      systemOfRecordId: updates.systemOfRecordId,
+                      model: current.model || { fields: [] },
+                    }),
+                  },
+                );
+                await refreshWorkflowData();
+              }}
+            />
+          )}
         </ModalPortal>
       </div>
 

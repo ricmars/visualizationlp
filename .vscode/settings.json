@@ -63,6 +63,7 @@
     "caseid",
     "dbname",
     "defaultvalue",
+    "fieldid",
     "fkey",
     "headlessui",
     "listviews",

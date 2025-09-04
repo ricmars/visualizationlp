@@ -1,35 +1,46 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DB_TABLES } from "@/app/types/database";
 import { dynamicDatabaseService } from "@/app/lib/dynamicDatabaseService";
 import { registerRuleTypes } from "@/app/types/ruleTypeDefinitions";
+import { ruleTypeRegistry } from "@/app/types/ruleTypeRegistry";
 
 // This route now acts as a compatibility layer that delegates to the dynamic API
 // It maintains backward compatibility with existing frontend code
 // Ensure rule types are registered when this route is first loaded
 registerRuleTypes();
 
-// Centralized mapping from table names to rule type IDs
-const tableToRuleType: Record<string, string> = {
-  [DB_TABLES.CASES]: "case",
-  [DB_TABLES.APPLICATIONS]: "application",
-  [DB_TABLES.FIELDS]: "field",
-  [DB_TABLES.VIEWS]: "view",
-};
+// Resolve ruleTypeId dynamically from registry by either ruleTypeId or table name
+function resolveRuleTypeId(
+  table: string | null,
+  ruleTypeIdParam: string | null,
+): string | null {
+  if (ruleTypeIdParam && ruleTypeRegistry.get(ruleTypeIdParam)) {
+    return ruleTypeIdParam;
+  }
+  if (!table) return null;
+  const all = ruleTypeRegistry.getAll();
+  for (const rt of all) {
+    if (rt.databaseSchema?.tableName === table) {
+      return rt.id;
+    }
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
+    const ruleTypeIdParam = searchParams.get("ruleTypeId");
     const id = searchParams.get("id");
 
-    if (!table) {
+    if (!table && !ruleTypeIdParam) {
       return NextResponse.json(
-        { error: "Invalid table parameter" },
+        { error: "Invalid request: provide either 'table' or 'ruleTypeId'" },
         { status: 400 },
       );
     }
 
-    const ruleTypeId = tableToRuleType[table];
+    const ruleTypeId = resolveRuleTypeId(table, ruleTypeIdParam);
     if (!ruleTypeId) {
       return NextResponse.json({ error: "Unsupported table" }, { status: 400 });
     }
@@ -37,7 +48,7 @@ export async function GET(request: NextRequest) {
     // Build filters and options (mirror /api/dynamic behavior)
     const filters: Record<string, any> = {};
     for (const [key, value] of searchParams.entries()) {
-      if (!["table", "id"].includes(key)) {
+      if (!["table", "ruleTypeId", "id"].includes(key)) {
         const numValue = Number(value);
         filters[key] = isNaN(numValue) ? value : numValue;
       }
@@ -91,15 +102,16 @@ export async function POST(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
+    const ruleTypeIdParam = searchParams.get("ruleTypeId");
 
-    if (!table) {
+    if (!table && !ruleTypeIdParam) {
       return NextResponse.json(
-        { error: "Invalid table parameter" },
+        { error: "Invalid request: provide either 'table' or 'ruleTypeId'" },
         { status: 400 },
       );
     }
 
-    const ruleTypeId = tableToRuleType[table];
+    const ruleTypeId = resolveRuleTypeId(table, ruleTypeIdParam);
     if (!ruleTypeId) {
       return NextResponse.json({ error: "Unsupported table" }, { status: 400 });
     }
@@ -136,11 +148,12 @@ export async function PUT(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
+    const ruleTypeIdParam = searchParams.get("ruleTypeId");
     const id = searchParams.get("id");
 
-    if (!table) {
+    if (!table && !ruleTypeIdParam) {
       return NextResponse.json(
-        { error: "Invalid table parameter" },
+        { error: "Invalid request: provide either 'table' or 'ruleTypeId'" },
         { status: 400 },
       );
     }
@@ -152,7 +165,7 @@ export async function PUT(request: Request) {
       );
     }
 
-    const ruleTypeId = tableToRuleType[table];
+    const ruleTypeId = resolveRuleTypeId(table, ruleTypeIdParam);
 
     if (!ruleTypeId) {
       return NextResponse.json({ error: "Unsupported table" }, { status: 400 });
@@ -191,11 +204,12 @@ export async function DELETE(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const table = searchParams.get("table");
+    const ruleTypeIdParam = searchParams.get("ruleTypeId");
     const id = searchParams.get("id");
 
-    if (!table) {
+    if (!table && !ruleTypeIdParam) {
       return NextResponse.json(
-        { error: "Invalid table parameter" },
+        { error: "Invalid request: provide either 'table' or 'ruleTypeId'" },
         { status: 400 },
       );
     }
@@ -207,7 +221,7 @@ export async function DELETE(request: Request) {
       );
     }
 
-    const ruleTypeId = tableToRuleType[table];
+    const ruleTypeId = resolveRuleTypeId(table, ruleTypeIdParam);
     if (!ruleTypeId) {
       return NextResponse.json({ error: "Unsupported table" }, { status: 400 });
     }

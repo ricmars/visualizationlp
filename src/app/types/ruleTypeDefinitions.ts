@@ -509,6 +509,212 @@ export const viewRuleType: RuleTypeDefinition = {
   },
 };
 
+// System Of Record Rule Type Definition
+export const systemOfRecordRuleType: RuleTypeDefinition = {
+  id: "systemOfRecord",
+  name: "System of Record",
+  description:
+    "A back-end system that is the authoritative source for a given data object (e.g., Pega or others).",
+  category: "integration",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "SystemOfRecord",
+    description: "Defines an external or internal system of record.",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      { name: "name", type: "string", description: "System of record name" },
+      {
+        name: "icon",
+        type: "string",
+        optional: true,
+        description: "Icon name or URL",
+      },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "SystemsOfRecord",
+    columns: [
+      {
+        name: "id",
+        type: "INTEGER",
+        primaryKey: true,
+        nullable: false,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "TEXT",
+        nullable: false,
+        description: "System of record name",
+      },
+      {
+        name: "icon",
+        type: "TEXT",
+        nullable: true,
+        description: "Icon name or URL",
+      },
+    ],
+    indexes: [{ name: "systems_of_record_name_idx", columns: ["name"] }],
+    constraints: [
+      {
+        name: "systems_of_record_name_unique",
+        type: "UNIQUE",
+        expression: "(name)",
+      },
+    ],
+  },
+};
+
+// Data Object Rule Type Definition
+export const dataObjectRuleType: RuleTypeDefinition = {
+  id: "dataObject",
+  name: "Data Object",
+  description:
+    "A business data object that can be integrated, stored, or updated within workflows. References a system of record and contains a model with fields.",
+  category: "data",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "DataObject",
+    description:
+      "A business data object linked to a workflow (case) and a system of record. Model contains list of fields and integration configuration.",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      { name: "name", type: "string", description: "Data object name" },
+      {
+        name: "description",
+        type: "string",
+        description: "Data object description",
+      },
+      {
+        name: "caseid",
+        type: "number",
+        description: "Reference to parent case (workflow)",
+      },
+      {
+        name: "systemOfRecordId",
+        type: "number",
+        description: "Reference to system of record",
+      },
+      {
+        name: "model",
+        type: "ViewModel",
+        description: "JSON model including fields and integration details",
+      },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "DataObjects",
+    columns: [
+      {
+        name: "id",
+        type: "INTEGER",
+        primaryKey: true,
+        nullable: false,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "TEXT",
+        nullable: false,
+        description: "Data object name",
+      },
+      {
+        name: "description",
+        type: "TEXT",
+        nullable: false,
+        description: "Data object description",
+      },
+      {
+        name: "caseid",
+        type: "INTEGER",
+        nullable: false,
+        description: "Reference to parent case",
+      },
+      {
+        name: "systemOfRecordId",
+        type: "INTEGER",
+        nullable: false,
+        description: "Reference to system of record",
+      },
+      {
+        name: "model",
+        type: "JSONB",
+        nullable: true,
+        description: "JSON model containing list of fields and configuration",
+      },
+    ],
+    foreignKeys: [
+      {
+        name: "dataobjects_caseid_fkey",
+        columns: ["caseid"],
+        referenceTable: "Cases",
+        referenceColumns: ["id"],
+        onDelete: "CASCADE",
+      },
+      {
+        name: "dataobjects_sorid_fkey",
+        columns: ["systemOfRecordId"],
+        referenceTable: "SystemsOfRecord",
+        referenceColumns: ["id"],
+        onDelete: "RESTRICT",
+      },
+    ],
+    indexes: [
+      { name: "dataobjects_caseid_idx", columns: ["caseid"] },
+      { name: "dataobjects_sorid_idx", columns: ["systemOfRecordId"] },
+      {
+        name: "dataobjects_name_caseid_unique",
+        columns: ["name", "caseid"],
+        unique: true,
+      },
+    ],
+    constraints: [
+      {
+        name: "dataobjects_name_caseid_unique",
+        type: "UNIQUE",
+        expression: "(name, caseid)",
+      },
+    ],
+  },
+
+  hooks: {
+    beforeCreate: async (data) => {
+      if (data.model && typeof data.model === "string") {
+        try {
+          data.model = JSON.parse(data.model);
+        } catch {
+          throw new Error("Invalid JSON in model field");
+        }
+      }
+      return data;
+    },
+    beforeUpdate: async (data) => {
+      if (data.model && typeof data.model === "string") {
+        try {
+          data.model = JSON.parse(data.model);
+        } catch {
+          throw new Error("Invalid JSON in model field");
+        }
+      }
+      return data;
+    },
+  },
+};
+
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
@@ -517,6 +723,8 @@ export function registerRuleTypes(): void {
     ruleTypeRegistry.register(caseRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);
+    ruleTypeRegistry.register(systemOfRecordRuleType);
+    ruleTypeRegistry.register(dataObjectRuleType);
     console.log("✅ All rule types registered successfully");
   } catch (error) {
     console.error("❌ Failed to register rule types:", error);

@@ -36,6 +36,14 @@ export const DB_TABLES = {
     const ruleType = ruleTypeRegistry.get("view");
     return ruleType?.databaseSchema.tableName || "Views";
   },
+  get SYSTEMS_OF_RECORD() {
+    const ruleType = ruleTypeRegistry.get("systemOfRecord");
+    return ruleType?.databaseSchema.tableName || "SystemsOfRecord";
+  },
+  get DATA_OBJECTS() {
+    const ruleType = ruleTypeRegistry.get("dataObject");
+    return ruleType?.databaseSchema.tableName || "DataObjects";
+  },
 } as const;
 
 // Helper function to get table name by rule type ID

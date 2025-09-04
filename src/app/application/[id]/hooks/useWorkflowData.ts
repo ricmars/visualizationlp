@@ -32,6 +32,19 @@ export function useWorkflowData(caseId: string) {
   const [model, setModel] = useState<ComposedModel | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
   const [views, setViews] = useState<View[]>([]);
+  const [dataObjects, setDataObjects] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      caseid: number;
+      systemOfRecordId: number;
+      model?: any;
+    }>
+  >([]);
+  const [systemsOfRecord, setSystemsOfRecord] = useState<
+    Array<{ id: number; name: string; icon?: string | null }>
+  >([]);
   const [selectedCase, setSelectedCase] = useState<DatabaseCase | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +123,24 @@ export function useWorkflowData(caseId: string) {
         setViews(viewsData.data);
       }
 
+      // Load Systems of Record (global list)
+      const sorResponse = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.SYSTEMS_OF_RECORD}`,
+      );
+      if (sorResponse.ok) {
+        const sorData = await sorResponse.json();
+        setSystemsOfRecord(sorData.data || []);
+      }
+
+      // Load Data Objects for this case
+      const doResponse = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
+      );
+      if (doResponse.ok) {
+        const doData = await doResponse.json();
+        setDataObjects(doData.data || []);
+      }
+
       setError(null);
     } catch (err) {
       console.error("Error loading workflow:", err);
@@ -148,6 +179,24 @@ export function useWorkflowData(caseId: string) {
         setViews(viewsData.data);
       }
 
+      // Refresh Systems of Record
+      const sorResponse = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.SYSTEMS_OF_RECORD}`,
+      );
+      if (sorResponse.ok) {
+        const sorData = await sorResponse.json();
+        setSystemsOfRecord(sorData.data || []);
+      }
+
+      // Refresh Data Objects
+      const doResponse = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
+      );
+      if (doResponse.ok) {
+        const doData = await doResponse.json();
+        setDataObjects(doData.data || []);
+      }
+
       // Fire after state commits so listeners (iframe) receive the latest model
       try {
         console.debug(
@@ -184,6 +233,10 @@ export function useWorkflowData(caseId: string) {
     setFields,
     views,
     setViews,
+    dataObjects,
+    setDataObjects,
+    systemsOfRecord,
+    setSystemsOfRecord,
     selectedCase,
     setSelectedCaseAction,
     loading,

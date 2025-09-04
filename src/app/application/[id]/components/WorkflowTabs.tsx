@@ -2,7 +2,7 @@
 
 import React from "react";
 
-export type WorkflowMainTab = "workflow" | "fields" | "views";
+export type WorkflowMainTab = "workflow" | "fields" | "data" | "views";
 
 type WorkflowTabsProps = {
   active: WorkflowMainTab;
@@ -33,6 +33,7 @@ export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
         >
           Fields
         </button>
+
         <button
           onClick={() => onChange("views")}
           className={`px-4 py-2 text-sm font-medium ${
@@ -42,6 +43,16 @@ export default function WorkflowTabs({ active, onChange }: WorkflowTabsProps) {
           }`}
         >
           Views
+        </button>
+        <button
+          onClick={() => onChange("data")}
+          className={`px-4 py-2 text-sm font-medium ${
+            active === "data"
+              ? "text-white border-b-2 border-blue-400"
+              : "text-white/80 hover:text-white"
+          }`}
+        >
+          Data
         </button>
       </div>
     </div>

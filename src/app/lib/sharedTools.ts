@@ -1604,6 +1604,238 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         return { cases };
       },
     },
+    // Inserted tools for Systems of Record and Data Objects
+    {
+      name: "saveSystemOfRecord",
+      description:
+        "Creates or updates a System of Record (name, icon). Names are unique.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "System Of Record ID (omit for create)",
+          },
+          name: { type: "string", description: "System of record name" },
+          icon: { type: "string", description: "Icon name or URL (optional)" },
+        },
+        required: ["name"],
+      },
+      execute: async (params: { id?: number; name: string; icon?: string }) => {
+        const { id, name, icon } = params;
+        if (!name) throw new Error("System of record name is required");
+
+        if (id) {
+          const updateQuery = `
+            UPDATE "${DB_TABLES.SYSTEMS_OF_RECORD}"
+            SET name = $1, icon = $2
+            WHERE id = $3
+            RETURNING id, name, icon
+          `;
+          const res = await pool.query(updateQuery, [name, icon ?? null, id]);
+          if (res.rowCount === 0)
+            throw new Error(`No system of record found with id ${id}`);
+          return res.rows[0];
+        }
+
+        const insertQuery = `
+          INSERT INTO "${DB_TABLES.SYSTEMS_OF_RECORD}" (name, icon)
+          VALUES ($1, $2)
+          RETURNING id, name, icon
+        `;
+        const res = await pool.query(insertQuery, [name, icon ?? null]);
+        return res.rows[0];
+      },
+    },
+    {
+      name: "listSystemsOfRecord",
+      description: "Lists all systems of record.",
+      parameters: { type: "object", properties: {}, required: [] },
+      execute: async () => {
+        const query = `SELECT id, name, icon FROM "${DB_TABLES.SYSTEMS_OF_RECORD}" ORDER BY name`;
+        const res = await pool.query(query);
+        return { systems: res.rows };
+      },
+    },
+    {
+      name: "deleteSystemOfRecord",
+      description:
+        "Deletes a system of record if not referenced by data objects.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "integer" } },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        // Enforce referential integrity at application level too
+        const refCheck = await pool.query(
+          `SELECT 1 FROM "${DB_TABLES.DATA_OBJECTS}" WHERE "systemOfRecordId" = $1 LIMIT 1`,
+          [params.id],
+        );
+        if ((refCheck.rowCount ?? 0) > 0) {
+          throw new Error(
+            "Cannot delete: System of record is referenced by data objects",
+          );
+        }
+        const res = await pool.query(
+          `DELETE FROM "${DB_TABLES.SYSTEMS_OF_RECORD}" WHERE id = $1`,
+          [params.id],
+        );
+        if (res.rowCount === 0)
+          throw new Error(`No system of record found with id ${params.id}`);
+        return { success: true, deletedId: params.id };
+      },
+    },
+    {
+      name: "saveDataObject",
+      description:
+        "Creates or updates a Data Object (name, description, caseid, systemOfRecordId, model). Model contains fields and integration config.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Data Object ID (omit for create)",
+          },
+          name: { type: "string", description: "Data object name" },
+          description: { type: "string", description: "Description" },
+          caseid: { type: "integer", description: "Parent case ID" },
+          systemOfRecordId: {
+            type: "integer",
+            description: "System of record ID",
+          },
+          model: {
+            type: "object",
+            description: "JSON model including fields[]",
+          },
+        },
+        required: ["name", "description", "caseid", "systemOfRecordId"],
+      },
+      execute: async (params: {
+        id?: number;
+        name: string;
+        description: string;
+        caseid: number;
+        systemOfRecordId: number;
+        model?: any;
+      }) => {
+        const { id, name, description, caseid, systemOfRecordId, model } =
+          params;
+        if (!name) throw new Error("Data object name is required");
+        if (!description)
+          throw new Error("Data object description is required");
+        if (!caseid) throw new Error("caseid is required");
+        if (!systemOfRecordId) throw new Error("systemOfRecordId is required");
+
+        // Ensure SOR exists
+        const sorRes = await pool.query(
+          `SELECT id FROM "${DB_TABLES.SYSTEMS_OF_RECORD}" WHERE id = $1`,
+          [systemOfRecordId],
+        );
+        if (sorRes.rowCount === 0)
+          throw new Error(
+            `System of record ${systemOfRecordId} does not exist`,
+          );
+
+        // Normalize model JSON
+        const modelJson = model ? JSON.stringify(model) : null;
+
+        if (id) {
+          const update = `
+            UPDATE "${DB_TABLES.DATA_OBJECTS}"
+            SET name = $1, description = $2, caseid = $3, "systemOfRecordId" = $4, model = $5
+            WHERE id = $6
+            RETURNING id, name, description, caseid, "systemOfRecordId", model
+          `;
+          const res = await pool.query(update, [
+            name,
+            description,
+            caseid,
+            systemOfRecordId,
+            modelJson,
+            id,
+          ]);
+          if (res.rowCount === 0)
+            throw new Error(`No data object found with id ${id}`);
+          const row = res.rows[0];
+          return {
+            ...row,
+            model: row.model
+              ? typeof row.model === "string"
+                ? JSON.parse(row.model)
+                : row.model
+              : null,
+          };
+        }
+
+        const insert = `
+          INSERT INTO "${DB_TABLES.DATA_OBJECTS}" (name, description, caseid, "systemOfRecordId", model)
+          VALUES ($1, $2, $3, $4, $5)
+          RETURNING id, name, description, caseid, "systemOfRecordId", model
+        `;
+        const res = await pool.query(insert, [
+          name,
+          description,
+          caseid,
+          systemOfRecordId,
+          modelJson,
+        ]);
+        const row = res.rows[0];
+        return {
+          ...row,
+          model: row.model
+            ? typeof row.model === "string"
+              ? JSON.parse(row.model)
+              : row.model
+            : null,
+        };
+      },
+    },
+    {
+      name: "listDataObjects",
+      description: "Lists data objects for a case.",
+      parameters: {
+        type: "object",
+        properties: { caseid: { type: "integer" } },
+        required: ["caseid"],
+      },
+      execute: async (params: { caseid: number }) => {
+        const query = `
+          SELECT id, name, description, caseid, "systemOfRecordId", model
+          FROM "${DB_TABLES.DATA_OBJECTS}"
+          WHERE caseid = $1
+          ORDER BY name
+        `;
+        const res = await pool.query(query, [params.caseid]);
+        const objects = res.rows.map((r) => ({
+          ...r,
+          model: r.model
+            ? typeof r.model === "string"
+              ? JSON.parse(r.model)
+              : r.model
+            : null,
+        }));
+        return { dataObjects: objects };
+      },
+    },
+    {
+      name: "deleteDataObject",
+      description: "Deletes a data object by id.",
+      parameters: {
+        type: "object",
+        properties: { id: { type: "integer" } },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        const res = await pool.query(
+          `DELETE FROM "${DB_TABLES.DATA_OBJECTS}" WHERE id = $1`,
+          [params.id],
+        );
+        if (res.rowCount === 0)
+          throw new Error(`No data object found with id ${params.id}`);
+        return { success: true, deletedId: params.id };
+      },
+    },
   ];
 
   return tools;

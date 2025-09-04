@@ -270,15 +270,24 @@ export async function resetDatabase() {
     `);
     console.log("Existing tables before drop:", existingTables.rows);
 
-    // Drop tables in correct order (due to foreign key constraints)
+    // Drop tables dynamically using the rule type registry first, then non-registry tables
     console.log("Dropping tables...");
+    const ruleTypes = ruleTypeRegistry.getAll();
+    // Best-effort: drop rule-type tables; the CASCADE will resolve order
+    for (const rt of ruleTypes) {
+      const table = rt.databaseSchema?.tableName;
+      if (table) {
+        try {
+          await pool.query(`DROP TABLE IF EXISTS "${table}" CASCADE;`);
+        } catch (err) {
+          console.warn(`Failed to drop table ${table}:`, err);
+        }
+      }
+    }
+    // Drop checkpoint-related tables
     await pool.query(`
       DROP TABLE IF EXISTS "undo_log" CASCADE;
       DROP TABLE IF EXISTS "checkpoints" CASCADE;
-      DROP TABLE IF EXISTS "Views" CASCADE;
-      DROP TABLE IF EXISTS "Fields" CASCADE;
-      DROP TABLE IF EXISTS "Cases" CASCADE;
-      DROP TABLE IF EXISTS "Applications" CASCADE;
     `);
 
     // Verify tables were dropped

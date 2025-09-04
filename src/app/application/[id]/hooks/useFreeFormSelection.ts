@@ -17,16 +17,16 @@ export type FreeFormSelectionState = {
 };
 
 type UseFreeFormSelectionArgs = {
-  activeTab: "workflow" | "fields" | "views" | "chat" | "history";
+  activeTab: "workflow" | "fields" | "data" | "views" | "chat" | "history";
   selectedView: string | null;
-  onOpenQuickChat: () => void;
-  resolveExternalFieldIds?: (rect: {
+  onOpenQuickChatAction: () => void;
+  resolveExternalFieldIdsAction?: (rect: {
     x: number;
     y: number;
     width: number;
     height: number;
   }) => Promise<number[]>;
-  resolveExternalIds?: (rect: {
+  resolveExternalIdsAction?: (rect: {
     x: number;
     y: number;
     width: number;
@@ -37,9 +37,9 @@ type UseFreeFormSelectionArgs = {
 export function useFreeFormSelection({
   activeTab,
   selectedView,
-  onOpenQuickChat,
-  resolveExternalFieldIds,
-  resolveExternalIds,
+  onOpenQuickChatAction,
+  resolveExternalFieldIdsAction,
+  resolveExternalIdsAction,
 }: UseFreeFormSelectionArgs) {
   const [isFreeFormSelecting, setIsFreeFormSelecting] = useState(false);
   const [selectionStart, setSelectionStart] = useState<Point>(null);
@@ -230,9 +230,9 @@ export function useFreeFormSelection({
       }
     });
     // If an external resolver is provided (e.g., live preview iframe), query it too
-    if (typeof resolveExternalIds === "function") {
+    if (typeof resolveExternalIdsAction === "function") {
       try {
-        const ext = await resolveExternalIds({
+        const ext = await resolveExternalIdsAction({
           x: selectionRect.x,
           y: selectionRect.y,
           width: selectionRect.width,
@@ -247,10 +247,10 @@ export function useFreeFormSelection({
           if (Number.isFinite(vid)) pickedViewIds.add(vid as number);
         }
       } catch {}
-    } else if (typeof resolveExternalFieldIds === "function") {
+    } else if (typeof resolveExternalFieldIdsAction === "function") {
       // Backward-compat: older API that only returns field IDs
       try {
-        const extIds = await resolveExternalFieldIds({
+        const extIds = await resolveExternalFieldIdsAction({
           x: selectionRect.x,
           y: selectionRect.y,
           width: selectionRect.width,
@@ -318,14 +318,14 @@ export function useFreeFormSelection({
     setIsFreeFormSelecting(false);
     setSelectionStart(null);
     setSelectionRect(null);
-    onOpenQuickChat();
+    onOpenQuickChatAction();
   }, [
     activeTab,
     selectedView,
     selectionRect,
-    onOpenQuickChat,
-    resolveExternalFieldIds,
-    resolveExternalIds,
+    onOpenQuickChatAction,
+    resolveExternalFieldIdsAction,
+    resolveExternalIdsAction,
   ]);
 
   return {
