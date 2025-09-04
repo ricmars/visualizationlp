@@ -18,6 +18,7 @@ type ApplicationMenuBarProps = {
   activeWorkflowId?: number;
   onChangeWorkflowAction?: (id: number) => void;
   onSelectDataObjectAction?: (id: number) => void;
+  onSelectChannelAction?: (channel: import("../../../types").channel) => void;
   isPreviewMode: boolean;
   onTogglePreviewAction: () => void;
   onOpenCreateWorkflowAction?: () => void;
@@ -31,6 +32,7 @@ export default function ApplicationMenuBar({
   activeWorkflowId,
   onChangeWorkflowAction,
   onSelectDataObjectAction,
+  onSelectChannelAction,
   isPreviewMode,
   onTogglePreviewAction,
   onOpenCreateWorkflowAction,
@@ -51,13 +53,33 @@ export default function ApplicationMenuBar({
             isOpen={openMenuId === "channels"}
             setOpenMenuId={setOpenMenuId}
           >
-            <MenuItem>Work Portal (Desktop)</MenuItem>
-            <MenuItem>Work Portal (Mobile)</MenuItem>
-            <MenuItem>CSR Portal</MenuItem>
-            <MenuItem>Self Service</MenuItem>
-            <MenuItem>Process Extender</MenuItem>
-            <MenuItem>DX API</MenuItem>
-            <MenuItem>Conversational Agent</MenuItem>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-800"
+              onClick={() => {
+                onSelectChannelAction && onSelectChannelAction("WorkPortal");
+                setOpenMenuId(null);
+              }}
+            >
+              WorkPortal
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-800"
+              onClick={() => {
+                onSelectChannelAction && onSelectChannelAction("CSRPortal");
+                setOpenMenuId(null);
+              }}
+            >
+              CSRPortal
+            </button>
+            <button
+              className="w-full text-left px-4 py-2 hover:bg-gray-800"
+              onClick={() => {
+                onSelectChannelAction && onSelectChannelAction("SelfService");
+                setOpenMenuId(null);
+              }}
+            >
+              SelfService
+            </button>
           </Menu>
 
           <Menu
@@ -221,6 +243,4 @@ function Menu({
   );
 }
 
-function MenuItem({ children }: { children: React.ReactNode }) {
-  return <div className="px-4 py-2 hover:bg-gray-800">{children}</div>;
-}
+// Removed unused MenuItem after refactor to buttons

@@ -16,6 +16,7 @@ import ChatPanelContent from "./components/ChatPanelContent";
 import usePersistentTab from "./hooks/usePersistentTab";
 import { useFreeFormSelection } from "./hooks/useFreeFormSelection";
 import usePreviewIframe from "./hooks/usePreviewIframe";
+import type { channel } from "../../types";
 import useStepsUpdate from "./hooks/useStepsUpdate";
 import useFieldMutations from "./hooks/useFieldMutations";
 import useWorkflowMutations from "./hooks/useWorkflowMutations";
@@ -167,7 +168,8 @@ export default function WorkflowPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
   const FIXED_CHAT_PANEL_WIDTH = 400;
-  const [isPreviewMode, setIsPreviewMode] = useState(false);
+  const [selectedChannel, setSelectedChannel] = useState<channel>("WorkPortal");
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [activeTab, setActiveTab] = usePersistentTab<
     "workflow" | "fields" | "data" | "views" | "chat" | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
@@ -234,10 +236,8 @@ export default function WorkflowPage() {
     activeTab,
     selectedView,
     onOpenQuickChatAction: () => setIsQuickChatOpen(true),
-    resolveExternalIdsAction: (rect) =>
-      isPreviewMode
-        ? requestSelectedIdsInRect(rect)
-        : Promise.resolve({ fieldIds: [], viewIds: [] }),
+    resolveExternalIdsAction: (_rect) =>
+      Promise.resolve({ fieldIds: [], viewIds: [] }),
   });
   // Workflow model memo used across UI
   const workflowModel: WorkflowState = useMemo(() => {
@@ -353,7 +353,7 @@ export default function WorkflowPage() {
       return {
         fullUpdate: true,
         appName: selectedCase?.name || "Workflow",
-        channel: "WorkPortal",
+        Channel: selectedChannel,
         industry: "Banking",
         userName: "John Smith",
         userLocale: "en-EN",
@@ -368,7 +368,7 @@ export default function WorkflowPage() {
         ],
       };
     },
-    [selectedCase?.name, views],
+    [selectedCase?.name, views, selectedChannel],
   );
 
   // Quick selection summary string for QuickChat overlay
@@ -381,11 +381,21 @@ export default function WorkflowPage() {
     [fields, workflowModel.stages, generateModelData],
   );
 
-  const { containerRef: previewContainerRef, requestSelectedIdsInRect } =
-    usePreviewIframe({
-      isPreviewMode,
-      generateModelAction: generatePreviewModelAction,
-    });
+  // When channel changes, notify preview after state commit
+  useEffect(() => {
+    if (isPreviewVisible) {
+      window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
+    }
+  }, [selectedChannel, isPreviewVisible]);
+
+  const {
+    containerRef: previewContainerRef,
+    requestSelectedIdsInRect: _requestSelectedIdsInRect,
+  } = usePreviewIframe({
+    enabled: isPreviewVisible,
+    selectedChannel,
+    generateModelAction: generatePreviewModelAction,
+  });
 
   // replaced by useQuickChat
 
@@ -1262,12 +1272,16 @@ export default function WorkflowPage() {
           onSelectDataObjectAction={handleSelectDataObject}
           onOpenCreateWorkflowAction={() => setIsCreateWorkflowModalOpen(true)}
           onOpenCreateDataObjectAction={() => setIsAddDataObjectModalOpen(true)}
-          isPreviewMode={isPreviewMode}
-          onTogglePreviewAction={() => setIsPreviewMode(!isPreviewMode)}
+          isPreviewMode={isPreviewVisible}
+          onTogglePreviewAction={() => setIsPreviewVisible((v) => !v)}
+          onSelectChannelAction={(c) => {
+            setSelectedChannel(c);
+            setIsPreviewVisible(true);
+          }}
         />
 
-        {/* Page heading (above tabs) */}
-        {!isPreviewMode && (
+        {/* Page heading (hidden while preview is visible) */}
+        {!isPreviewVisible && (
           <div className="px-4 py-3 border-b border-white/10">
             <div>
               <div className="flex items-center gap-2">
@@ -1310,14 +1324,14 @@ export default function WorkflowPage() {
           </div>
         )}
 
-        {/* Tabs - Above content */}
-        {!isPreviewMode && selectedDataObjectId === null && (
+        {/* Tabs - hidden while preview is visible */}
+        {!isPreviewVisible && selectedDataObjectId === null && (
           <WorkflowTabs
             active={activeTab as any}
             onChange={setActiveTab as any}
           />
         )}
-        {!isPreviewMode && selectedDataObjectId !== null && (
+        {!isPreviewVisible && selectedDataObjectId !== null && (
           <div className="flex justify-between items-center">
             <div className="flex">
               <button className="px-4 py-2 text-sm font-medium text-white border-b-2 border-blue-400">
@@ -1333,122 +1347,126 @@ export default function WorkflowPage() {
           className="flex-1 overflow-auto relative h-full"
           data-main-content="true"
         >
-          {isPreviewMode ? (
-            <div className="w-full h-full" ref={previewContainerRef} />
-          ) : (
-            <>
-              {selectedDataObjectId !== null ? (
-                <div className="flex flex-col h-full">
-                  <div className="flex-1 min-h-0">
-                    <DataPanel
-                      selectedId={selectedDataObjectId}
-                      dataObjects={dataObjects || []}
-                      fields={[...fields, ...dataObjectFields]}
-                      onAddNewFieldAndAttachAction={async (
-                        dataObjectId,
-                        field,
-                      ) => {
-                        await handleAddNewFieldAndAttach(dataObjectId, field);
-                      }}
-                      onRemoveFieldFromDataObjectAction={(
-                        dataObjectId,
-                        field,
-                      ) => handleRemoveFieldFromDataObject(dataObjectId, field)}
-                      onReorderFieldsInDataObjectAction={(
-                        dataObjectId,
-                        fieldIds,
-                      ) =>
-                        handleReorderFieldsInDataObject(dataObjectId, fieldIds)
-                      }
-                      onEditDataObjectAction={(did: number) =>
-                        setEditingDataObjectId(did)
-                      }
-                      onDeleteDataObjectAction={async (did: number) => {
-                        try {
-                          const res = await fetchWithBaseUrl(
-                            `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
-                            { method: "DELETE" },
+          <>
+            {isPreviewVisible && (
+              <div
+                className="w-full h-full bg-[rgb(14,10,42)] text-white"
+                ref={previewContainerRef}
+              />
+            )}
+            {!isPreviewVisible && selectedDataObjectId !== null ? (
+              <div className="flex flex-col h-full">
+                <div className="flex-1 min-h-0">
+                  <DataPanel
+                    selectedId={selectedDataObjectId}
+                    dataObjects={dataObjects || []}
+                    fields={[...fields, ...dataObjectFields]}
+                    onAddNewFieldAndAttachAction={async (
+                      dataObjectId,
+                      field,
+                    ) => {
+                      await handleAddNewFieldAndAttach(dataObjectId, field);
+                    }}
+                    onRemoveFieldFromDataObjectAction={(dataObjectId, field) =>
+                      handleRemoveFieldFromDataObject(dataObjectId, field)
+                    }
+                    onReorderFieldsInDataObjectAction={(
+                      dataObjectId,
+                      fieldIds,
+                    ) =>
+                      handleReorderFieldsInDataObject(dataObjectId, fieldIds)
+                    }
+                    onEditDataObjectAction={(did: number) =>
+                      setEditingDataObjectId(did)
+                    }
+                    onDeleteDataObjectAction={async (did: number) => {
+                      try {
+                        const res = await fetchWithBaseUrl(
+                          `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
+                          { method: "DELETE" },
+                        );
+                        if (!res.ok) {
+                          const t = await res.text();
+                          throw new Error(
+                            `Failed to delete data object: ${res.status} ${t}`,
                           );
-                          if (!res.ok) {
-                            const t = await res.text();
-                            throw new Error(
-                              `Failed to delete data object: ${res.status} ${t}`,
-                            );
-                          }
-                        } catch (e) {
-                          console.error("Error deleting data object:", e);
-                        } finally {
-                          await refreshWorkflowData();
-                          setSelectedDataObjectId(null);
                         }
-                      }}
-                    />
-                  </div>
-                </div>
-              ) : activeTab === "workflow" ? (
-                <>
-                  <WorkflowLifecycleView
-                    stages={workflowModel.stages}
-                    onStepSelect={(stageId, processId, stepId) =>
-                      handleStepSelect(stageId, processId, stepId)
-                    }
-                    activeStage={activeStage}
-                    activeProcess={activeProcess}
-                    activeStep={activeStep}
-                    onEditStep={(stageId, processId, stepId) => {
-                      // For lifecycle view editing, just select the step to show configuration
-                      handleStepSelect(
-                        stageId.toString(),
-                        processId.toString(),
-                        stepId.toString(),
-                      );
+                      } catch (e) {
+                        console.error("Error deleting data object:", e);
+                      } finally {
+                        await refreshWorkflowData();
+                        setSelectedDataObjectId(null);
+                      }
                     }}
-                    onDeleteStep={handleDeleteStep}
-                    fields={fields}
-                    readOnly={false}
-                    onAddField={handleAddField}
-                    onUpdateField={handleUpdateField}
-                    onDeleteField={handleDeleteField}
-                    onAddExistingField={(stepId, fieldIds) => {
-                      // Convert field IDs to field names for the existing handler
-                      const fieldNames = fieldIds
-                        .map((id) => fields.find((f) => f.id === id)?.name)
-                        .filter((name): name is string => !!name);
-                      void handleAddFieldsToStep(
-                        stepId,
-                        fieldNames,
-                        workflowModel.stages,
-                      );
-                    }}
-                    onFieldChange={(fieldId, value) => {
-                      // For now, this is read-only in lifecycle view
-                      console.log(
-                        "Field change in lifecycle view:",
-                        fieldId,
-                        value,
-                      );
-                    }}
-                    views={views}
-                    onAddFieldsToView={handleAddFieldsToView}
-                    onStepsUpdate={handleStepsUpdate}
-                    onAddProcess={(stageId, processName) =>
-                      handleAddProcess(Number(stageId), processName)
-                    }
-                    onAddStep={(stageId, processId, stepName, stepType) =>
-                      handleAddStep(
-                        Number(stageId),
-                        Number(processId),
-                        stepName,
-                        stepType as StepType,
-                      )
-                    }
-                    onDeleteProcess={(stageId, processId) =>
-                      handleDeleteProcess(Number(stageId), Number(processId))
-                    }
                   />
-                </>
-              ) : null}
-              {selectedDataObjectId === null && activeTab === "fields" && (
+                </div>
+              </div>
+            ) : !isPreviewVisible && activeTab === "workflow" ? (
+              <>
+                <WorkflowLifecycleView
+                  stages={workflowModel.stages}
+                  onStepSelect={(stageId, processId, stepId) =>
+                    handleStepSelect(stageId, processId, stepId)
+                  }
+                  activeStage={activeStage}
+                  activeProcess={activeProcess}
+                  activeStep={activeStep}
+                  onEditStep={(stageId, processId, stepId) => {
+                    // For lifecycle view editing, just select the step to show configuration
+                    handleStepSelect(
+                      stageId.toString(),
+                      processId.toString(),
+                      stepId.toString(),
+                    );
+                  }}
+                  onDeleteStep={handleDeleteStep}
+                  fields={fields}
+                  readOnly={false}
+                  onAddField={handleAddField}
+                  onUpdateField={handleUpdateField}
+                  onDeleteField={handleDeleteField}
+                  onAddExistingField={(stepId, fieldIds) => {
+                    // Convert field IDs to field names for the existing handler
+                    const fieldNames = fieldIds
+                      .map((id) => fields.find((f) => f.id === id)?.name)
+                      .filter((name): name is string => !!name);
+                    void handleAddFieldsToStep(
+                      stepId,
+                      fieldNames,
+                      workflowModel.stages,
+                    );
+                  }}
+                  onFieldChange={(fieldId, value) => {
+                    // For now, this is read-only in lifecycle view
+                    console.log(
+                      "Field change in lifecycle view:",
+                      fieldId,
+                      value,
+                    );
+                  }}
+                  views={views}
+                  onAddFieldsToView={handleAddFieldsToView}
+                  onStepsUpdate={handleStepsUpdate}
+                  onAddProcess={(stageId, processName) =>
+                    handleAddProcess(Number(stageId), processName)
+                  }
+                  onAddStep={(stageId, processId, stepName, stepType) =>
+                    handleAddStep(
+                      Number(stageId),
+                      Number(processId),
+                      stepName,
+                      stepType as StepType,
+                    )
+                  }
+                  onDeleteProcess={(stageId, processId) =>
+                    handleDeleteProcess(Number(stageId), Number(processId))
+                  }
+                />
+              </>
+            ) : null}
+            {!isPreviewVisible &&
+              selectedDataObjectId === null &&
+              activeTab === "fields" && (
                 <div className="p-6">
                   <FieldsHeader
                     count={fields.length}
@@ -1465,7 +1483,9 @@ export default function WorkflowPage() {
                   />
                 </div>
               )}
-              {selectedDataObjectId === null && activeTab === "views" && (
+            {!isPreviewVisible &&
+              selectedDataObjectId === null &&
+              activeTab === "views" && (
                 <>
                   <ViewsHeader />
                   <ViewsPanel
@@ -1499,8 +1519,7 @@ export default function WorkflowPage() {
                   />
                 </>
               )}
-            </>
-          )}
+          </>
         </main>
 
         {/* Modals - rendered in portal to isolate from main content */}

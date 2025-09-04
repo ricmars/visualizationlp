@@ -165,6 +165,9 @@ export interface Application {
   stepName?: string;
 }
 
+// Channel type for live preview selection
+export type channel = "WorkPortal" | "CSRPortal" | "SelfService";
+
 export interface Checkpoint {
   id: string; // UUID for database-backed checkpoints
   description: string;

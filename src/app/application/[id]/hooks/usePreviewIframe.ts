@@ -2,17 +2,20 @@
 
 import { useEffect, useRef } from "react";
 import { Bootes2025DarkTheme } from "@pega/cosmos-react-core";
+import type { channel } from "../../../types";
 
 type GenerateModel = () => any;
 
 type UsePreviewIframeArgs = {
-  isPreviewMode: boolean;
+  enabled: boolean;
+  selectedChannel: channel;
   // Named as *Action to satisfy Next/React client component lint about functions in props
   generateModelAction: GenerateModel;
 };
 
 export default function usePreviewIframe({
-  isPreviewMode,
+  enabled,
+  selectedChannel,
   generateModelAction,
 }: UsePreviewIframeArgs) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -29,6 +32,8 @@ export default function usePreviewIframe({
   const hasSentInitialRef = useRef<boolean>(false);
   const lastQueuedUpdateRef = useRef<any | null>(null);
   const postQueuedRef = useRef<boolean>(false);
+  // Keep current channel without retriggering effects
+  const channelRef = useRef<channel>(selectedChannel);
   // Pending selection requests keyed by requestId
   const selectionRequestIdRef = useRef<number>(1);
   const pendingSelectionRequestsRef = useRef(
@@ -52,16 +57,21 @@ export default function usePreviewIframe({
     generateModelRef.current = generateModelAction;
   }, [generateModelAction]);
 
+  // Keep channelRef in sync
+  useEffect(() => {
+    channelRef.current = selectedChannel;
+  }, [selectedChannel]);
+
   // Soft reload no longer used (handshake-driven init). Keep for future fallback if needed.
   const _softReloadIframe = () => {};
 
-  // Send model updates when the model is updated
+  // Send model updates when the model is updated (stable listener)
   useEffect(() => {
     const handleModelUpdate = () => {
-      console.debug("[preview] model-updated event received (isPreviewMode)", {
-        isPreviewMode,
+      console.debug("[preview] model-updated event received (enabled)", {
+        enabled,
       });
-      if (!isPreviewMode) return;
+      if (!enabled) return;
       const now = Date.now();
       if (now - lastPostAtRef.current < 100) return;
       if (postQueuedRef.current) return; // Coalesce multiple events before next frame
@@ -78,6 +88,7 @@ export default function usePreviewIframe({
         const fullModel = generateModelRef.current();
         const updatePayload = {
           caseTypes: fullModel?.caseTypes,
+          channel: channelRef.current,
         };
         console.debug(
           "[preview] Posting model update to iframe",
@@ -106,12 +117,49 @@ export default function usePreviewIframe({
     return () => {
       window.removeEventListener("model-updated", handleModelUpdate as any);
     };
-  }, [isPreviewMode]);
+  }, [enabled]);
+
+  // Immediately push channel change when preview is enabled, even if event listener rebinds
+  useEffect(() => {
+    if (!enabled) return;
+    const now = Date.now();
+    if (now - lastPostAtRef.current < 50) return;
+    if (postQueuedRef.current) return;
+    postQueuedRef.current = true;
+    const post = () => {
+      const iframe =
+        iframeRef.current ||
+        (containerRef.current?.querySelector(
+          "iframe",
+        ) as HTMLIFrameElement | null);
+      if (!iframe) {
+        postQueuedRef.current = false;
+        return;
+      }
+      iframeRef.current = iframe;
+      const model = generateModelRef.current();
+      const payload = hasSentInitialRef.current
+        ? { caseTypes: model?.caseTypes, channel: channelRef.current }
+        : { ...model, fullUpdate: true, channel: channelRef.current };
+      lastPostAtRef.current = Date.now();
+      if (previewReadyRef.current && hasSentInitialRef.current) {
+        iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
+      } else {
+        lastQueuedUpdateRef.current = payload;
+      }
+      postQueuedRef.current = false;
+    };
+    try {
+      requestAnimationFrame(post);
+    } catch {
+      post();
+    }
+  }, [selectedChannel, enabled]);
 
   // Manage iframe creation and cleanup
   useEffect(() => {
     const container = containerRef.current;
-    if (isPreviewMode && container) {
+    if (enabled && container) {
       let iframe = container.querySelector(
         "iframe",
       ) as HTMLIFrameElement | null;
@@ -130,16 +178,16 @@ export default function usePreviewIframe({
     }
     return () => {
       // Only remove iframe when leaving preview mode or unmounting
-      if (!isPreviewMode && container && iframeRef.current) {
+      if (!enabled && container && iframeRef.current) {
         try {
           container.removeChild(iframeRef.current);
         } catch {}
         iframeRef.current = null;
       }
     };
-  }, [isPreviewMode]);
+  }, [enabled]);
 
-  // Listen for messages from the preview for debugging/handshake
+  // Listen for messages from the preview for debugging/handshake (stable)
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (event.origin !== PREVIEW_ORIGIN) return;
@@ -156,6 +204,7 @@ export default function usePreviewIframe({
             const initialModel = generateModelRef.current();
             try {
               (initialModel as any).fullUpdate = true;
+              (initialModel as any).channel = channelRef.current;
             } catch {}
             console.debug(
               "[preview] Posting initial model to iframe",
@@ -193,6 +242,7 @@ export default function usePreviewIframe({
             const payload = hasSentInitialRef.current
               ? { caseTypes: model?.caseTypes }
               : { ...model, fullUpdate: true };
+            (payload as any).channel = channelRef.current;
             iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
             console.debug("[preview] Responded to model request from iframe");
           }
@@ -250,7 +300,7 @@ export default function usePreviewIframe({
         (containerRef.current?.querySelector(
           "iframe",
         ) as HTMLIFrameElement | null);
-      if (!isPreviewMode || !iframe || !previewReadyRef.current) {
+      if (!enabled || !iframe || !previewReadyRef.current) {
         return Promise.resolve([]);
       }
       // Convert screen-space rect to iframe client-space rect
@@ -302,7 +352,7 @@ export default function usePreviewIframe({
         (containerRef.current?.querySelector(
           "iframe",
         ) as HTMLIFrameElement | null);
-      if (!isPreviewMode || !iframe || !previewReadyRef.current) {
+      if (!enabled || !iframe || !previewReadyRef.current) {
         return Promise.resolve({ fieldIds: [], viewIds: [] });
       }
       // Convert screen-space rect to iframe client-space rect
