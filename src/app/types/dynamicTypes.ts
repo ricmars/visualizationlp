@@ -29,7 +29,8 @@ type GenerateInterfaceFromTemplate<T extends string> = T extends "case"
   ? {
       id?: number;
       name: string;
-      caseid: number;
+      caseid?: number;
+      dataObjectId?: number;
       type: FieldType;
       primary?: boolean;
       label: string;

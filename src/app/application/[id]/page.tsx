@@ -146,6 +146,7 @@ export default function WorkflowPage() {
     setModelAction: setModel,
     fields,
     setFields,
+    dataObjectFields,
     views,
     setViews,
     dataObjects,
@@ -569,9 +570,8 @@ export default function WorkflowPage() {
   } = useDataObjectMutations({
     selectedCase,
     fields,
-    setFields,
-    dataObjects: dataObjects || [],
-    setDataObjects,
+    setFieldsAction: setFields,
+    setDataObjectsAction: setDataObjects,
   });
 
   const {
@@ -1307,7 +1307,7 @@ export default function WorkflowPage() {
                   <div className="flex-1 min-h-0">
                     <DataPanel
                       dataObjects={dataObjects || []}
-                      fields={fields}
+                      fields={[...fields, ...dataObjectFields]}
                       onAddNewFieldAndAttachAction={async (
                         dataObjectId,
                         field,

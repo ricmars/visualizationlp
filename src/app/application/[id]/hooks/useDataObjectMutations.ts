@@ -24,9 +24,8 @@ type DataObject = {
 type UseDataObjectMutationsArgs = {
   selectedCase: MinimalCase | null;
   fields: Field[];
-  setFields: (next: Field[] | ((prev: Field[]) => Field[])) => void;
-  dataObjects: DataObject[];
-  setDataObjects: (
+  setFieldsAction: (next: Field[] | ((prev: Field[]) => Field[])) => void;
+  setDataObjectsAction: (
     next: DataObject[] | ((prev: DataObject[]) => DataObject[]),
   ) => void;
   eventName?: string;
@@ -38,9 +37,8 @@ type UseDataObjectMutationsArgs = {
  */
 export default function useDataObjectMutations({
   selectedCase,
-  setFields,
-  dataObjects,
-  setDataObjects,
+  setFieldsAction,
+  setDataObjectsAction,
   eventName = "model-updated",
 }: UseDataObjectMutationsArgs) {
   const refreshDataObjects = useCallback(async () => {
@@ -51,12 +49,12 @@ export default function useDataObjectMutations({
       );
       if (res.ok) {
         const data = await res.json();
-        setDataObjects(data.data || []);
+        setDataObjectsAction(data.data || []);
       }
     } catch (e) {
       console.error("Failed to refresh data objects", e);
     }
-  }, [selectedCase, setDataObjects]);
+  }, [selectedCase, setDataObjectsAction]);
 
   const handleAddNewFieldAndAttach = useCallback(
     async (
@@ -70,9 +68,7 @@ export default function useDataObjectMutations({
         sampleValue?: string;
       },
     ) => {
-      if (!selectedCase) return;
-
-      // 1) Create a new global field (cannot re-use existing for data-tab per requirements)
+      // Create a new field specific to this data object
       const fieldName = field.label.toLowerCase().replace(/\s+/g, "_");
       const createResp = await fetch(
         `/api/database?table=${DB_TABLES.FIELDS}`,
@@ -85,7 +81,7 @@ export default function useDataObjectMutations({
               name: fieldName,
               type: field.type,
               primary: field.primary ?? false,
-              caseid: selectedCase.id,
+              dataObjectId,
               label: field.label,
               description: field.label,
               order: 0,
@@ -105,195 +101,66 @@ export default function useDataObjectMutations({
       const createData = await createResp.json();
       const createdField: Field | undefined = createData?.data;
 
-      // Optimistically update fields list
+      // Optimistically update fields list (append to global list)
       if (createdField) {
-        setFields((prev) => [...prev, createdField]);
+        setFieldsAction((prev) => [...prev, createdField]);
       }
-
-      // 2) Attach the new field to the data object's model.fields
-      const target = dataObjects.find((d) => d.id === dataObjectId);
-      if (!target) throw new Error("Data object not found");
-      let model: any = {};
-      try {
-        model =
-          typeof target.model === "string"
-            ? JSON.parse(target.model)
-            : target.model || {};
-      } catch {
-        model = {};
-      }
-      const currentRefs: Array<{
-        fieldId: number;
-        required?: boolean;
-        order?: number;
-      }> = Array.isArray(model?.fields) ? model.fields : [];
-      const hasAlready = createdField?.id
-        ? currentRefs.some((r) => r.fieldId === createdField!.id)
-        : false;
-      const nextRefs = hasAlready
-        ? currentRefs
-        : [
-            ...currentRefs,
-            {
-              fieldId: createdField?.id as number,
-              required: field.required ?? false,
-              order: currentRefs.length + 1,
-            },
-          ];
-
-      const putResp = await fetch(
-        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${dataObjectId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: target.name,
-            description: target.description,
-            caseid: target.caseid,
-            systemOfRecordId: target.systemOfRecordId,
-            model: {
-              ...(model || {}),
-              fields: nextRefs,
-            },
-          }),
-        },
-      );
-      if (!putResp.ok) {
-        const errorText = await putResp.text();
-        throw new Error(
-          `Failed to attach field to data object: ${putResp.status} ${errorText}`,
-        );
-      }
-
+      // Refresh data objects list to maintain UI consistency
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [selectedCase, dataObjects, setFields, refreshDataObjects, eventName],
+    [setFieldsAction, refreshDataObjects, eventName],
   );
 
   const handleRemoveFieldFromDataObject = useCallback(
-    async (dataObjectId: number, field: Field) => {
-      const target = dataObjects.find((d) => d.id === dataObjectId);
-      if (!target) return;
-      let model: any = {};
-      try {
-        model =
-          typeof target.model === "string"
-            ? JSON.parse(target.model)
-            : target.model || {};
-      } catch {
-        model = {};
-      }
-      const currentRefs: Array<{
-        fieldId: number;
-        required?: boolean;
-        order?: number;
-      }> = Array.isArray(model?.fields) ? model.fields : [];
-      const nextRefs = currentRefs.filter((r) => r.fieldId !== field.id);
-
+    async (_dataObjectId: number, field: Field) => {
+      if (!field.id) return;
+      // Delete the field record as it's specific to the data object
       const resp = await fetch(
-        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${dataObjectId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            name: target.name,
-            description: target.description,
-            caseid: target.caseid,
-            systemOfRecordId: target.systemOfRecordId,
-            model: {
-              ...(model || {}),
-              fields: nextRefs,
-            },
-          }),
-        },
+        `/api/database?table=${DB_TABLES.FIELDS}&id=${field.id}`,
+        { method: "DELETE" },
       );
-      if (!resp.ok) throw new Error("Failed to update data object");
+      if (!resp.ok) throw new Error("Failed to delete field");
+      // Sync local state
+      setFieldsAction((prev) => prev.filter((f) => f.id !== field.id));
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [dataObjects, refreshDataObjects, eventName],
+    [setFieldsAction, refreshDataObjects, eventName],
   );
 
   const handleReorderFieldsInDataObject = useCallback(
     async (dataObjectId: number, orderedFieldIds: number[]) => {
-      const target = dataObjects.find((d) => d.id === dataObjectId);
-      if (!target) return;
-      let model: any = {};
-      try {
-        model =
-          typeof target.model === "string"
-            ? JSON.parse(target.model)
-            : target.model || {};
-      } catch {
-        model = {};
-      }
-      const currentRefs: Array<{
-        fieldId: number;
-        required?: boolean;
-        order?: number;
-      }> = Array.isArray(model?.fields) ? model.fields : [];
-      const refById = new Map(currentRefs.map((r) => [r.fieldId, { ...r }]));
-      const nextRefs: Array<{
-        fieldId: number;
-        required?: boolean;
-        order?: number;
-      }> = [];
-      orderedFieldIds.forEach((fid, index) => {
-        const existing = refById.get(fid) || { fieldId: fid };
-        nextRefs.push({ ...existing, order: index + 1 });
-        refById.delete(fid);
-      });
-      // append any leftover refs, preserving order
-      currentRefs
-        .filter((r) => refById.has(r.fieldId))
-        .forEach((r) => nextRefs.push({ ...r, order: nextRefs.length + 1 }));
-
-      // Optimistic update to avoid flicker: update local state immediately
-      setDataObjects((prev) => {
-        return prev.map((d) => {
-          if (d.id !== dataObjectId) return d;
-          let localModel: any = {};
-          try {
-            localModel =
-              typeof d.model === "string" ? JSON.parse(d.model) : d.model || {};
-          } catch {
-            localModel = {};
-          }
-          return {
-            ...d,
-            model: {
-              ...(localModel || {}),
-              fields: nextRefs,
-            },
-          } as any;
-        });
+      // Optimistically update orders in local fields state
+      setFieldsAction((prev) => {
+        const next = [...prev];
+        const idToOrder = new Map<number, number>();
+        orderedFieldIds.forEach((fid, idx) => idToOrder.set(fid, idx + 1));
+        return next.map((f) =>
+          (f as any).id &&
+          (f as any).dataObjectId === dataObjectId &&
+          idToOrder.has((f as any).id)
+            ? ({ ...(f as any), order: idToOrder.get((f as any).id)! } as any)
+            : f,
+        );
       });
 
-      const resp = await fetch(
-        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${dataObjectId}`,
-        {
+      // Persist updated order for each affected field
+      const updates = orderedFieldIds.map((fid, index) =>
+        fetch(`/api/database?table=${DB_TABLES.FIELDS}&id=${fid}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            name: target.name,
-            description: target.description,
-            caseid: target.caseid,
-            systemOfRecordId: target.systemOfRecordId,
-            model: {
-              ...(model || {}),
-              fields: nextRefs,
-            },
+            table: DB_TABLES.FIELDS,
+            data: { order: index + 1 },
           }),
-        },
+        }),
       );
-      if (!resp.ok)
-        throw new Error("Failed to update field order in data object");
-      // Keep current order; refetch to sync server source of truth in background
+      await Promise.all(updates);
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [dataObjects, setDataObjects, refreshDataObjects, eventName],
+    [setFieldsAction, refreshDataObjects, eventName],
   );
 
   return {

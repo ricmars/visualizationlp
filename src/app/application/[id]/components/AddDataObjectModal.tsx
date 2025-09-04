@@ -61,7 +61,6 @@ export default function AddDataObjectModal({
       description: description.trim(),
       caseid: caseId,
       systemOfRecordId: systemOfRecordId as number,
-      model: { fields: [] },
     });
     setName("");
     setDescription("");

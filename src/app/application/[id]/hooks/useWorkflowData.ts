@@ -31,6 +31,7 @@ const MODEL_UPDATED_EVENT = "model-updated";
 export function useWorkflowData(caseId: string) {
   const [model, setModel] = useState<ComposedModel | null>(null);
   const [fields, setFields] = useState<Field[]>([]);
+  const [dataObjectFields, setDataObjectFields] = useState<Field[]>([]);
   const [views, setViews] = useState<View[]>([]);
   const [dataObjects, setDataObjects] = useState<
     Array<{
@@ -107,14 +108,18 @@ export function useWorkflowData(caseId: string) {
       const composedModel = await fetchCaseData(caseId);
       setModel(composedModel);
 
+      // Fetch case-level fields
+      let caseFields: Field[] = [];
       const fieldsResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.FIELDS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
       );
       if (fieldsResponse.ok) {
         const fieldsResult = await fieldsResponse.json();
-        setFields(fieldsResult.data);
+        caseFields = fieldsResult.data || [];
       }
+      setFields(caseFields);
 
+      // Fetch views for this case
       const viewsResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
       );
@@ -133,13 +138,30 @@ export function useWorkflowData(caseId: string) {
       }
 
       // Load Data Objects for this case
+      let loadedDataObjects: Array<{ id: number }> = [];
       const doResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.DATA_OBJECTS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
       );
       if (doResponse.ok) {
         const doData = await doResponse.json();
-        setDataObjects(doData.data || []);
+        const list = (doData.data || []) as Array<{ id: number }>;
+        setDataObjects(list as any);
+        loadedDataObjects = list;
       }
+
+      // Fetch fields that belong to any data objects (dataObjectId)
+      let doFields: Field[] = [];
+      if (loadedDataObjects.length > 0) {
+        // Fetch per data object id
+        const fetches = loadedDataObjects.map((obj) =>
+          fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.FIELDS}&dataObjectId=${obj.id}`,
+          ).then(async (res) => (res.ok ? (await res.json()).data || [] : [])),
+        );
+        const results = await Promise.all(fetches);
+        doFields = results.flat();
+      }
+      setDataObjectFields(doFields || []);
 
       setError(null);
     } catch (err) {
@@ -163,13 +185,16 @@ export function useWorkflowData(caseId: string) {
       const composedModel = await fetchCaseData(caseId);
       setModel(composedModel);
 
+      // Refresh case-level fields
+      let caseFields: Field[] = [];
       const fieldsResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.FIELDS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
       );
       if (fieldsResponse.ok) {
         const fieldsResult = await fieldsResponse.json();
-        setFields(fieldsResult.data);
+        caseFields = fieldsResult.data || [];
       }
+      setFields(caseFields);
 
       const viewsResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
@@ -189,13 +214,29 @@ export function useWorkflowData(caseId: string) {
       }
 
       // Refresh Data Objects
+      let loadedDataObjects: Array<{ id: number }> = [];
       const doResponse = await fetchWithBaseUrl(
         `/api/database?table=${DB_TABLES.DATA_OBJECTS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
       );
       if (doResponse.ok) {
         const doData = await doResponse.json();
-        setDataObjects(doData.data || []);
+        const list = (doData.data || []) as Array<{ id: number }>;
+        setDataObjects(list as any);
+        loadedDataObjects = list;
       }
+
+      // Refresh DO-specific fields
+      let doFields: Field[] = [];
+      if (loadedDataObjects.length > 0) {
+        const fetches = loadedDataObjects.map((obj) =>
+          fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.FIELDS}&dataObjectId=${obj.id}`,
+          ).then(async (res) => (res.ok ? (await res.json()).data || [] : [])),
+        );
+        const results = await Promise.all(fetches);
+        doFields = results.flat();
+      }
+      setDataObjectFields(doFields || []);
 
       // Fire after state commits so listeners (iframe) receive the latest model
       try {
@@ -231,6 +272,8 @@ export function useWorkflowData(caseId: string) {
     setModelAction,
     fields,
     setFields,
+    dataObjectFields,
+    setDataObjectFields,
     views,
     setViews,
     dataObjects,

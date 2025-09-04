@@ -1689,7 +1689,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "saveDataObject",
       description:
-        "Creates or updates a Data Object (name, description, caseid, systemOfRecordId, model). Model contains fields and integration config.",
+        "Creates or updates a Data Object (name, description, caseid, systemOfRecordId, model). Model holds integration/config metadata only; data object fields live in the Fields table keyed by dataObjectId.",
       parameters: {
         type: "object",
         properties: {
@@ -1706,7 +1706,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           },
           model: {
             type: "object",
-            description: "JSON model including fields[]",
+            description:
+              "Optional JSON model for integration/config. Do not include fields[]; use Fields records with dataObjectId instead.",
           },
         },
         required: ["name", "description", "caseid", "systemOfRecordId"],

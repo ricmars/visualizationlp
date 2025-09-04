@@ -65,28 +65,12 @@ export default function DataPanel({
 
   const selectedFields: Field[] = useMemo(() => {
     if (!selectedDataObject) return [];
-    let model: any = {};
-    try {
-      model =
-        typeof selectedDataObject.model === "string"
-          ? JSON.parse(selectedDataObject.model)
-          : selectedDataObject.model || {};
-    } catch {
-      model = {};
-    }
-    const refs: Array<{ fieldId: number; required?: boolean; order?: number }> =
-      Array.isArray(model?.fields) ? model.fields : [];
-    const result: Field[] = [];
-    refs.forEach((ref) => {
-      const f = fields.find((ff) => ff.id === ref.fieldId);
-      if (f)
-        result.push({
-          ...f,
-          required: ref.required ?? false,
-          order: ref.order ?? 0,
-        });
-    });
-    return result.sort((a, b) => (a.order || 0) - (b.order || 0));
+    const ownFields = (fields as any[]).filter(
+      (f) => (f as any)?.dataObjectId === selectedDataObject.id,
+    );
+    return ownFields.sort(
+      (a, b) => ((a as any)?.order || 0) - ((b as any)?.order || 0),
+    ) as Field[];
   }, [selectedDataObject, fields]);
 
   const handleDeleteField = (field: Field) => {

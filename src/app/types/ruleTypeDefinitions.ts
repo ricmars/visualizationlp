@@ -194,14 +194,15 @@ export const applicationRuleType: RuleTypeDefinition = {
 export const fieldRuleType: RuleTypeDefinition = {
   id: "field",
   name: "Field",
-  description: "A data field within a case that can be collected and displayed",
+  description:
+    "A field within a case or data object that can be collected and displayed",
   category: "data",
   version: "1.0.0",
 
   interfaceTemplate: {
     name: "Field",
     description:
-      "A data field within a case that can be collected and displayed",
+      "A field within a case or data object that can be collected and displayed",
     properties: [
       {
         name: "id",
@@ -217,7 +218,16 @@ export const fieldRuleType: RuleTypeDefinition = {
       {
         name: "caseid",
         type: "number",
-        description: "Reference to parent case",
+        optional: true,
+        description:
+          "Reference to parent case (required if dataObjectId is not set)",
+      },
+      {
+        name: "dataObjectId",
+        type: "number",
+        optional: true,
+        description:
+          "Reference to parent data object (required if caseid is not set)",
       },
       {
         name: "type",
@@ -296,8 +306,16 @@ export const fieldRuleType: RuleTypeDefinition = {
       {
         name: "caseid",
         type: "INTEGER",
-        nullable: false,
-        description: "Reference to parent case",
+        nullable: true,
+        description:
+          "Reference to parent case (nullable when dataObjectId is set)",
+      },
+      {
+        name: "dataObjectId",
+        type: "INTEGER",
+        nullable: true,
+        description:
+          "Reference to parent data object (nullable when caseid is set)",
       },
       {
         name: "label",
@@ -348,6 +366,13 @@ export const fieldRuleType: RuleTypeDefinition = {
         referenceColumns: ["id"],
         onDelete: "CASCADE",
       },
+      {
+        name: "fields_dataobjectid_fkey",
+        columns: ["dataObjectId"],
+        referenceTable: "DataObjects",
+        referenceColumns: ["id"],
+        onDelete: "CASCADE",
+      },
     ],
     indexes: [
       {
@@ -355,16 +380,35 @@ export const fieldRuleType: RuleTypeDefinition = {
         columns: ["caseid"],
       },
       {
+        name: "fields_dataobjectid_idx",
+        columns: ["dataObjectId"],
+      },
+      {
         name: "fields_name_caseid_unique",
         columns: ["name", "caseid"],
+        unique: true,
+      },
+      {
+        name: "fields_name_dataobjectid_unique",
+        columns: ["name", "dataObjectId"],
         unique: true,
       },
     ],
     constraints: [
       {
+        name: "fields_caseid_xor_dataobjectid",
+        type: "CHECK",
+        expression: '((caseid IS NOT NULL) <> ("dataObjectId" IS NOT NULL))',
+      },
+      {
         name: "fields_name_caseid_unique",
         type: "UNIQUE",
         expression: "(name, caseid)",
+      },
+      {
+        name: "fields_name_dataobjectid_unique",
+        type: "UNIQUE",
+        expression: '(name, "dataObjectId")',
       },
     ],
   },
@@ -693,6 +737,11 @@ export const dataObjectRuleType: RuleTypeDefinition = {
 
   hooks: {
     beforeCreate: async (data) => {
+      // Provide a default model so validation passes when none supplied
+      if (data.model === undefined || data.model === null) {
+        data.model = { fields: [] };
+        return data;
+      }
       if (data.model && typeof data.model === "string") {
         try {
           data.model = JSON.parse(data.model);
@@ -721,10 +770,12 @@ export function registerRuleTypes(): void {
     // Register Applications first so Cases can reference it via FK
     ruleTypeRegistry.register(applicationRuleType);
     ruleTypeRegistry.register(caseRuleType);
-    ruleTypeRegistry.register(fieldRuleType);
-    ruleTypeRegistry.register(viewRuleType);
+    // Ensure dependency order for foreign keys:
+    // SystemsOfRecord and DataObjects must exist before Fields (Fields -> DataObjects)
     ruleTypeRegistry.register(systemOfRecordRuleType);
     ruleTypeRegistry.register(dataObjectRuleType);
+    ruleTypeRegistry.register(fieldRuleType);
+    ruleTypeRegistry.register(viewRuleType);
     console.log("✅ All rule types registered successfully");
   } catch (error) {
     console.error("❌ Failed to register rule types:", error);
