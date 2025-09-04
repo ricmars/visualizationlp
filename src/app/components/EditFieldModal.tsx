@@ -113,7 +113,7 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="absolute inset-0 modal-backdrop z-40 modal-overlay"
+            className="absolute inset-0 modal-backdrop z-[120] modal-overlay"
             onClick={onClose}
           />
           <motion.div
@@ -122,7 +122,7 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface min-w-[450px]"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[130] modal-surface min-w-[450px]"
             onKeyDown={handleKeyDown}
             tabIndex={-1}
           >
