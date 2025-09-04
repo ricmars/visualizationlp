@@ -66,7 +66,7 @@ export function useViewMutations({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: view.name,
-              caseid: selectedCase.id,
+              objectid: selectedCase.id,
               model: {
                 fields: updatedModel.fields,
                 layout: { type: "form", columns: 1 },
@@ -145,7 +145,7 @@ export function useViewMutations({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: view.name,
-            caseid: selectedCase.id,
+            objectid: selectedCase.id,
             model: {
               fields: updatedViewModel.fields,
               layout: { type: "form", columns: 1 },
@@ -205,12 +205,12 @@ export function useViewMutations({
         stages: updatedStages,
       };
       const response = await fetch(
-        `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+        `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
         {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            table: DB_TABLES.CASES,
+            table: DB_TABLES.OBJECTS,
             data: {
               id: selectedCase.id,
               name: selectedCase.name,

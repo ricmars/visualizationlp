@@ -81,7 +81,7 @@ export default function Home() {
 
       // Use the AI service to create the workflow
       const response = await Service.generateResponse(
-        `Create a new application named "${name}" with description "${description}". First call saveApplication with the metadata to get the application id. Then create at least two distinct workflows for this application, using createCase with applicationid set to the new application id, followed by saveFields, saveView, and saveCase to complete each workflow. Do not finish until at least two workflows have been created and saved. If any case was created without applicationid, finalize by calling saveApplication with workflowIds to ensure associations.`,
+        `Create a new application named "${name}" with description "${description}". First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
         buildDatabaseSystemPrompt(),
       );
 
@@ -191,7 +191,7 @@ export default function Home() {
       setIsNavigatingId(applicationId);
       // Fetch workflows for this application and open the first one
       const res = await fetchWithBaseUrl(
-        `/api/database?table=Cases&applicationid=${applicationId}`,
+        `/api/database?table=Objects&applicationid=${applicationId}`,
       );
       const data = await res.json();
       const workflows = (data?.data as Array<{ id: number }> | undefined) || [];

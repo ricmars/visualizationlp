@@ -3,7 +3,8 @@ import { ruleTypeRegistry } from "./ruleTypeRegistry";
 
 // Database column names
 export const DB_COLUMNS = {
-  CASE_ID: "caseid",
+  CASE_ID: "objectid",
+  OBJECT_ID: "objectid",
   APPLICATION_ID: "applicationid",
   ID: "id",
   NAME: "name",
@@ -20,9 +21,9 @@ export const DB_COLUMNS = {
 
 // Dynamic database table names - get from rule type registry
 export const DB_TABLES = {
-  get CASES() {
-    const ruleType = ruleTypeRegistry.get("case");
-    return ruleType?.databaseSchema.tableName || "Cases";
+  get OBJECTS() {
+    const ruleType = ruleTypeRegistry.get("object");
+    return ruleType?.databaseSchema.tableName || "Objects";
   },
   get APPLICATIONS() {
     const ruleType = ruleTypeRegistry.get("application");
@@ -39,10 +40,6 @@ export const DB_TABLES = {
   get SYSTEMS_OF_RECORD() {
     const ruleType = ruleTypeRegistry.get("systemOfRecord");
     return ruleType?.databaseSchema.tableName || "SystemsOfRecord";
-  },
-  get DATA_OBJECTS() {
-    const ruleType = ruleTypeRegistry.get("dataObject");
-    return ruleType?.databaseSchema.tableName || "DataObjects";
   },
 } as const;
 

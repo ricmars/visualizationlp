@@ -6,15 +6,15 @@ import { DB_TABLES } from "../../../types/database";
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseid = searchParams.get("caseid");
+    const objectid = searchParams.get("objectid");
     const applicationid = searchParams.get("applicationid");
-    const caseIdNum = caseid ? parseInt(caseid) : undefined;
+    const objectidNum = objectid ? parseInt(objectid) : undefined;
     const applicationIdNum = applicationid
       ? parseInt(applicationid)
       : undefined;
 
     const history = await checkpointSessionManager.getCheckpointHistory(
-      caseIdNum,
+      objectidNum,
       applicationIdNum,
     );
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     // Collect all IDs that need to be fetched from main tables
     const fieldIds = new Set<number>();
     const viewIds = new Set<number>();
-    const caseIds = new Set<number>();
+    const objectids = new Set<number>();
     const applicationIds = new Set<number>();
 
     // Process undo_log entries to collect IDs
@@ -71,8 +71,8 @@ export async function GET(request: NextRequest) {
           case DB_TABLES.VIEWS:
             viewIds.add(id);
             break;
-          case DB_TABLES.CASES:
-            caseIds.add(id);
+          case DB_TABLES.OBJECTS:
+            objectids.add(id);
             break;
           case DB_TABLES.APPLICATIONS:
             applicationIds.add(id);
@@ -114,11 +114,11 @@ export async function GET(request: NextRequest) {
     }
 
     // Fetch cases data
-    if (caseIds.size > 0) {
-      const caseIdsArray = Array.from(caseIds);
+    if (objectids.size > 0) {
+      const objectidsArray = Array.from(objectids);
       const casesResult = await pool.query(
-        `SELECT id, name FROM "${DB_TABLES.CASES}" WHERE id = ANY($1)`,
-        [caseIdsArray],
+        `SELECT id, name FROM "${DB_TABLES.OBJECTS}" WHERE id = ANY($1)`,
+        [objectidsArray],
       );
       for (const row of casesResult.rows) {
         currentData.cases.set(row.id, { name: row.name });
@@ -205,8 +205,8 @@ export async function GET(request: NextRequest) {
             }
             break;
 
-          case DB_TABLES.CASES:
-            type = "Case";
+          case DB_TABLES.OBJECTS:
+            type = "Object";
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;

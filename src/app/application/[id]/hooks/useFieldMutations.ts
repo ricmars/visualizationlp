@@ -18,7 +18,7 @@ type UseFieldMutationsArgs = {
   setFields: (next: Field[] | ((prev: Field[]) => Field[])) => void;
   setModel: (next: any) => void;
   setSelectedCase: (next: MinimalCase) => void;
-  caseId: string; // route param id
+  objectid: string; // route param id
   eventName?: string; // defaults to 'model-updated'
   fetchCaseData: (id: string) => Promise<any>;
 };
@@ -29,7 +29,7 @@ export default function useFieldMutations({
   setFields,
   setModel,
   setSelectedCase,
-  caseId,
+  objectid,
   eventName = "model-updated",
   fetchCaseData,
 }: UseFieldMutationsArgs) {
@@ -52,7 +52,7 @@ export default function useFieldMutations({
           label: field.label,
           required: field.required ?? false,
           primary: field.primary ?? false,
-          caseid: selectedCase.id,
+          objectid: selectedCase.id,
           description: field.label,
           order: 0,
           options: field.options ?? [],
@@ -70,7 +70,7 @@ export default function useFieldMutations({
                 name: fieldData.name,
                 type: fieldData.type,
                 primary: fieldData.primary,
-                caseid: fieldData.caseid,
+                objectid: fieldData.objectid,
                 label: fieldData.label,
                 description: fieldData.description,
                 order: fieldData.order,
@@ -97,7 +97,7 @@ export default function useFieldMutations({
         }
 
         // Refresh model
-        const composedModel = await fetchCaseData(caseId);
+        const composedModel = await fetchCaseData(objectid);
         setModel(composedModel);
 
         // Notify preview listeners
@@ -109,7 +109,7 @@ export default function useFieldMutations({
         throw error as Error;
       }
     },
-    [selectedCase, setFields, setModel, caseId, eventName, fetchCaseData],
+    [selectedCase, setFields, setModel, objectid, eventName, fetchCaseData],
   );
 
   const handleUpdateField = useCallback(
@@ -137,7 +137,8 @@ export default function useFieldMutations({
             label: updates.label || targetField.label,
             type: updates.type || targetField.type,
             primary: updates.primary ?? targetField.primary,
-            caseid: selectedCase.id,
+            // If field belongs to a data object, its own objectid should be used
+            objectid: (targetField as any).objectid ?? selectedCase.id,
             options: (() => {
               if (updates.options !== undefined) return updates.options as any;
               if (targetField.options) {
@@ -182,17 +183,24 @@ export default function useFieldMutations({
         }
 
         // Refresh model
-        const composedModel = await fetchCaseData(caseId);
+        const composedModel = await fetchCaseData(objectid);
         setModel(composedModel);
 
         // Refresh fields
-        const fieldsResponse = await fetchWithBaseUrl(
-          `/api/database?table=${DB_TABLES.FIELDS}&${DB_COLUMNS.CASE_ID}=${selectedCase.id}`,
-        );
-        if (fieldsResponse.ok) {
-          const fieldsData = await fieldsResponse.json();
-          setFields(fieldsData.data);
-        }
+        try {
+          // Refresh fields for the owning object of the edited field
+          const ownerId = (targetField as any).objectid ?? selectedCase.id;
+          const fieldsResponse = await fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.FIELDS}&${DB_COLUMNS.CASE_ID}=${ownerId}`,
+          );
+          if (fieldsResponse.ok) {
+            const fieldsData = await fieldsResponse.json();
+            // If editing current workflow fields, update setFields; otherwise, rely on refreshWorkflowData external call
+            if (ownerId === selectedCase.id) {
+              setFields(fieldsData.data);
+            }
+          }
+        } catch {}
 
         // Notify preview listeners
         window.dispatchEvent(new CustomEvent(eventName));
@@ -206,7 +214,7 @@ export default function useFieldMutations({
       fields,
       setFields,
       setModel,
-      caseId,
+      objectid,
       eventName,
       fetchCaseData,
     ],
@@ -256,7 +264,7 @@ export default function useFieldMutations({
         };
 
         const updateResponse = await fetch(
-          `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

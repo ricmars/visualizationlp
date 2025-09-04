@@ -149,20 +149,20 @@ export async function POST(request: Request) {
     console.log("System context length:", systemContext?.length || 0);
 
     // Parse system context to check if we're working with an existing workflow
-    let currentCaseId: number | null = null;
+    let currentobjectid: number | null = null;
     let currentApplicationId: number | undefined = undefined;
     let _isExistingWorkflow = false;
     if (systemContext) {
       try {
         const contextData = JSON.parse(systemContext);
         console.log("Parsed system context:", contextData);
-        if (contextData.currentCaseId) {
-          currentCaseId = contextData.currentCaseId;
+        if (contextData.currentobjectid) {
+          currentobjectid = contextData.currentobjectid;
           currentApplicationId = contextData.applicationId;
           _isExistingWorkflow = true;
           console.log(
             "Detected existing workflow with case ID:",
-            currentCaseId,
+            currentobjectid,
             "and application ID:",
             currentApplicationId,
           );
@@ -205,10 +205,10 @@ export async function POST(request: Request) {
 
     // Build lightweight system prompt
     const systemCore = buildDatabaseSystemPrompt();
-    const contextLine = `Context: caseId=${
-      currentCaseId ?? "NEW"
+    const contextLine = `Context: objectid=${
+      currentobjectid ?? "NEW"
     }; applicationId=${currentApplicationId ?? "NEW"}; mode=${
-      currentCaseId ? "EXISTING" : "NEW"
+      currentobjectid ? "EXISTING" : "NEW"
     }`;
     const applicationContextLine = currentApplicationId
       ? `\n\nIMPORTANT: You are working within application ID ${currentApplicationId}. When creating new cases, you MUST use applicationid=${currentApplicationId}. Do NOT use any other application ID.`
@@ -396,9 +396,9 @@ Bulk operations policy:
 
         // Begin checkpoint session for this LLM interaction (only if we have a case ID)
         let checkpointSession = null;
-        if (currentCaseId) {
+        if (currentobjectid) {
           checkpointSession = await checkpointSessionManager.beginSession(
-            currentCaseId,
+            currentobjectid,
             `LLM Tool Execution: ${enhancedPrompt.substring(0, 50)}...`,
             prompt, // Store the original user command
             "LLM",
@@ -702,7 +702,7 @@ Bulk operations policy:
               // Log context size (no trimming)
               trimMessages();
 
-              // Allow multiple createCase calls in the same iteration (needed when creating multiple workflows)
+              // Allow multiple createObject calls in the same iteration (needed when creating multiple workflows)
               const dedupedToolCalls: typeof toolCalls = toolCalls;
               debugLog("tool calls (no dedup)", {
                 count: dedupedToolCalls.length,
@@ -786,10 +786,10 @@ Bulk operations policy:
                     // Don't send raw JSON tool results to the client
                     // Only send user-friendly messages for specific tools
                     const resultObj: ToolResult = result as ToolResult;
-                    // Track case/view creation and saveCase usage
+                    // Track case/view creation and saveObject usage
                     try {
-                      if (toolName === "createCase") {
-                        const caseId = (result as any)?.id;
+                      if (toolName === "createObject") {
+                        const objectid = (result as any)?.id;
                         const caseName =
                           (result as any)?.name ||
                           (toolArgs as any)?.name ||
@@ -798,18 +798,22 @@ Bulk operations policy:
                           (result as any)?.description ||
                           (toolArgs as any)?.description ||
                           "";
-                        if (Number.isFinite(caseId)) {
-                          createdCases.set(caseId, {
+                        // Only track as a workflow if the created object has a workflow model (stages array)
+                        const isWorkflowObject = Array.isArray(
+                          (result as any)?.model?.stages,
+                        );
+                        if (Number.isFinite(objectid) && isWorkflowObject) {
+                          createdCases.set(objectid, {
                             name: caseName,
                             description: caseDesc,
                             finalized: false,
                           });
                         }
-                      } else if (toolName === "saveCase") {
-                        const caseId =
+                      } else if (toolName === "saveObject") {
+                        const objectid =
                           (result as any)?.id ?? (toolArgs as any)?.id;
-                        if (Number.isFinite(caseId)) {
-                          const prior = createdCases.get(caseId) || {
+                        if (Number.isFinite(objectid)) {
+                          const prior = createdCases.get(objectid) || {
                             name:
                               (result as any)?.name ||
                               (toolArgs as any)?.name ||
@@ -820,30 +824,31 @@ Bulk operations policy:
                               "",
                             finalized: true,
                           };
-                          createdCases.set(caseId, {
+                          createdCases.set(objectid, {
                             ...prior,
                             finalized: true,
                           });
                         }
                       } else if (toolName === "saveView") {
                         const viewId = (result as any)?.id;
-                        const caseId =
-                          (result as any)?.caseid ?? (toolArgs as any)?.caseid;
+                        const objectid =
+                          (result as any)?.objectid ??
+                          (toolArgs as any)?.objectid;
                         const viewName =
                           (result as any)?.name || (toolArgs as any)?.name;
                         if (
-                          Number.isFinite(caseId) &&
+                          Number.isFinite(objectid) &&
                           Number.isFinite(viewId)
                         ) {
-                          const arr = viewsByCase.get(caseId) || [];
+                          const arr = viewsByCase.get(objectid) || [];
                           arr.push({ id: viewId, name: viewName });
-                          viewsByCase.set(caseId, arr);
+                          viewsByCase.set(objectid, arr);
                         }
                       }
                     } catch (_trackErr) {
                       // Non-fatal: tracking is best-effort
                     }
-                    if (toolName === "saveCase") {
+                    if (toolName === "saveObject") {
                       await processor.sendText(
                         `\nWorkflow '${
                           resultObj.name || "Unknown"
@@ -945,8 +950,8 @@ Bulk operations policy:
                       await processor.sendText(
                         `\nDeleted view: ${deletedName}`,
                       );
-                    } else if (toolName === "deleteCase") {
-                      await processor.sendText(`\nDeleted case successfully`);
+                    } else if (toolName === "deleteObject") {
+                      await processor.sendText(`\nDeleted object successfully`);
                     } else if (
                       toolName.startsWith("get") ||
                       toolName.startsWith("list")
@@ -1028,21 +1033,19 @@ Bulk operations policy:
                 break;
               }
 
-              // Do not disable createCase after first creation; creating an application may require multiple workflows
-
               // Generic post-condition verification loop:
-              // After any mutating tool call (saveCase/saveView/saveFields/delete*), ask the model to self-verify against the user goal.
+              // After any mutating tool call (saveObject/saveView/saveFields/delete*), ask the model to self-verify against the user goal.
               // We provide only the latest tool results + last user prompt, and instruct the model to either:
               // - call additional tools to satisfy unmet constraints, or
               // - return a terse confirmation that constraints are satisfied.
               // This keeps it generic for any request without hardcoding rules.
               const mutatingTools = [
-                "saveCase",
+                "saveObject",
                 "saveView",
                 "saveFields",
                 "deleteField",
                 "deleteView",
-                "deleteCase",
+                "deleteObject",
               ];
               const anyMutations = toolCalls.some((tc) =>
                 mutatingTools.includes(tc.function.name || ""),
@@ -1114,7 +1117,7 @@ Bulk operations policy:
                   enhancedPrompt,
                 );
                 const enforcementNote = enforceTwoWorkflows
-                  ? " Additionally, if creating a new application, ensure that at least two distinct workflows (two different case IDs) have been fully created and saved (fields, views, and saveCase). If fewer than two workflows exist, continue creating additional workflows now before completing."
+                  ? " Additionally, if creating a new application, ensure that at least two distinct workflows (two different case IDs) have been fully created and saved (fields, views, and saveObject). If fewer than two workflows exist, continue creating additional workflows now before completing."
                   : "";
 
                 messages.push({
@@ -1202,19 +1205,21 @@ Bulk operations policy:
         try {
           const findTool = (name: string) =>
             filteredTools.find((t) => t.name === name);
-          const getCaseTool = findTool("getCase");
-          const saveCaseTool = findTool("saveCase");
-          if (getCaseTool && saveCaseTool) {
-            for (const [caseId, meta] of createdCases.entries()) {
+          const getObjectTool = findTool("getObject");
+          const saveObjectTool = findTool("saveObject");
+          if (getObjectTool && saveObjectTool) {
+            for (const [objectid, meta] of createdCases.entries()) {
               if (meta.finalized) continue;
-              const views = viewsByCase.get(caseId) || [];
+              const views = viewsByCase.get(objectid) || [];
               if (views.length === 0) continue;
 
               let caseInfo: any = null;
               try {
-                caseInfo = await (getCaseTool as any).execute({ id: caseId });
+                caseInfo = await (getObjectTool as any).execute({
+                  id: objectid,
+                });
               } catch (e) {
-                console.warn("Auto-finalize: failed to load case", caseId, e);
+                console.warn("Auto-finalize: failed to load case", objectid, e);
                 continue;
               }
 
@@ -1226,7 +1231,7 @@ Bulk operations policy:
 
               const primaryViewId = views[0].id;
               const nowName =
-                caseInfo?.name || meta.name || `Workflow ${caseId}`;
+                caseInfo?.name || meta.name || `Workflow ${objectid}`;
               const nowDesc = caseInfo?.description || meta.description || "";
               const minimalModel = {
                 stages: [
@@ -1261,8 +1266,8 @@ Bulk operations policy:
               };
 
               try {
-                await (saveCaseTool as any).execute({
-                  id: caseId,
+                await (saveObjectTool as any).execute({
+                  id: objectid,
                   name: nowName,
                   description: nowDesc,
                   model: minimalModel,
@@ -1271,10 +1276,14 @@ Bulk operations policy:
                   `\nAuto-finalized workflow '${nowName}' with a starter model.`,
                 );
                 console.log(
-                  `Auto-finalized case ${caseId} with minimal model referencing view ${primaryViewId}.`,
+                  `Auto-finalized case ${objectid} with minimal model referencing view ${primaryViewId}.`,
                 );
               } catch (e) {
-                console.warn("Auto-finalize: saveCase failed for", caseId, e);
+                console.warn(
+                  "Auto-finalize: saveObject failed for",
+                  objectid,
+                  e,
+                );
               }
             }
           }

@@ -43,14 +43,14 @@ interface RuleCheckoutData {
 }
 
 type RulesCheckoutPanelProps = {
-  caseId?: number;
+  objectid?: number;
   applicationId?: number;
   stages?: Stage[];
   fields?: Field[];
 };
 
 export default function RulesCheckoutPanel({
-  caseId,
+  objectid,
   applicationId,
   fields = [],
 }: RulesCheckoutPanelProps) {
@@ -70,7 +70,7 @@ export default function RulesCheckoutPanel({
     id: number;
     name: string;
     model: any;
-    caseid: number;
+    objectid: number;
   } | null>(null);
   const [editingApplication, setEditingApplication] = useState<{
     id: number;
@@ -86,8 +86,8 @@ export default function RulesCheckoutPanel({
 
       if (applicationId) {
         params.append("applicationid", applicationId.toString());
-      } else if (caseId) {
-        params.append("caseid", caseId.toString());
+      } else if (objectid) {
+        params.append("objectid", objectid.toString());
       }
 
       if (params.toString()) {
@@ -107,7 +107,7 @@ export default function RulesCheckoutPanel({
     } finally {
       setIsLoading(false);
     }
-  }, [caseId, applicationId]);
+  }, [objectid, applicationId]);
 
   useEffect(() => {
     fetchCheckoutData();
@@ -274,7 +274,7 @@ export default function RulesCheckoutPanel({
         case "Fields":
           setEditingField(ruleData as Field);
           break;
-        case "Cases":
+        case "Objects":
           setEditingWorkflow({
             name: ruleData.name,
             description: ruleData.description,
@@ -302,7 +302,7 @@ export default function RulesCheckoutPanel({
       table: DB_TABLES.FIELDS,
       data: {
         name: editingField.name, // Keep the original name
-        caseid: editingField.caseid, // Keep the original caseid
+        objectid: editingField.objectid, // Keep the original objectid
         label: updates.label,
         type: updates.type,
         primary:
@@ -361,14 +361,14 @@ export default function RulesCheckoutPanel({
 
     try {
       const response = await fetch(
-        `/api/database?table=${DB_TABLES.CASES}&id=${caseId}`,
+        `/api/database?table=${DB_TABLES.OBJECTS}&id=${objectid}`,
         {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            table: DB_TABLES.CASES,
+            table: DB_TABLES.OBJECTS,
             data: {
               name: data.name,
               description: data.description,
@@ -441,7 +441,7 @@ export default function RulesCheckoutPanel({
       body: JSON.stringify({
         table: DB_TABLES.FIELDS,
         data: {
-          caseid: editingView?.caseid,
+          objectid: editingView?.objectid,
           name: field.label.replace(/\s+/g, "_").toLowerCase(),
           label: field.label,
           type: field.type,

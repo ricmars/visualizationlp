@@ -5,13 +5,13 @@ import { stepTypes } from "../utils/stepTypes";
 import { fieldTypes, FieldType } from "../utils/fieldTypes";
 import {
   LLMTool,
-  SaveCaseParams,
+  SaveObjectParams,
   SaveFieldsParams,
   SaveViewParams,
   DeleteParams,
   ToolParams,
   ToolResult,
-  CreateCaseParams,
+  CreateObjectParams,
 } from "./toolTypes";
 
 // Shared tool interface that works for both LLM and MCP
@@ -28,11 +28,14 @@ export interface SharedTool<TParams, TResult> {
 
 // Convert LLM tools to shared tools with MCP-compatible schemas
 export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
+  const CASES_TABLE =
+    (DB_TABLES as any).CASES ?? (DB_TABLES as any).OBJECTS ?? "Objects";
+  const OBJECTS_TABLE = (DB_TABLES as any).OBJECTS ?? CASES_TABLE;
   const tools: SharedTool<any, any>[] = [
     {
       name: "saveApplication",
       description:
-        "Creates or updates an application (name, description, icon) and links provided workflow IDs (cases) to it. New application flow: 1) Call saveApplication first with name/description (and optional icon) to create the application and get its id. 2) Create one or more workflows (cases), passing applicationid into createCase so they are linked upon creation. 3) Optionally call saveApplication again with workflowIds to ensure associations (useful if any case was created without applicationid).",
+        "Creates or updates an application (name, description, icon) and links provided object IDs to it. New application flow: 1) Call saveApplication first with name/description (and optional icon) to create the application and get its id. 2) Create one or more workflow objects (createObject with hasWorkflow=true), passing applicationid so they are linked upon creation. 3) Optionally call saveApplication again with objectIds to ensure associations (useful if any object was created without applicationid).",
       parameters: {
         type: "object",
         properties: {
@@ -46,10 +49,10 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description: "Application description",
           },
           icon: { type: "string", description: "Icon (optional)" },
-          workflowIds: {
+          objectIds: {
             type: "array",
             description:
-              "List of workflow (case) IDs to associate with this application",
+              "List of object IDs to associate with this application",
             items: { type: "integer" },
           },
         },
@@ -60,7 +63,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         name: string;
         description: string;
         icon?: string;
-        workflowIds?: number[];
+        objectIds?: number[];
       }) => {
         console.log("=== saveApplication EXECUTION STARTED ===");
         console.log(
@@ -69,7 +72,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         );
         console.log("saveApplication called at:", new Date().toISOString());
 
-        const { id, name, description, icon, workflowIds } = params;
+        const { id, name, description, icon, objectIds } = params;
 
         if (!name) throw new Error("Application name is required");
         if (!description)
@@ -106,14 +109,14 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           applicationId = insertRes.rows[0].id;
         }
 
-        if (workflowIds && workflowIds.length > 0) {
+        if (objectIds && objectIds.length > 0) {
           // Associate the specified workflows to this application
           const linkQuery = `
-            UPDATE "${DB_TABLES.CASES}"
+            UPDATE "${DB_TABLES.OBJECTS}"
             SET applicationid = $1
             WHERE id = ANY($2)
           `;
-          await pool.query(linkQuery, [applicationId, workflowIds]);
+          await pool.query(linkQuery, [applicationId, objectIds]);
         }
 
         return {
@@ -121,14 +124,14 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           name,
           description,
           icon: icon ?? null,
-          workflowIds: workflowIds ?? [],
+          objectIds: objectIds ?? [],
         };
       },
     },
     {
       name: "getApplication",
       description:
-        "Gets application metadata (name, description, icon) and the list of associated workflow (case) IDs.",
+        "Gets application metadata (name, description, icon) and the list of associated objects IDs.",
       parameters: {
         type: "object",
         properties: {
@@ -157,117 +160,130 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
         const casesQuery = `
           SELECT id
-          FROM "${DB_TABLES.CASES}"
+          FROM "${DB_TABLES.OBJECTS}"
           WHERE applicationid = $1
           ORDER BY name
         `;
         const casesRes = await pool.query(casesQuery, [params.id]);
-        const workflowIds = casesRes.rows.map((r) => r.id as number);
+        const objectIds = casesRes.rows.map((r) => r.id as number);
 
         return {
           id: app.id,
           name: app.name,
           description: app.description,
           icon: app.icon ?? null,
-          workflowIds,
+          objectIds,
         };
       },
     },
     {
-      name: "createCase",
+      name: "createObject",
       description:
-        "Creates a new case (workflow). REQUIRED: applicationid, name, description. Returns the new case ID that you MUST use for all subsequent operations (saveFields, saveView). The case will be linked to the specified application on insert. CRITICAL: Use the exact applicationid from the Context if working within an existing application.",
+        "Creates a new object. Set hasWorkflow=true to create a workflow-type object; otherwise it will be a data object. applicationid is optional. Returns the new object ID.",
       parameters: {
         type: "object",
         properties: {
-          name: { type: "string", description: "Case name" },
-          description: { type: "string", description: "Case description" },
+          name: { type: "string", description: "Object name" },
+          description: { type: "string", description: "Object description" },
           applicationid: {
             type: "integer",
-            description: "Application ID this case belongs to (REQUIRED)",
+            description: "Application ID (optional)",
           },
+          hasWorkflow: {
+            type: "boolean",
+            description: "Whether this is a workflow object",
+          },
+          systemOfRecordId: {
+            type: "integer",
+            description: "Optional system of record ID",
+          },
+          model: { type: "object", description: "Optional initial model" },
         },
-        required: ["name", "description", "applicationid"],
+        required: ["name", "description"],
       },
-      execute: async (params: CreateCaseParams) => {
-        console.log("=== createCase EXECUTION STARTED ===");
-        console.log("createCase parameters:", JSON.stringify(params, null, 2));
-        console.log("createCase called at:", new Date().toISOString());
+      execute: async (params: CreateObjectParams) => {
+        console.log("=== createObject EXECUTION STARTED ===");
+        console.log(
+          "createObject parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("createObject called at:", new Date().toISOString());
 
-        const { name, description } = params as any;
+        const {
+          name,
+          description,
+          hasWorkflow = false,
+          systemOfRecordId,
+          model,
+        } = params as any;
         const applicationid: number | undefined = (params as any).applicationid;
 
-        // Validation
-        if (!name) throw new Error("Case name is required for createCase");
-        if (!description)
-          throw new Error("Case description is required for createCase");
-        if (
-          typeof applicationid !== "number" ||
-          !Number.isFinite(applicationid)
-        ) {
-          throw new Error(
-            "Application ID (applicationid) is required for createCase",
-          );
-        }
+        if (!name) throw new Error("Object name is required");
+        if (!description) throw new Error("Object description is required");
 
-        // Create new case with empty model and required applicationid
+        // Create new object with provided flags
         const query = `
-          INSERT INTO "${DB_TABLES.CASES}" (name, description, model, applicationid)
-          VALUES ($1, $2, $3, $4)
+          INSERT INTO "${OBJECTS_TABLE}" (name, description, model, applicationid, "hasWorkflow", "systemOfRecordId")
+          VALUES ($1, $2, $3, $4, $5, $6)
           RETURNING id, name, description, model, applicationid
         `;
         const values = [
           name,
           description,
-          JSON.stringify({ stages: [] }),
-          applicationid,
+          model
+            ? JSON.stringify(model)
+            : hasWorkflow
+            ? JSON.stringify({ stages: [] })
+            : JSON.stringify({}),
+          applicationid ?? null,
+          hasWorkflow,
+          systemOfRecordId ?? null,
         ];
-        console.log("createCase INSERT query:", query);
-        console.log("createCase INSERT query values:", values);
+        console.log("createObject INSERT query:", query);
+        console.log("createObject INSERT query values:", values);
 
         const result = await pool.query(query, values);
-        const caseData = result.rows[0] || {};
+        const objectData = result.rows[0] || {};
 
-        console.log("createCase INSERT successful:", {
-          id: caseData?.id,
-          name: caseData?.name,
+        console.log("createObject INSERT successful:", {
+          id: objectData?.id,
+          name: objectData?.name,
         });
 
         return {
-          id: caseData.id,
-          name: caseData.name,
-          description: caseData.description,
+          id: objectData.id,
+          name: objectData.name,
+          description: objectData.description,
           model:
-            typeof caseData.model === "string"
+            typeof objectData.model === "string"
               ? (() => {
                   try {
-                    return JSON.parse(caseData.model);
+                    return JSON.parse(objectData.model);
                   } catch {
-                    return { stages: [] };
+                    return hasWorkflow ? { stages: [] } : {};
                   }
                 })()
-              : caseData.model ?? { stages: [] },
+              : objectData.model ?? (hasWorkflow ? { stages: [] } : {}),
         };
       },
     },
     {
-      name: "saveCase",
+      name: "saveObject",
       description:
-        "Updates a case with the complete workflow model (stages, processes, steps, viewId references). Use ONLY for structural changes or finalizing new workflows. DO NOT call this for field-only edits (defaults, primary, required) or view tweaks—use saveFields/saveView instead.",
+        "Updates an object. For workflow objects, provide the complete workflow model (stages, processes, steps, viewId references). For data objects, model is optional.",
       parameters: {
         type: "object",
         properties: {
           id: {
             type: "integer",
-            description:
-              "Case ID (REQUIRED - use the ID returned from createCase)",
+            description: "Object ID (REQUIRED)",
           },
-          name: { type: "string", description: "Case name" },
-          description: { type: "string", description: "Case description" },
+          name: { type: "string", description: "Object name" },
+          description: { type: "string", description: "Object description" },
           model: {
             type: "object",
             description:
-              "Complete workflow model with stages, processes, steps, and viewId references",
+              "Complete workflow model with stages, processes, steps, and viewId references (for workflow objects)",
             properties: {
               stages: {
                 type: "array",
@@ -334,48 +350,53 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         },
         required: ["id", "name", "description", "model"],
       },
-      execute: async (params: SaveCaseParams) => {
-        console.log("=== saveCase EXECUTION STARTED ===");
-        console.log("saveCase parameters:", JSON.stringify(params, null, 2));
-        console.log("saveCase called at:", new Date().toISOString());
+      execute: async (params: SaveObjectParams) => {
+        console.log("=== saveObject EXECUTION STARTED ===");
+        console.log("saveObject parameters:", JSON.stringify(params, null, 2));
+        console.log("saveObject called at:", new Date().toISOString());
 
         const { id, name, description, model } = params;
 
         // Validation
         if (!id)
           throw new Error(
-            "Case ID is required for saveCase - use the ID returned from createCase",
+            "object ID is required for saveObject - use the ID returned from createObject",
           );
-        if (!name) throw new Error("Case name is required for saveCase");
-        if (!description)
-          throw new Error("Case description is required for saveCase");
-        if (!model) throw new Error("Case model is required for saveCase");
+        if (!name) throw new Error("Object name is required");
+        if (!description) throw new Error("Object description is required");
 
-        if (!Array.isArray(model.stages)) {
+        if (model === null) {
+          throw new Error("Case model is required for saveObject");
+        }
+        if (model && !Array.isArray((model as any).stages)) {
           throw new Error("Model stages must be an array");
         }
 
         // Validation: embedded fields arrays in steps are not allowed
-        for (const stage of model.stages) {
-          for (const process of stage.processes || []) {
-            for (const step of process.steps || []) {
-              if (step && (step as any).fields) {
-                throw new Error(
-                  `Step "${step.name}" contains a fields array. Fields should be stored in views, not in steps. Remove the fields array from the step.`,
-                );
+        if (model) {
+          for (const stage of (model as any).stages) {
+            for (const process of stage.processes || []) {
+              for (const step of process.steps || []) {
+                if (step && (step as any).fields) {
+                  throw new Error(
+                    `Step "${step.name}" contains a fields array. Fields should be stored in views, not in steps. Remove the fields array from the step.`,
+                  );
+                }
               }
             }
           }
         }
 
         // Validate collect_information steps have viewId (warning only)
-        for (const stage of model.stages) {
-          for (const process of stage.processes || []) {
-            for (const step of process.steps || []) {
-              if (step.type === "Collect information" && !step.viewId) {
-                console.warn(
-                  `Step "${step.name}" is a collect_information step but doesn't have a viewId. Add a viewId to reference the view containing the fields.`,
-                );
+        if (model) {
+          for (const stage of (model as any).stages) {
+            for (const process of stage.processes || []) {
+              for (const step of process.steps || []) {
+                if (step.type === "Collect information" && !step.viewId) {
+                  console.warn(
+                    `Step "${step.name}" is a collect_information step but doesn't have a viewId. Add a viewId to reference the view containing the fields.`,
+                  );
+                }
               }
             }
           }
@@ -383,11 +404,13 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
         // Collect viewIds used by steps
         const referencedViewIds = new Set<number>();
-        for (const stage of model.stages) {
-          for (const process of stage.processes || []) {
-            for (const step of process.steps || []) {
-              if (typeof step.viewId === "number") {
-                referencedViewIds.add(step.viewId);
+        if (model) {
+          for (const stage of (model as any).stages) {
+            for (const process of stage.processes || []) {
+              for (const step of process.steps || []) {
+                if (typeof step.viewId === "number") {
+                  referencedViewIds.add(step.viewId);
+                }
               }
             }
           }
@@ -396,7 +419,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         // Load existing views for this case and error on invalid references
         if (referencedViewIds.size > 0) {
           const checkIds = Array.from(referencedViewIds);
-          const viewQuery = `SELECT id FROM "${DB_TABLES.VIEWS}" WHERE id = ANY($1) AND caseid = $2`;
+          const viewQuery = `SELECT id FROM "${DB_TABLES.VIEWS}" WHERE id = ANY($1) AND objectid = $2`;
           const viewResult = await pool.query(viewQuery, [checkIds, id]);
           const validViewIdsForCase = new Set<number>(
             viewResult.rows.map((row) => row.id),
@@ -415,78 +438,84 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         }
 
         // Allow reuse of the same viewId across steps; warn if repeated
-        const seenViewIds = new Set<number>();
-        for (const stage of model.stages) {
-          for (const process of stage.processes || []) {
-            for (const step of process.steps || []) {
-              if (typeof step.viewId === "number") {
-                if (seenViewIds.has(step.viewId)) {
-                  console.warn(
-                    `Duplicate viewId "${step.viewId}" found in steps – proceeding`,
-                  );
-                } else {
-                  seenViewIds.add(step.viewId);
+        if (model) {
+          const seenViewIds = new Set<number>();
+          for (const stage of (model as any).stages) {
+            for (const process of stage.processes || []) {
+              for (const step of process.steps || []) {
+                if (typeof step.viewId === "number") {
+                  if (seenViewIds.has(step.viewId)) {
+                    console.warn(
+                      `Duplicate viewId "${step.viewId}" found in steps – proceeding`,
+                    );
+                  } else {
+                    seenViewIds.add(step.viewId);
+                  }
                 }
               }
             }
           }
         }
+
         // Auto-assign missing IDs for new stages/processes/steps to reduce friction for the model
         // This allocator only assigns IDs where they are missing or non-integer. It never changes existing numeric IDs.
-        const cleanedModel = { ...model } as typeof model;
-        try {
-          // Determine max IDs present to ensure uniqueness within the case model
-          let maxStageId = 0;
-          let maxProcessId = 0;
-          let maxStepId = 0;
-          for (const stage of cleanedModel.stages) {
-            if (typeof (stage as any).id === "number") {
-              maxStageId = Math.max(maxStageId, (stage as any).id);
-            }
-            for (const process of stage.processes || []) {
-              if (typeof (process as any).id === "number") {
-                maxProcessId = Math.max(maxProcessId, (process as any).id);
+        let cleanedModel: any = null;
+        if (model) {
+          cleanedModel = { ...(model as any) };
+          try {
+            // Determine max IDs present to ensure uniqueness within the case model
+            let maxStageId = 0;
+            let maxProcessId = 0;
+            let maxStepId = 0;
+            for (const stage of cleanedModel.stages) {
+              if (typeof (stage as any).id === "number") {
+                maxStageId = Math.max(maxStageId, (stage as any).id);
               }
-              for (const step of process.steps || []) {
-                if (typeof (step as any).id === "number") {
-                  maxStepId = Math.max(maxStepId, (step as any).id);
+              for (const process of stage.processes || []) {
+                if (typeof (process as any).id === "number") {
+                  maxProcessId = Math.max(maxProcessId, (process as any).id);
+                }
+                for (const step of process.steps || []) {
+                  if (typeof (step as any).id === "number") {
+                    maxStepId = Math.max(maxStepId, (step as any).id);
+                  }
                 }
               }
             }
-          }
 
-          for (const stage of cleanedModel.stages) {
-            if (typeof (stage as any).id !== "number") {
-              (stage as any).id = ++maxStageId;
-            }
-            for (const process of stage.processes || []) {
-              if (typeof (process as any).id !== "number") {
-                (process as any).id = ++maxProcessId;
+            for (const stage of cleanedModel.stages) {
+              if (typeof (stage as any).id !== "number") {
+                (stage as any).id = ++maxStageId;
               }
-              for (const step of process.steps || []) {
-                if (typeof (step as any).id !== "number") {
-                  (step as any).id = ++maxStepId;
+              for (const process of stage.processes || []) {
+                if (typeof (process as any).id !== "number") {
+                  (process as any).id = ++maxProcessId;
+                }
+                for (const step of process.steps || []) {
+                  if (typeof (step as any).id !== "number") {
+                    (step as any).id = ++maxStepId;
+                  }
                 }
               }
             }
+          } catch (e) {
+            console.warn(
+              "saveObject: ID auto-assignment failed; proceeding with provided model.",
+              e,
+            );
           }
-        } catch (e) {
-          console.warn(
-            "saveCase: ID auto-assignment failed; proceeding with provided model.",
-            e,
-          );
         }
 
         // Update existing case
         const query = `
-          UPDATE "${DB_TABLES.CASES}"
-          SET name = $1, description = $2, model = $3
+          UPDATE "${OBJECTS_TABLE}"
+          SET name = $1, description = $2, model = COALESCE($3, model)
           WHERE id = $4
           RETURNING id, name, description, model
         `;
-        console.log("saveCase UPDATE query:", query);
-        const modelJson = JSON.stringify(cleanedModel);
-        console.log("saveCase UPDATE query values:", [
+        console.log("saveObject UPDATE query:", query);
+        const modelJson = cleanedModel ? JSON.stringify(cleanedModel) : null;
+        console.log("saveObject UPDATE query values:", [
           name,
           description,
           modelJson,
@@ -500,21 +529,21 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id,
         ]);
         if (result.rowCount === 0) {
-          console.error(`saveCase ERROR: No case found with id ${id}`);
-          throw new Error(`No case found with id ${id}`);
+          console.error(`saveObject ERROR: No object found with id ${id}`);
+          throw new Error(`No object found with id ${id}`);
         }
 
-        const caseData = result.rows[0] || {};
-        console.log("saveCase UPDATE successful:");
+        const objectData = result.rows[0] || {};
+        console.log("saveObject UPDATE successful:");
         console.log({
-          id: caseData?.id,
-          name: caseData?.name,
+          id: objectData?.id,
+          name: objectData?.name,
           modelStages: (() => {
             try {
               const m =
-                typeof caseData?.model === "string"
-                  ? JSON.parse(caseData.model)
-                  : caseData?.model;
+                typeof objectData?.model === "string"
+                  ? JSON.parse(objectData.model)
+                  : objectData?.model;
               return m?.stages?.length || 0;
             } catch {
               return 0;
@@ -523,26 +552,26 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         });
 
         return {
-          id: caseData.id ?? id,
-          name: caseData.name ?? name,
-          description: caseData.description ?? description,
+          id: objectData.id ?? id,
+          name: objectData.name ?? name,
+          description: objectData.description ?? description,
           model:
-            typeof caseData.model === "string"
+            typeof objectData.model === "string"
               ? (() => {
                   try {
-                    return JSON.parse(caseData.model);
+                    return JSON.parse(objectData.model);
                   } catch {
                     return cleanedModel ?? null;
                   }
                 })()
-              : caseData.model ?? cleanedModel ?? null,
+              : objectData.model ?? cleanedModel ?? null,
         };
       },
     },
     {
       name: "saveFields",
       description:
-        "Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, caseid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveCase after field-only changes; those are unrelated. Views define layout/membership; saveCase updates workflow structure (stages/processes/steps).",
+        "Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).",
       parameters: {
         type: "object",
         properties: {
@@ -563,7 +592,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   description:
                     "Field type (REQUIRED). Must be one of the allowed field types. Always include this even when only changing primary/required.",
                 },
-                caseid: {
+                objectid: {
                   type: "integer",
                   description: "Case ID this field belongs to (REQUIRED)",
                 },
@@ -597,7 +626,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     "Sample value for live preview (REQUIRED; reuse existing value if updating).",
                 },
               },
-              required: ["name", "type", "caseid", "label", "sampleValue"],
+              required: ["name", "type", "objectid", "label", "sampleValue"],
             },
             description: "Array of fields to create or update",
           },
@@ -622,7 +651,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id: number;
           name: string;
           type: string;
-          caseid: number;
+          objectid: number;
           label: string;
           description: string;
           order: number;
@@ -638,7 +667,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             id,
             name,
             type,
-            caseid,
             label,
             description,
             order,
@@ -646,12 +674,14 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             required,
             primary,
             sampleValue,
-          } = field;
+          } = field as any;
+          const objectid = (field as any).objectid ?? (field as any).objectid;
 
           // Validation
           if (!name) throw new Error("Field name is required for saveFields");
           if (!type) throw new Error("Field type is required for saveFields");
-          if (!caseid) throw new Error("Case ID is required for saveFields");
+          if (!objectid)
+            throw new Error("Object ID is required for saveFields");
           if (!label) throw new Error("Field label is required for saveFields");
 
           // Validate field type first so tests expecting this error pass even if sampleValue is missing
@@ -664,10 +694,10 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           }
 
           // Check for existing field with same name in the same case
-          const existingFieldQuery = `SELECT id FROM "${DB_TABLES.FIELDS}" WHERE name = $1 AND caseid = $2`;
+          const existingFieldQuery = `SELECT id FROM "${DB_TABLES.FIELDS}" WHERE name = $1 AND objectid = $2`;
           const existingFieldResult = await pool.query(existingFieldQuery, [
             name,
-            caseid,
+            objectid,
           ]);
 
           if (
@@ -710,14 +740,14 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
             const updateExistingQuery = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, caseid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
               WHERE id = $11
-              RETURNING id, name, type, caseid, label, description, "order", options, required, "primary", "sampleValue"
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
             `;
             const updateExistingValues = [
               name,
               type,
-              caseid,
+              objectid,
               nextLabel,
               nextDescription,
               nextOrder,
@@ -743,7 +773,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 id: fieldData.id ?? existingFieldId,
                 name: fieldData.name ?? name,
                 type: fieldData.type ?? type,
-                caseid: fieldData.caseid ?? caseid,
+                objectid: fieldData.objectid ?? objectid,
                 label: fieldData.label ?? nextLabel,
                 description: fieldData.description ?? nextDescription,
                 order: fieldData.order ?? nextOrder,
@@ -779,9 +809,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             // Update existing field
             const query = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, caseid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
               WHERE id = $11
-              RETURNING id, name, type, caseid, label, description, "order", options, required, "primary", "sampleValue"
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
             `;
             console.log("saveFields UPDATE query:", query);
             // Normalize options & sampleValue for DB storage
@@ -799,7 +829,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             console.log("saveFields UPDATE query values:", [
               name,
               type,
-              caseid,
+              objectid,
               label,
               description ?? "",
               order ?? 0,
@@ -813,7 +843,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             const result = await pool.query(query, [
               name,
               type,
-              caseid,
+              objectid,
               label,
               description ?? "",
               order ?? 0,
@@ -833,7 +863,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               id: fieldData?.id,
               name: fieldData?.name,
               type: fieldData?.type,
-              caseid: fieldData?.caseid ?? fieldData?.caseid,
+              objectid: fieldData?.objectid ?? objectid,
             });
 
             {
@@ -842,7 +872,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 id: fieldData.id ?? id,
                 name: fieldData.name ?? name,
                 type: fieldData.type ?? type,
-                caseid: fieldData.caseid ?? fieldData.caseid ?? caseid,
+                objectid: fieldData.objectid ?? fieldData.objectid ?? objectid,
                 label: fieldData.label ?? label,
                 description: fieldData.description ?? description ?? "",
                 order: fieldData.order ?? order ?? 0,
@@ -870,9 +900,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           } else {
             // Create new field
             const query = `
-              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, caseid, label, description, "order", options, required, "primary", "sampleValue")
+              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, objectid, label, description, "order", options, required, "primary", "sampleValue")
               VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-              RETURNING id, name, type, caseid, label, description, "order", options, required, "primary", "sampleValue"
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
             `;
             console.log("saveFields INSERT query:", query);
             const normalizedOptions = Array.isArray(options)
@@ -889,7 +919,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             console.log("saveFields INSERT query values:", [
               name,
               type,
-              caseid,
+              objectid,
               label,
               description ?? "",
               order ?? 0,
@@ -902,7 +932,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             const result = await pool.query(query, [
               name,
               type,
-              caseid,
+              objectid,
               label,
               description ?? "",
               order ?? 0,
@@ -917,7 +947,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               id: fieldData?.id,
               name: fieldData?.name,
               type: fieldData?.type,
-              caseid: fieldData?.caseid ?? fieldData?.caseid,
+              objectid: fieldData?.objectid ?? objectid,
             });
 
             {
@@ -926,7 +956,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 id: fieldData.id ?? id,
                 name: fieldData.name ?? name,
                 type: fieldData.type ?? type,
-                caseid: fieldData.caseid ?? fieldData.caseid ?? caseid,
+                objectid: fieldData.objectid ?? objectid,
                 label: fieldData.label ?? label,
                 description: fieldData.description ?? description ?? "",
                 order: fieldData.order ?? order ?? 0,
@@ -977,7 +1007,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description: "View ID (required for update, omit for create)",
           },
           name: { type: "string", description: "View name" },
-          caseid: {
+          objectid: {
             type: "integer",
             description: "Case ID this view belongs to",
           },
@@ -1027,25 +1057,28 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             required: ["fields", "layout"],
           },
         },
-        required: ["name", "caseid", "model"],
+        required: ["name", "objectid", "model"],
       },
       execute: async (params: SaveViewParams) => {
         console.log("=== saveView EXECUTION STARTED ===");
         console.log("saveView parameters:", JSON.stringify(params, null, 2));
         console.log("saveView called at:", new Date().toISOString());
 
-        const { id, name, caseid, model } = params;
+        const { id, name, objectid, model } = params;
 
         // Validation
         if (!name) throw new Error("View name is required for saveView");
-        if (!caseid) throw new Error("Case ID is required for saveView");
+        if (!objectid) throw new Error("Case ID is required for saveView");
         if (!model) throw new Error("View model is required for saveView");
 
         // Validate and auto-clean referenced fieldIds for this case BEFORE writing
         if (model && Array.isArray(model.fields) && model.fields.length > 0) {
           const fieldIds = model.fields.map((f) => f.fieldId);
-          const fieldQuery = `SELECT id, type FROM "${DB_TABLES.FIELDS}" WHERE id = ANY($1) AND caseid = $2`;
-          const fieldResult = await pool.query(fieldQuery, [fieldIds, caseid]);
+          const fieldQuery = `SELECT id, type FROM "${DB_TABLES.FIELDS}" WHERE id = ANY($1) AND objectid = $2`;
+          const fieldResult = await pool.query(fieldQuery, [
+            fieldIds,
+            objectid,
+          ]);
           const existingFieldIds = new Set(
             fieldResult.rows.map((row) => row.id),
           );
@@ -1054,7 +1087,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           );
           if (missingFieldIds.length > 0) {
             console.warn(
-              `saveView: Removing missing field references from view model for case ${caseid}: ${missingFieldIds.join(
+              `saveView: Removing missing field references from view model for case ${objectid}: ${missingFieldIds.join(
                 ", ",
               )}`,
             );
@@ -1087,20 +1120,25 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           // Update existing view
           const query = `
             UPDATE "${DB_TABLES.VIEWS}"
-            SET name = $1, caseid = $2, model = $3
+            SET name = $1, objectid = $2, model = $3
             WHERE id = $4
-            RETURNING id, name, caseid, model
+            RETURNING id, name, objectid as objectid, model
           `;
           console.log("saveView UPDATE query:", query);
           const modelJson = JSON.stringify(model);
           console.log("saveView UPDATE query values:", [
             name,
-            caseid,
+            objectid,
             modelJson,
             id,
           ]);
 
-          const result = await pool.query(query, [name, caseid, modelJson, id]);
+          const result = await pool.query(query, [
+            name,
+            objectid,
+            modelJson,
+            id,
+          ]);
           if (result.rowCount === 0) {
             console.error(`saveView ERROR: No view found with id ${id}`);
             throw new Error(`No view found with id ${id}`);
@@ -1111,7 +1149,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           console.log({
             id: viewData?.id,
             name: viewData?.name,
-            caseid: viewData?.caseid ?? viewData?.caseid,
+            objectid: viewData?.objectid ?? objectid,
             modelFields: (() => {
               try {
                 const m =
@@ -1128,7 +1166,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           return {
             id: viewData?.id,
             name: viewData?.name,
-            caseid: viewData?.caseid ?? viewData?.caseid,
+            objectid: viewData?.objectid ?? objectid,
             model:
               typeof viewData?.model === "string"
                 ? JSON.parse(viewData.model)
@@ -1137,26 +1175,26 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         } else {
           // Create new view
           const query = `
-            INSERT INTO "${DB_TABLES.VIEWS}" (name, caseid, model)
+            INSERT INTO "${DB_TABLES.VIEWS}" (name, objectid, model)
             VALUES ($1, $2, $3)
-            RETURNING id, name, caseid, model
+            RETURNING id, name, objectid as objectid, model
           `;
           console.log("saveView INSERT query:", query);
           const modelJson = JSON.stringify(model);
           console.log("saveView INSERT query values:", [
             name,
-            caseid,
+            objectid,
             modelJson,
           ]);
 
-          const result = await pool.query(query, [name, caseid, modelJson]);
+          const result = await pool.query(query, [name, objectid, modelJson]);
           const viewData = result.rows[0];
 
           console.log("saveView INSERT successful:");
           console.log({
             id: viewData?.id,
             name: viewData?.name,
-            caseid: viewData?.caseid ?? viewData?.caseid,
+            objectid: viewData?.objectid ?? objectid,
             modelFields: (() => {
               try {
                 const m =
@@ -1173,7 +1211,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           return {
             id: viewData?.id,
             name: viewData?.name,
-            caseid: viewData?.caseid ?? viewData?.caseid,
+            objectid: viewData?.objectid ?? objectid,
             model:
               typeof viewData?.model === "string"
                 ? JSON.parse(viewData.model)
@@ -1183,50 +1221,54 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       },
     },
     {
-      name: "deleteCase",
+      name: "deleteObject",
       description:
-        "Permanently deletes a case and all its associated fields and views. This action is NOT recoverable. Use ONLY when the user explicitly requests deletion. If there is any ambiguity, ask the user to confirm before proceeding.",
+        "Permanently deletes an object and all its associated fields and views. This action is NOT recoverable. Use ONLY when the user explicitly requests deletion. If there is any ambiguity, ask the user to confirm before proceeding.",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "integer", description: "Case ID to delete" },
+          id: { type: "integer", description: "Object ID to delete" },
         },
         required: ["id"],
       },
       execute: async (params: DeleteParams) => {
-        console.log("=== deleteCase EXECUTION STARTED ===");
-        console.log("deleteCase parameters:", JSON.stringify(params, null, 2));
-        console.log("deleteCase called at:", new Date().toISOString());
+        console.log("=== deleteObject EXECUTION STARTED ===");
+        console.log(
+          "deleteObject parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("deleteObject called at:", new Date().toISOString());
 
         const { id } = params;
 
         // Delete associated fields first
-        const deleteFieldsQuery = `DELETE FROM "${DB_TABLES.FIELDS}" WHERE caseid = $1`;
-        console.log("deleteCase deleteFields query:", deleteFieldsQuery);
-        console.log("deleteCase deleteFields query values:", [id]);
+        const deleteFieldsQuery = `DELETE FROM "${DB_TABLES.FIELDS}" WHERE objectid = $1`;
+        console.log("deleteObject deleteFields query:", deleteFieldsQuery);
+        console.log("deleteObject deleteFields query values:", [id]);
         await pool.query(deleteFieldsQuery, [id]);
 
         // Delete associated views
-        const deleteViewsQuery = `DELETE FROM "${DB_TABLES.VIEWS}" WHERE caseid = $1`;
-        console.log("deleteCase deleteViews query:", deleteViewsQuery);
-        console.log("deleteCase deleteViews query values:", [id]);
+        const deleteViewsQuery = `DELETE FROM "${DB_TABLES.VIEWS}" WHERE objectid = $1`;
+        console.log("deleteObject deleteViews query:", deleteViewsQuery);
+        console.log("deleteObject deleteViews query values:", [id]);
         await pool.query(deleteViewsQuery, [id]);
 
-        // Delete the case
-        const deleteCaseQuery = `DELETE FROM "${DB_TABLES.CASES}" WHERE id = $1`;
-        console.log("deleteCase deleteCase query:", deleteCaseQuery);
-        console.log("deleteCase deleteCase query values:", [id]);
-        const result = await pool.query(deleteCaseQuery, [id]);
+        // Delete the object
+        const deleteObjectQuery = `DELETE FROM "${OBJECTS_TABLE}" WHERE id = $1`;
+        console.log("deleteObject query:", deleteObjectQuery);
+        console.log("deleteObject query values:", [id]);
+        const result = await pool.query(deleteObjectQuery, [id]);
 
         if (result.rowCount === 0) {
-          console.error(`deleteCase ERROR: No case found with id ${id}`);
-          throw new Error(`No case found with id ${id}`);
+          console.error(`deleteObject ERROR: No object found with id ${id}`);
+          throw new Error(`No object found with id ${id}`);
         }
 
-        console.log("deleteCase successful:", { id });
+        console.log("deleteObject successful:", { id });
         return { success: true, deletedId: id };
       },
     },
+
     {
       name: "deleteField",
       description:
@@ -1245,19 +1287,19 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
         const { id } = params;
 
-        // First, get the field name and caseid before deleting
-        const getFieldQuery = `SELECT name, caseid FROM "${DB_TABLES.FIELDS}" WHERE id = $1`;
+        // First, get the field name and objectid before deleting
+        const getFieldQuery = `SELECT name, objectid as objectid FROM "${DB_TABLES.FIELDS}" WHERE id = $1`;
         const getFieldResult = await pool.query(getFieldQuery, [id]);
         if (getFieldResult.rowCount === 0) {
           console.error(`deleteField ERROR: No field found with id ${id}`);
           throw new Error(`No field found with id ${id}`);
         }
         const fieldName = getFieldResult.rows[0].name;
-        const caseid = getFieldResult.rows[0].caseid;
+        const objectid = getFieldResult.rows[0].objectid;
 
         // Find all views that use this field and remove the field from them
-        const getViewsQuery = `SELECT id, name, model FROM "${DB_TABLES.VIEWS}" WHERE caseid = $1`;
-        const viewsResult = await pool.query(getViewsQuery, [caseid]);
+        const getViewsQuery = `SELECT id, name, model FROM "${DB_TABLES.VIEWS}" WHERE objectid = $1`;
+        const viewsResult = await pool.query(getViewsQuery, [objectid]);
 
         let updatedViewsCount = 0;
         for (const view of viewsResult.rows) {
@@ -1306,7 +1348,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id,
           name: fieldName,
           updatedViewsCount,
-          caseid,
+          objectid,
         });
         return {
           success: true,
@@ -1336,21 +1378,21 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         const { id } = params;
 
         // First, get the view name and parent case before deleting
-        const getViewQuery = `SELECT name, caseid FROM "${DB_TABLES.VIEWS}" WHERE id = $1`;
+        const getViewQuery = `SELECT name, objectid as objectid FROM "${DB_TABLES.VIEWS}" WHERE id = $1`;
         const getViewResult = await pool.query(getViewQuery, [id]);
         if (getViewResult.rowCount === 0) {
           console.error(`deleteView ERROR: No view found with id ${id}`);
           throw new Error(`No view found with id ${id}`);
         }
         const viewName = getViewResult.rows[0].name;
-        const parentCaseId = getViewResult.rows[0].caseid as number;
+        const parentobjectid = getViewResult.rows[0].objectid as number;
 
         // Attempt to clear references to this view from the parent case model
         let updatedStepsCount = 0;
-        if (parentCaseId) {
+        if (parentobjectid) {
           try {
-            const getCaseQuery = `SELECT id, model FROM "${DB_TABLES.CASES}" WHERE id = $1`;
-            const caseResult = await pool.query(getCaseQuery, [parentCaseId]);
+            const getCaseQuery = `SELECT id, model FROM "${OBJECTS_TABLE}" WHERE id = $1`;
+            const caseResult = await pool.query(getCaseQuery, [parentobjectid]);
             if ((caseResult.rowCount ?? 0) > 0) {
               const caseRow = caseResult.rows[0];
               let model: any = {};
@@ -1361,7 +1403,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     : caseRow.model || {};
               } catch (e) {
                 console.warn(
-                  `deleteView: Failed to parse case model for case ${parentCaseId}; proceeding without model cleanup`,
+                  `deleteView: Failed to parse case model for case ${parentobjectid}; proceeding without model cleanup`,
                   e,
                 );
                 model = {};
@@ -1371,17 +1413,17 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 const cleanup = removeViewReferencesFromCaseModel(model, id);
                 updatedStepsCount = cleanup.updatedStepsCount;
                 if (updatedStepsCount > 0) {
-                  const updateCaseQuery = `UPDATE "${DB_TABLES.CASES}" SET model = $1 WHERE id = $2`;
+                  const updateCaseQuery = `UPDATE "${OBJECTS_TABLE}" SET model = $1 WHERE id = $2`;
                   await pool.query(updateCaseQuery, [
                     JSON.stringify(cleanup.model),
-                    parentCaseId,
+                    parentobjectid,
                   ]);
                 }
               }
             }
           } catch (e) {
             console.warn(
-              `deleteView: Non-fatal error while updating case model for case ${parentCaseId}:`,
+              `deleteView: Non-fatal error while updating case model for case ${parentobjectid}:`,
               e,
             );
           }
@@ -1403,7 +1445,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           deletedId: id,
           deletedName: viewName,
           type: "view",
-          updatedCaseId: parentCaseId ?? null,
+          updatedobjectid: parentobjectid ?? null,
           updatedStepsCount,
         };
       },
@@ -1414,33 +1456,33 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       parameters: {
         type: "object",
         properties: {
-          caseid: {
+          objectid: {
             type: "integer",
             description: "Case ID to list fields for",
           },
         },
-        required: ["caseid"],
+        required: ["objectid"],
       },
-      execute: async (params: { caseid: number }) => {
+      execute: async (params: { objectid: number }) => {
         console.log("=== listFields EXECUTION STARTED ===");
         console.log("listFields parameters:", JSON.stringify(params, null, 2));
         console.log("listFields called at:", new Date().toISOString());
 
         const query = `
-          SELECT id, name, type, caseid, label, description, "order", options, required, "primary", "sampleValue"
+          SELECT id, name, type, objectid, label, description, "order", options, required, "primary", "sampleValue"
           FROM "${DB_TABLES.FIELDS}"
-          WHERE caseid = $1
+          WHERE objectid = $1
           ORDER BY "order", name
         `;
         console.log("listFields query:", query);
-        console.log("listFields query values:", [params.caseid]);
+        console.log("listFields query values:", [params.objectid]);
 
-        const result = await pool.query(query, [params.caseid]);
+        const result = await pool.query(query, [params.objectid]);
         const fields = result.rows.map((row) => ({
           id: row.id,
           name: row.name,
           type: row.type,
-          caseid: row.caseid,
+          objectid: row.objectid,
           label: row.label,
           description: row.description,
           order: row.order,
@@ -1451,7 +1493,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         }));
 
         console.log("listFields successful:", {
-          caseid: params.caseid,
+          objectid: params.objectid,
           fieldCount: fields.length,
         });
 
@@ -1464,35 +1506,38 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       parameters: {
         type: "object",
         properties: {
-          caseid: { type: "integer", description: "Case ID to list views for" },
+          objectid: {
+            type: "integer",
+            description: "Case ID to list views for",
+          },
         },
-        required: ["caseid"],
+        required: ["objectid"],
       },
-      execute: async (params: { caseid: number }) => {
+      execute: async (params: { objectid: number }) => {
         console.log("=== listViews EXECUTION STARTED ===");
         console.log("listViews parameters:", JSON.stringify(params, null, 2));
         console.log("listViews called at:", new Date().toISOString());
 
         const query = `
-          SELECT id, name, caseid, model
+          SELECT id, name, objectid, model
           FROM "${DB_TABLES.VIEWS}"
-          WHERE caseid = $1
+          WHERE objectid = $1
           ORDER BY name
         `;
         console.log("listViews query:", query);
-        console.log("listViews query values:", [params.caseid]);
+        console.log("listViews query values:", [params.objectid]);
 
-        const result = await pool.query(query, [params.caseid]);
+        const result = await pool.query(query, [params.objectid]);
         const views = result.rows.map((row) => ({
           id: row.id,
           name: row.name,
-          caseid: row.caseid,
+          objectid: row.objectid,
           model:
             typeof row.model === "string" ? JSON.parse(row.model) : row.model,
         }));
 
         console.log("listViews successful:", {
-          caseid: params.caseid,
+          objectid: params.objectid,
           viewCount: views.length,
         });
 
@@ -1500,33 +1545,35 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       },
     },
     {
-      name: "getCase",
+      name: "getObject",
       description:
-        "Gets case details including workflow model. Use first to see current structure.",
+        "Gets object details including model. For workflow objects, the model contains stages/processes/steps.",
       parameters: {
         type: "object",
         properties: {
-          id: { type: "integer", description: "Case ID" },
+          id: { type: "integer", description: "Object ID" },
         },
         required: ["id"],
       },
       execute: async (params: { id: number }) => {
-        console.log("=== getCase EXECUTION STARTED ===");
-        console.log("getCase parameters:", JSON.stringify(params, null, 2));
-        console.log("getCase called at:", new Date().toISOString());
+        console.log("=== getObject EXECUTION STARTED ===");
+        console.log("getObject parameters:", JSON.stringify(params, null, 2));
+        console.log("getObject called at:", new Date().toISOString());
 
         const query = `
           SELECT id, name, description, model
-          FROM "${DB_TABLES.CASES}"
+          FROM "${OBJECTS_TABLE}"
           WHERE id = $1
         `;
-        console.log("getCase query:", query);
-        console.log("getCase query values:", [params.id]);
+        console.log("getObject query:", query);
+        console.log("getObject query values:", [params.id]);
 
         const result = await pool.query(query, [params.id]);
         if (result.rowCount === 0) {
-          console.error(`getCase ERROR: No case found with id ${params.id}`);
-          throw new Error(`No case found with id ${params.id}`);
+          console.error(
+            `getObject ERROR: No object found with id ${params.id}`,
+          );
+          throw new Error(`No object found with id ${params.id}`);
         }
         const caseData = result.rows[0];
         const model =
@@ -1534,7 +1581,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             ? JSON.parse(caseData.model)
             : caseData.model;
 
-        console.log("getCase successful:", {
+        console.log("getObject successful:", {
           id: caseData.id,
           name: caseData.name,
           modelStages: model.stages?.length || 0,
@@ -1572,39 +1619,57 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       },
     },
     {
-      name: "getCases",
-      description: "Lists all cases with names and descriptions.",
+      name: "listObjects",
+      description:
+        "Lists objects with optional filters (hasWorkflow, applicationid).",
       parameters: {
         type: "object",
-        properties: {},
+        properties: {
+          applicationid: { type: "integer" },
+          hasWorkflow: { type: "boolean" },
+        },
         required: [],
       },
-      execute: async () => {
-        console.log("=== getCases EXECUTION STARTED ===");
-        console.log("getCases called at:", new Date().toISOString());
+      execute: async (params: {
+        applicationid?: number;
+        hasWorkflow?: boolean;
+      }) => {
+        console.log("=== listObjects EXECUTION STARTED ===");
+        console.log("listObjects called at:", new Date().toISOString());
 
+        const filters: string[] = [];
+        const values: any[] = [];
+        if (typeof params?.applicationid === "number") {
+          values.push(params.applicationid);
+          filters.push(`applicationid = $${values.length}`);
+        }
+        if (typeof params?.hasWorkflow === "boolean") {
+          values.push(params.hasWorkflow);
+          filters.push(`"hasWorkflow" = $${values.length}`);
+        }
+        const where = filters.length ? `WHERE ${filters.join(" AND ")}` : "";
         const query = `
-          SELECT id, name, description
-          FROM "${DB_TABLES.CASES}"
+          SELECT id, name, description, "hasWorkflow"
+          FROM "${OBJECTS_TABLE}"
+          ${where}
           ORDER BY name
         `;
-        console.log("getCases query:", query);
+        console.log("listObjects query:", query, values);
 
-        const result = await pool.query(query);
-        const cases = result.rows.map((row) => ({
+        const result = await pool.query(query, values);
+        const objects = result.rows.map((row) => ({
           id: row.id,
           name: row.name,
           description: row.description,
+          hasWorkflow: row.hasWorkflow,
         }));
 
-        console.log("getCases successful:", {
-          caseCount: cases.length,
-        });
+        console.log("listObjects successful:", { count: objects.length });
 
-        return { cases };
+        return { objects };
       },
     },
-    // Inserted tools for Systems of Record and Data Objects
+    // Systems of Record tools
     {
       name: "saveSystemOfRecord",
       description:
@@ -1669,7 +1734,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       execute: async (params: { id: number }) => {
         // Enforce referential integrity at application level too
         const refCheck = await pool.query(
-          `SELECT 1 FROM "${DB_TABLES.DATA_OBJECTS}" WHERE "systemOfRecordId" = $1 LIMIT 1`,
+          `SELECT 1 FROM "${OBJECTS_TABLE}" WHERE "systemOfRecordId" = $1 LIMIT 1`,
           [params.id],
         );
         if ((refCheck.rowCount ?? 0) > 0) {
@@ -1686,157 +1751,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         return { success: true, deletedId: params.id };
       },
     },
-    {
-      name: "saveDataObject",
-      description:
-        "Creates or updates a Data Object (name, description, caseid, systemOfRecordId, model). Model holds integration/config metadata only; data object fields live in the Fields table keyed by dataObjectId.",
-      parameters: {
-        type: "object",
-        properties: {
-          id: {
-            type: "integer",
-            description: "Data Object ID (omit for create)",
-          },
-          name: { type: "string", description: "Data object name" },
-          description: { type: "string", description: "Description" },
-          caseid: { type: "integer", description: "Parent case ID" },
-          systemOfRecordId: {
-            type: "integer",
-            description: "System of record ID",
-          },
-          model: {
-            type: "object",
-            description:
-              "Optional JSON model for integration/config. Do not include fields[]; use Fields records with dataObjectId instead.",
-          },
-        },
-        required: ["name", "description", "caseid", "systemOfRecordId"],
-      },
-      execute: async (params: {
-        id?: number;
-        name: string;
-        description: string;
-        caseid: number;
-        systemOfRecordId: number;
-        model?: any;
-      }) => {
-        const { id, name, description, caseid, systemOfRecordId, model } =
-          params;
-        if (!name) throw new Error("Data object name is required");
-        if (!description)
-          throw new Error("Data object description is required");
-        if (!caseid) throw new Error("caseid is required");
-        if (!systemOfRecordId) throw new Error("systemOfRecordId is required");
-
-        // Ensure SOR exists
-        const sorRes = await pool.query(
-          `SELECT id FROM "${DB_TABLES.SYSTEMS_OF_RECORD}" WHERE id = $1`,
-          [systemOfRecordId],
-        );
-        if (sorRes.rowCount === 0)
-          throw new Error(
-            `System of record ${systemOfRecordId} does not exist`,
-          );
-
-        // Normalize model JSON
-        const modelJson = model ? JSON.stringify(model) : null;
-
-        if (id) {
-          const update = `
-            UPDATE "${DB_TABLES.DATA_OBJECTS}"
-            SET name = $1, description = $2, caseid = $3, "systemOfRecordId" = $4, model = $5
-            WHERE id = $6
-            RETURNING id, name, description, caseid, "systemOfRecordId", model
-          `;
-          const res = await pool.query(update, [
-            name,
-            description,
-            caseid,
-            systemOfRecordId,
-            modelJson,
-            id,
-          ]);
-          if (res.rowCount === 0)
-            throw new Error(`No data object found with id ${id}`);
-          const row = res.rows[0];
-          return {
-            ...row,
-            model: row.model
-              ? typeof row.model === "string"
-                ? JSON.parse(row.model)
-                : row.model
-              : null,
-          };
-        }
-
-        const insert = `
-          INSERT INTO "${DB_TABLES.DATA_OBJECTS}" (name, description, caseid, "systemOfRecordId", model)
-          VALUES ($1, $2, $3, $4, $5)
-          RETURNING id, name, description, caseid, "systemOfRecordId", model
-        `;
-        const res = await pool.query(insert, [
-          name,
-          description,
-          caseid,
-          systemOfRecordId,
-          modelJson,
-        ]);
-        const row = res.rows[0];
-        return {
-          ...row,
-          model: row.model
-            ? typeof row.model === "string"
-              ? JSON.parse(row.model)
-              : row.model
-            : null,
-        };
-      },
-    },
-    {
-      name: "listDataObjects",
-      description: "Lists data objects for a case.",
-      parameters: {
-        type: "object",
-        properties: { caseid: { type: "integer" } },
-        required: ["caseid"],
-      },
-      execute: async (params: { caseid: number }) => {
-        const query = `
-          SELECT id, name, description, caseid, "systemOfRecordId", model
-          FROM "${DB_TABLES.DATA_OBJECTS}"
-          WHERE caseid = $1
-          ORDER BY name
-        `;
-        const res = await pool.query(query, [params.caseid]);
-        const objects = res.rows.map((r) => ({
-          ...r,
-          model: r.model
-            ? typeof r.model === "string"
-              ? JSON.parse(r.model)
-              : r.model
-            : null,
-        }));
-        return { dataObjects: objects };
-      },
-    },
-    {
-      name: "deleteDataObject",
-      description: "Deletes a data object by id.",
-      parameters: {
-        type: "object",
-        properties: { id: { type: "integer" } },
-        required: ["id"],
-      },
-      execute: async (params: { id: number }) => {
-        const res = await pool.query(
-          `DELETE FROM "${DB_TABLES.DATA_OBJECTS}" WHERE id = $1`,
-          [params.id],
-        );
-        if (res.rowCount === 0)
-          throw new Error(`No data object found with id ${params.id}`);
-        return { success: true, deletedId: params.id };
-      },
-    },
+    // Data Object tools removed; use Objects with hasWorkflow=false and Fields referencing objectid
   ];
 
   return tools;

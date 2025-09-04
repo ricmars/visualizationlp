@@ -123,7 +123,7 @@ export async function initializeDatabase() {
       CREATE TABLE IF NOT EXISTS "undo_log" (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         checkpoint_id UUID NOT NULL,
-        caseid INTEGER NOT NULL,
+        objectid INTEGER NOT NULL,
         operation TEXT NOT NULL CHECK (operation IN ('insert', 'update', 'delete')),
         table_name TEXT NOT NULL,
         primary_key JSONB NOT NULL,
@@ -144,13 +144,15 @@ export async function initializeDatabase() {
       );
     }
 
-    // Create index for undo_log caseid
+    // Create index for undo_log objectid (references Objects.id)
     try {
       await pool.query(`
-        CREATE INDEX IF NOT EXISTS undo_log_caseid_idx ON "undo_log" (caseid);
+        CREATE INDEX IF NOT EXISTS undo_log_objectid_idx ON "undo_log" (objectid);
       `);
     } catch (_error) {
-      console.log("Index undo_log_caseid_idx may already exist, continuing...");
+      console.log(
+        "Index undo_log_objectid_idx may already exist, continuing...",
+      );
     }
 
     // Create index for batch checkpoint queries (optimized for ANY() operations)
@@ -164,16 +166,16 @@ export async function initializeDatabase() {
       );
     }
 
-    // Create foreign key for undo_log caseid if it doesn't exist
+    // Create foreign key for undo_log objectid if it doesn't exist (to Objects)
     try {
       await pool.query(`
         ALTER TABLE "undo_log"
-        ADD CONSTRAINT IF NOT EXISTS undo_log_caseid_fkey
-        FOREIGN KEY (caseid) REFERENCES "Cases" (id) ON DELETE CASCADE;
+        ADD CONSTRAINT IF NOT EXISTS undo_log_objectid_fkey
+        FOREIGN KEY (objectid) REFERENCES "Objects" (id) ON DELETE CASCADE;
       `);
     } catch (_error) {
       console.log(
-        "Foreign key undo_log_caseid_fkey may already exist, continuing...",
+        "Foreign key undo_log_objectid_fkey may already exist, continuing...",
       );
     }
 
@@ -181,7 +183,7 @@ export async function initializeDatabase() {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS "checkpoints" (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        caseid INTEGER NOT NULL,
+        objectid INTEGER NOT NULL,
         applicationid INTEGER,
         description TEXT,
         user_command TEXT,
@@ -194,14 +196,14 @@ export async function initializeDatabase() {
       );
     `);
 
-    // Create index for checkpoints caseid
+    // Create index for checkpoints objectid (references Objects.id)
     try {
       await pool.query(`
-        CREATE INDEX IF NOT EXISTS checkpoints_caseid_idx ON "checkpoints" (caseid, created_at DESC);
+        CREATE INDEX IF NOT EXISTS checkpoints_objectid_idx ON "checkpoints" (objectid, created_at DESC);
       `);
     } catch (_error) {
       console.log(
-        "Index checkpoints_caseid_idx may already exist, continuing...",
+        "Index checkpoints_objectid_idx may already exist, continuing...",
       );
     }
 
@@ -219,7 +221,7 @@ export async function initializeDatabase() {
     // Create composite index for active checkpoints query optimization
     try {
       await pool.query(`
-        CREATE INDEX IF NOT EXISTS checkpoints_active_status_idx ON "checkpoints" (status, caseid, applicationid, created_at DESC);
+        CREATE INDEX IF NOT EXISTS checkpoints_active_status_idx ON "checkpoints" (status, objectid, applicationid, created_at DESC);
       `);
     } catch (_error) {
       console.log(
@@ -238,16 +240,16 @@ export async function initializeDatabase() {
       );
     }
 
-    // Create foreign key for checkpoints caseid if it doesn't exist
+    // Create foreign key for checkpoints objectid if it doesn't exist (to Objects)
     try {
       await pool.query(`
         ALTER TABLE "checkpoints"
-        ADD CONSTRAINT IF NOT EXISTS checkpoints_caseid_fkey
-        FOREIGN KEY (caseid) REFERENCES "Cases" (id) ON DELETE CASCADE;
+        ADD CONSTRAINT IF NOT EXISTS checkpoints_objectid_fkey
+        FOREIGN KEY (objectid) REFERENCES "Objects" (id) ON DELETE CASCADE;
       `);
     } catch (_error) {
       console.log(
-        "Foreign key checkpoints_caseid_fkey may already exist, continuing...",
+        "Foreign key checkpoints_objectid_fkey may already exist, continuing...",
       );
     }
 
@@ -323,7 +325,7 @@ export async function resetDatabase() {
 // Checkpoint Management Functions
 export interface CheckpointManager {
   beginCheckpoint(
-    caseid: number,
+    objectid: number,
     description?: string,
     userCommand?: string,
     source?: string,
@@ -334,7 +336,7 @@ export interface CheckpointManager {
   restoreToCheckpoint(checkpointId: string): Promise<void>;
   logOperation(
     checkpointId: string,
-    caseid: number,
+    objectid: number,
     operation: "insert" | "update" | "delete",
     tableName: string,
     primaryKey: unknown,
@@ -342,11 +344,11 @@ export interface CheckpointManager {
   ): Promise<void>;
   recordToolExecution(checkpointId: string, toolName: string): Promise<void>;
   getActiveCheckpoints(
-    caseid?: number,
+    objectid?: number,
     applicationid?: number,
   ): Promise<Array<{ id: string; description: string; created_at: Date }>>;
   getCheckpointHistory(
-    caseid?: number,
+    objectid?: number,
     applicationid?: number,
   ): Promise<
     Array<{
@@ -363,26 +365,26 @@ export interface CheckpointManager {
   >;
   applyUndoOperation(client: any, op: any): Promise<void>;
   deleteCheckpoint(checkpointId: string): Promise<void>;
-  deleteAllCheckpoints(caseid?: number): Promise<void>;
+  deleteAllCheckpoints(objectid?: number): Promise<void>;
 }
 
 export const checkpointManager: CheckpointManager = {
   async beginCheckpoint(
-    caseid: number,
+    objectid: number,
     description = "LLM Tool Execution",
     userCommand?: string,
     source = "LLM",
     applicationid?: number,
   ): Promise<string> {
-    console.log("Creating new checkpoint:", description, "for case:", caseid);
+    console.log("Creating new checkpoint:", description, "for case:", objectid);
 
     const result = await pool.query(
       `
-      INSERT INTO "checkpoints" (caseid, applicationid, description, user_command, status, source)
+      INSERT INTO "checkpoints" (objectid, applicationid, description, user_command, status, source)
       VALUES ($1, $2, $3, $4, 'active', $5)
       RETURNING id
     `,
-      [caseid, applicationid, description, userCommand, source],
+      [objectid, applicationid, description, userCommand, source],
     );
 
     const checkpointId = result.rows[0].id;
@@ -574,7 +576,7 @@ export const checkpointManager: CheckpointManager = {
 
   async logOperation(
     checkpointId: string,
-    caseid: number,
+    objectid: number,
     operation: "insert" | "update" | "delete",
     tableName: string,
     primaryKey: unknown,
@@ -582,12 +584,12 @@ export const checkpointManager: CheckpointManager = {
   ): Promise<void> {
     await pool.query(
       `
-      INSERT INTO "undo_log" (checkpoint_id, caseid, operation, table_name, primary_key, previous_data)
+      INSERT INTO "undo_log" (checkpoint_id, objectid, operation, table_name, primary_key, previous_data)
       VALUES ($1, $2, $3, $4, $5, $6)
     `,
       [
         checkpointId,
-        caseid,
+        objectid,
         operation,
         tableName,
         JSON.stringify(primaryKey),
@@ -597,33 +599,33 @@ export const checkpointManager: CheckpointManager = {
   },
 
   async getActiveCheckpoints(
-    caseid?: number,
+    objectid?: number,
     applicationid?: number,
   ): Promise<Array<{ id: string; description: string; created_at: Date }>> {
     // Use a more efficient query with proper parameter handling
     let query: string;
     const values: unknown[] = [];
 
-    if (caseid !== undefined && applicationid !== undefined) {
-      // Both caseid and applicationid provided - use composite index
+    if (objectid !== undefined && applicationid !== undefined) {
+      // Both objectid and applicationid provided - use composite index
       query = `
         SELECT id, description, created_at
         FROM "checkpoints"
-        WHERE status = 'active' AND caseid = $1 AND applicationid = $2
+        WHERE status = 'active' AND objectid = $1 AND applicationid = $2
         ORDER BY created_at DESC
         LIMIT 100
       `;
-      values.push(caseid, applicationid);
-    } else if (caseid !== undefined) {
-      // Only caseid provided
+      values.push(objectid, applicationid);
+    } else if (objectid !== undefined) {
+      // Only objectid provided
       query = `
         SELECT id, description, created_at
         FROM "checkpoints"
-        WHERE status = 'active' AND caseid = $1
+        WHERE status = 'active' AND objectid = $1
         ORDER BY created_at DESC
         LIMIT 100
       `;
-      values.push(caseid);
+      values.push(objectid);
     } else if (applicationid !== undefined) {
       // Only applicationid provided
       query = `
@@ -735,7 +737,7 @@ export const checkpointManager: CheckpointManager = {
   },
 
   async getCheckpointHistory(
-    caseid?: number,
+    objectid?: number,
     applicationid?: number,
   ): Promise<
     Array<{
@@ -766,9 +768,9 @@ export const checkpointManager: CheckpointManager = {
     `;
     const values: unknown[] = [];
 
-    if (caseid !== undefined) {
-      query += ` AND caseid = $1`;
-      values.push(caseid);
+    if (objectid !== undefined) {
+      query += ` AND objectid = $1`;
+      values.push(objectid);
     }
 
     if (applicationid !== undefined) {
@@ -814,9 +816,9 @@ export const checkpointManager: CheckpointManager = {
     }
   },
 
-  async deleteAllCheckpoints(caseid?: number): Promise<void> {
-    const logMessage = caseid
-      ? `Deleting all checkpoints for case ${caseid}`
+  async deleteAllCheckpoints(objectid?: number): Promise<void> {
+    const logMessage = objectid
+      ? `Deleting all checkpoints for case ${objectid}`
       : "Deleting all checkpoints";
     console.log(logMessage);
 
@@ -824,22 +826,22 @@ export const checkpointManager: CheckpointManager = {
     try {
       await client.query("BEGIN");
 
-      if (caseid !== undefined) {
+      if (objectid !== undefined) {
         // Delete undo log entries for specific case
         const undoResult = await client.query(
-          `DELETE FROM "undo_log" WHERE caseid = $1`,
-          [caseid],
+          `DELETE FROM "undo_log" WHERE objectid = $1`,
+          [objectid],
         );
 
         // Delete checkpoints for specific case
         const checkpointResult = await client.query(
-          `DELETE FROM "checkpoints" WHERE caseid = $1`,
-          [caseid],
+          `DELETE FROM "checkpoints" WHERE objectid = $1`,
+          [objectid],
         );
 
         await client.query("COMMIT");
         console.log(
-          `Deleted ${checkpointResult.rowCount} checkpoints and ${undoResult.rowCount} undo log entries for case ${caseid}`,
+          `Deleted ${checkpointResult.rowCount} checkpoints and ${undoResult.rowCount} undo log entries for case ${objectid}`,
         );
       } else {
         // Delete all undo log entries

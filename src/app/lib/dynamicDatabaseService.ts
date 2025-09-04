@@ -192,7 +192,7 @@ export class DynamicDatabaseService {
             tableName,
             { id: result.rows[0].id },
             undefined,
-            data.caseid,
+            data.objectid,
           );
         }
 
@@ -294,15 +294,15 @@ export class DynamicDatabaseService {
       }
 
       // Resolve the effective case id for checkpointing/logging
-      const effectiveCaseId: number | undefined =
+      const effectiveobjectid: number | undefined =
         ruleType.id === "case"
           ? id
-          : (currentData?.caseid as number | undefined);
+          : (currentData?.objectid as number | undefined);
 
       // Create checkpoint for tracking with the correct case id
       const checkpointId = await this.createCheckpoint(ruleType.id, "update", {
         ...data,
-        caseid: effectiveCaseId,
+        objectid: effectiveobjectid,
       });
 
       const result = await this.pool.query(query, [id, ...values]);
@@ -316,7 +316,7 @@ export class DynamicDatabaseService {
             tableName,
             { id },
             currentData,
-            effectiveCaseId,
+            effectiveobjectid,
           );
         }
 
@@ -366,23 +366,23 @@ export class DynamicDatabaseService {
       }
 
       // Resolve the effective case id for checkpointing/logging
-      const effectiveCaseId: number | undefined =
+      const effectiveobjectid: number | undefined =
         ruleType.id === "case"
           ? id
-          : (currentData?.caseid as number | undefined);
+          : (currentData?.objectid as number | undefined);
 
       // Create checkpoint for tracking with the correct case id
       const checkpointId = await this.createCheckpoint(ruleType.id, "delete", {
         id,
-        caseid: effectiveCaseId,
+        objectid: effectiveobjectid,
       });
 
       // If deleting a Field, proactively remove references from any Views in the same case
-      if (ruleType.id === "field" && currentData?.caseid) {
+      if (ruleType.id === "field" && currentData?.objectid) {
         try {
           const viewsResult = await this.pool.query(
-            `SELECT id, name, model FROM "Views" WHERE caseid = $1`,
-            [currentData.caseid],
+            `SELECT id, name, model FROM "Views" WHERE objectid = $1`,
+            [currentData.objectid],
           );
           for (const view of viewsResult.rows) {
             try {
@@ -408,7 +408,7 @@ export class DynamicDatabaseService {
                       "Views",
                       { id: view.id },
                       { model: view.model },
-                      currentData.caseid,
+                      currentData.objectid,
                     );
                   }
                 }
@@ -422,7 +422,7 @@ export class DynamicDatabaseService {
           }
         } catch (cleanupError) {
           console.warn(
-            `Failed cleaning view references for deleted field ${id} in case ${currentData.caseid}:`,
+            `Failed cleaning view references for deleted field ${id} in case ${currentData.objectid}:`,
             cleanupError,
           );
         }
@@ -439,7 +439,7 @@ export class DynamicDatabaseService {
             tableName,
             { id },
             currentData,
-            effectiveCaseId,
+            effectiveobjectid,
           );
         }
 
@@ -683,14 +683,14 @@ export class DynamicDatabaseService {
       const userCommand = `Dynamic DB: ${operation} ${ruleTypeId}`;
 
       // Try to extract case ID from data - don't default to avoid wrong application context
-      const caseId = data?.caseid;
-      if (!caseId) {
+      const objectid = data?.objectid;
+      if (!objectid) {
         console.warn("No case ID found in data for checkpoint creation");
         return null; // Skip checkpoint creation if no case ID
       }
 
       return await checkpointManager.beginCheckpoint(
-        caseId,
+        objectid,
         description,
         userCommand,
         "API",
@@ -710,12 +710,12 @@ export class DynamicDatabaseService {
     tableName: string,
     primaryKey: any,
     previousData?: any,
-    caseId?: number,
+    objectid?: number,
   ): Promise<void> {
     try {
       await checkpointManager.logOperation(
         checkpointId,
-        caseId || 1,
+        objectid || 1,
         operation,
         tableName,
         primaryKey,

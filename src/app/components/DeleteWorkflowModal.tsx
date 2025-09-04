@@ -4,15 +4,15 @@ import { useEffect, useState } from "react";
 
 interface DeleteWorkflowModalProps {
   isOpen: boolean;
-  caseId?: number;
+  objectid?: number;
   caseName?: string;
   onCancel: () => void;
-  onConfirm: (caseId: number) => Promise<void>;
+  onConfirm: (objectid: number) => Promise<void>;
 }
 
 export default function DeleteWorkflowModal({
   isOpen,
-  caseId,
+  objectid,
   caseName,
   onCancel,
   onConfirm,
@@ -32,7 +32,7 @@ export default function DeleteWorkflowModal({
   if (!isOpen) return null;
 
   const handleConfirm = async () => {
-    if (!caseId) return;
+    if (!objectid) return;
     setIsDeleting(true);
     setError(null);
     setProgress("Deleting checkpoints...");
@@ -41,13 +41,13 @@ export default function DeleteWorkflowModal({
       await fetch(`/api/checkpoint?action=deleteAll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseid: caseId }),
+        body: JSON.stringify({ objectid: objectid }),
       });
 
       setProgress("Deleting views and fields...");
 
       // Step 2: call parent to delete the case (which cascades fields and views)
-      await onConfirm(caseId);
+      await onConfirm(objectid);
 
       setProgress("Workflow deleted.");
     } catch (e) {

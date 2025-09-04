@@ -29,21 +29,21 @@ describe("Database Prompt", () => {
     it("should include full tool descriptions", () => {
       const mockTools = [
         {
-          name: "createCase",
+          name: "createObject",
           description:
-            "STEP 1: Creates a new case with only name and description. Returns the case ID that you MUST use for all subsequent operations (saveField, saveView). This is the FIRST tool to call when creating a new workflow.",
+            "STEP 1: Creates a new object with only name and description. Returns the object ID that you MUST use for all subsequent operations (saveField, saveView). This is the FIRST tool to call when creating a new workflow.",
         },
         {
           name: "saveField",
           description:
-            "STEP 2: Creates a new field or updates an existing field. Use the caseid returned from createCase. Fields store the business data that will be collected in views. Only create fields - do not include them in the workflow model.",
+            "STEP 2: Creates a new field or updates an existing field. Use the objectid returned from createObject. Fields store the business data that will be collected in views. Only create fields - do not include them in the workflow model.",
         },
       ];
 
       const context = getCompleteToolsContext(mockTools);
 
       expect(context).toContain("Available tools:");
-      expect(context).toContain("createCase");
+      expect(context).toContain("createObject");
       expect(context).toContain("saveField");
       expect(context).toContain("STEP 1:");
       expect(context).toContain("STEP 2:");

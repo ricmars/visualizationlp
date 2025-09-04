@@ -46,8 +46,8 @@ export async function GET(request: NextRequest) {
         query = `SELECT * FROM "Views" WHERE id = $1`;
         values = [dbId];
         break;
-      case "Cases":
-        query = `SELECT * FROM "Cases" WHERE id = $1`;
+      case "Objects":
+        query = `SELECT * FROM "Objects" WHERE id = $1`;
         values = [dbId];
         break;
       case "Applications":
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
           required: ruleData.required || false,
           options: ruleData.options,
           sampleValue: ruleData.sample_value,
-          caseid: ruleData.caseid,
+          objectid: ruleData.objectid,
         };
         break;
       case "Views":
@@ -96,11 +96,11 @@ export async function GET(request: NextRequest) {
             typeof ruleData.model === "string"
               ? JSON.parse(ruleData.model)
               : ruleData.model,
-          caseid: ruleData.caseid,
+          objectid: ruleData.objectid,
         };
         break;
-      case "Cases":
-        // For cases/workflows, ensure we have name and description
+      case "Objects":
+        // For objects/workflows, ensure we have name and description
         transformedData = {
           id: ruleData.id,
           name: ruleData.name,

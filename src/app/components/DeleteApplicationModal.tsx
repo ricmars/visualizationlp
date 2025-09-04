@@ -42,7 +42,7 @@ export default function DeleteApplicationModal({
     try {
       // 1) Load all cases/workflows for this application
       const casesRes = await fetchWithBaseUrl(
-        `/api/database?table=Cases&applicationid=${applicationId}`,
+        `/api/database?table=Objects&applicationid=${applicationId}`,
       );
       if (!casesRes.ok) {
         const err = await casesRes.text();
@@ -62,7 +62,7 @@ export default function DeleteApplicationModal({
         await fetchWithBaseUrl(`/api/checkpoint?action=deleteAll`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ caseid: wf.id }),
+          body: JSON.stringify({ objectid: wf.id }),
         });
 
         setProgress(

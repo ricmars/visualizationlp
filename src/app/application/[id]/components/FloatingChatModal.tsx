@@ -11,7 +11,7 @@ interface FloatingChatModalProps {
   onSendMessage: (message: string) => void;
   onAbort: () => void;
   isProcessing: boolean;
-  caseId: number;
+  objectid: number;
   onQuickAction: () => void;
   onClearChat: () => void;
 }
@@ -23,7 +23,7 @@ export default function FloatingChatModal({
   onSendMessage,
   onAbort,
   isProcessing,
-  caseId,
+  objectid,
   onQuickAction,
   onClearChat,
 }: FloatingChatModalProps) {
@@ -110,7 +110,7 @@ export default function FloatingChatModal({
               onSendMessage={onSendMessage}
               onAbort={onAbort}
               isProcessing={isProcessing}
-              caseId={caseId}
+              objectid={objectid}
               onQuickAction={onQuickAction}
               onClearChat={onClearChat}
             />

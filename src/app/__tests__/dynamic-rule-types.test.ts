@@ -41,7 +41,7 @@ describe("Dynamic Rule Type System", () => {
       const registeredTypes = ruleTypeRegistry.getAll();
 
       // Check that the core rule types are registered
-      const caseType = registeredTypes.find((rt) => rt.id === "case");
+      const caseType = registeredTypes.find((rt) => rt.id === "object");
       const applicationType = registeredTypes.find(
         (rt) => rt.id === "application",
       );
@@ -58,7 +58,7 @@ describe("Dynamic Rule Type System", () => {
       const migrations = await dynamicDbService.generateMigrations();
 
       // Should contain CREATE TABLE statements for all rule types
-      expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Cases"');
+      expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Objects"');
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Applications"');
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Fields"');
       expect(migrations).toContain('CREATE TABLE IF NOT EXISTS "Views"');
@@ -112,7 +112,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "create",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         data: caseData,
       });
 
@@ -139,7 +139,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "create",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         data: invalidCaseData,
       });
 
@@ -174,7 +174,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "list",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
       });
 
       expect(result.success).toBe(true);
@@ -199,14 +199,14 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "create",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         data: caseData,
       });
 
       expect(result.success).toBe(true);
       // The beforeCreate hook should have stringified the model if it wasn't already
       expect(mockPool.query).toHaveBeenCalledWith(
-        expect.stringContaining('INSERT INTO "Cases"'),
+        expect.stringContaining('INSERT INTO "Objects"'),
         expect.arrayContaining([
           expect.any(String),
           expect.any(String),
@@ -231,7 +231,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "create",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         data: caseData,
       });
 
@@ -260,7 +260,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "create",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         data: { name: "Test", description: "Test", model: "{}" },
       });
 
@@ -273,7 +273,7 @@ describe("Dynamic Rule Type System", () => {
         name: "", // Invalid: empty name
         type: "invalid_type", // Invalid: not in allowed types
         primary: "not_boolean", // Invalid: not boolean
-        caseid: "not_number", // Invalid: not number
+        objectid: "not_number", // Invalid: not number
         label: "", // Invalid: empty label
         description: "Test",
         order: "not_number", // Invalid: not number
@@ -308,7 +308,7 @@ describe("Dynamic Rule Type System", () => {
 
       const result = await dynamicDbService.execute({
         operation: "list",
-        ruleTypeId: "case",
+        ruleTypeId: "object",
         filters: { name: "Case" },
         options: {
           limit: 10,

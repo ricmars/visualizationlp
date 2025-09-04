@@ -164,7 +164,7 @@ describe("Dynamic Test Utils Example", () => {
       const fieldSampleData = getSampleDataForRuleType("field");
       expect(fieldSampleData).toHaveProperty("name");
       expect(fieldSampleData).toHaveProperty("type");
-      expect(fieldSampleData).toHaveProperty("caseid");
+      expect(fieldSampleData).toHaveProperty("objectid");
 
       const viewSampleData = getSampleDataForRuleType("view");
       expect(viewSampleData).toHaveProperty("name");

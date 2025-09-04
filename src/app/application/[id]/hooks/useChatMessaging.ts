@@ -92,13 +92,13 @@ export default function useChatMessaging({
           message,
           selectedCase
             ? JSON.stringify({
-                currentCaseId: selectedCase.id,
+                currentobjectid: selectedCase.id,
                 applicationId:
                   typeof applicationId === "number" ? applicationId : undefined,
                 name: selectedCase.name,
                 stages,
                 instructions:
-                  "You are working with an EXISTING workflow. Use saveCase with isNew=false for any modifications. The current case ID is: " +
+                  "You are working with an EXISTING workflow. Use saveObject with isNew=false for any modifications. The current object ID is: " +
                   selectedCase.id,
               })
             : "",
@@ -124,7 +124,7 @@ export default function useChatMessaging({
         // Keep a ref to reader for cancellation on abort
         const readerRef = { current: reader };
 
-        let newlyCreatedCaseId: number | null = null;
+        let newlyCreatedobjectid: number | null = null;
         try {
           while (true) {
             const { done, value } = await readerRef.current.read();
@@ -139,7 +139,7 @@ export default function useChatMessaging({
                   const data = JSON.parse(line.slice(6));
                   // Capture caseCreated event for navigation
                   if (data.event === "caseCreated" && data.id) {
-                    newlyCreatedCaseId = Number(data.id);
+                    newlyCreatedobjectid = Number(data.id);
                   }
 
                   // Capture usage for this response (prefer total tokens when available)
@@ -192,7 +192,7 @@ export default function useChatMessaging({
                       (lowerText.includes('"id":') ||
                         lowerText.includes('"name":') ||
                         lowerText.includes('"type":') ||
-                        lowerText.includes('"caseid":') ||
+                        lowerText.includes('"objectid":') ||
                         lowerText.includes('"model":') ||
                         lowerText.includes('"primary":') ||
                         lowerText.includes('"required":') ||
@@ -216,7 +216,7 @@ export default function useChatMessaging({
                       (lowerText.includes('"id":') ||
                         lowerText.includes('"name":') ||
                         lowerText.includes('"type":') ||
-                        lowerText.includes('"caseid":') ||
+                        lowerText.includes('"objectid":') ||
                         lowerText.includes('"model":') ||
                         lowerText.includes('"primary":') ||
                         lowerText.includes('"required":') ||
@@ -308,7 +308,7 @@ export default function useChatMessaging({
                       setActiveStepAction(undefined);
                     }
                     // If a new case was created, refresh application workflows and navigate to it
-                    if (newlyCreatedCaseId) {
+                    if (newlyCreatedobjectid) {
                       // Refresh the application workflows list to include the new workflow
                       if (refreshApplicationWorkflowsAction) {
                         await refreshApplicationWorkflowsAction();
@@ -316,7 +316,7 @@ export default function useChatMessaging({
                       const params = new URLSearchParams(
                         searchParams?.toString() || "",
                       );
-                      params.set("workflow", String(newlyCreatedCaseId));
+                      params.set("workflow", String(newlyCreatedobjectid));
                       const path = window.location.pathname; // /application/{id}
                       router.push(`${path}?${params.toString()}`);
                     }

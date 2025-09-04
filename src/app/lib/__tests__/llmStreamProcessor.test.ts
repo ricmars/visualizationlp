@@ -51,19 +51,19 @@ describe("SharedLLMStreamProcessor", () => {
     it("should process text chunks containing tool call patterns as regular text", async () => {
       const stream = async function* () {
         yield {
-          text: 'TOOL: saveCase PARAMS: {"name": "test"}',
+          text: 'TOOL: saveObject PARAMS: {"name": "test"}',
         };
       };
 
       mockConfig.extractText.mockResolvedValue(
-        'TOOL: saveCase PARAMS: {"name": "test"}',
+        'TOOL: saveObject PARAMS: {"name": "test"}',
       );
 
       await processor.processStream(stream(), mockStreamProcessor, mockConfig);
 
       // Should process as regular text, not as tool calls
       expect(mockStreamProcessor.processChunk).toHaveBeenCalledWith(
-        'TOOL: saveCase PARAMS: {"name": "test"}',
+        'TOOL: saveObject PARAMS: {"name": "test"}',
       );
       expect(mockStreamProcessor.processToolCall).not.toHaveBeenCalled();
       expect(mockStreamProcessor.sendDone).toHaveBeenCalled();
@@ -72,19 +72,19 @@ describe("SharedLLMStreamProcessor", () => {
     it("should process multiple text chunks with tool call patterns as regular text", async () => {
       const stream = async function* () {
         yield {
-          text: 'TOOL: saveCase PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
+          text: 'TOOL: saveObject PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
         };
       };
 
       mockConfig.extractText.mockResolvedValue(
-        'TOOL: saveCase PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
+        'TOOL: saveObject PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
       );
 
       await processor.processStream(stream(), mockStreamProcessor, mockConfig);
 
       // Should process as regular text, not as tool calls
       expect(mockStreamProcessor.processChunk).toHaveBeenCalledWith(
-        'TOOL: saveCase PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
+        'TOOL: saveObject PARAMS: {"name": "test1"}\nTOOL: saveField PARAMS: {"name": "field1"}',
       );
       expect(mockStreamProcessor.processToolCall).not.toHaveBeenCalled();
       expect(mockStreamProcessor.sendDone).toHaveBeenCalled();
@@ -93,19 +93,19 @@ describe("SharedLLMStreamProcessor", () => {
     it("should handle mixed text and tool call patterns as regular text", async () => {
       const stream = async function* () {
         yield {
-          text: 'Hello TOOL: saveCase PARAMS: {"name": "test"} World',
+          text: 'Hello TOOL: saveObject PARAMS: {"name": "test"} World',
         };
       };
 
       mockConfig.extractText.mockResolvedValue(
-        'Hello TOOL: saveCase PARAMS: {"name": "test"} World',
+        'Hello TOOL: saveObject PARAMS: {"name": "test"} World',
       );
 
       await processor.processStream(stream(), mockStreamProcessor, mockConfig);
 
       // Should process as regular text, not as tool calls
       expect(mockStreamProcessor.processChunk).toHaveBeenCalledWith(
-        'Hello TOOL: saveCase PARAMS: {"name": "test"} World',
+        'Hello TOOL: saveObject PARAMS: {"name": "test"} World',
       );
       expect(mockStreamProcessor.processToolCall).not.toHaveBeenCalled();
       expect(mockStreamProcessor.sendDone).toHaveBeenCalled();

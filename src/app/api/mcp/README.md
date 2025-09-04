@@ -22,22 +22,22 @@ Returns server information and available tools.
   },
   "tools": [
     {
-      "name": "saveCase",
-      "description": "Creates a new case or updates an existing case...",
+      "name": "saveObject",
+      "description": "Creates a new object or updates an existing one...",
       "parameters": {
         "type": "object",
         "properties": {
           "id": {
             "type": "integer",
-            "description": "Case ID (required for update, omit for create)"
+            "description": "object ID (required for update, omit for create)"
           },
           "name": {
             "type": "string",
-            "description": "Case name"
+            "description": "name"
           },
           "description": {
             "type": "string",
-            "description": "Case description"
+            "description": "description"
           },
           "model": {
             "type": "object",
@@ -99,7 +99,7 @@ Handles MCP protocol requests over HTTP.
   "id": 1,
   "method": "tools/call",
   "params": {
-    "name": "saveCase",
+    "name": "saveObject",
     "arguments": {
       "name": "Test Workflow",
       "description": "A test workflow",
@@ -110,46 +110,6 @@ Handles MCP protocol requests over HTTP.
   }
 }
 ```
-
-## Available Tools
-
-The MCP server exposes the following tools:
-
-### saveCase
-
-Creates or updates a case with a workflow model.
-
-### saveField
-
-Creates or updates a field for data collection.
-
-### saveView
-
-Creates or updates a view for information collection.
-
-### deleteCase
-
-Deletes a case and all associated fields and views.
-
-### deleteField
-
-Deletes a field.
-
-### deleteView
-
-Deletes a view.
-
-### listFields
-
-Lists all fields for a specific case.
-
-### listViews
-
-Lists all views for a specific case.
-
-### getCase
-
-Gets the details of a specific case including its workflow model.
 
 ## Architecture
 

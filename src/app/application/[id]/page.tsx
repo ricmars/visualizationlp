@@ -67,7 +67,7 @@ import LoadingScreen from "./components/LoadingScreen";
 import ErrorScreen from "./components/ErrorScreen";
 import AddFieldModal from "../../components/AddFieldModal";
 import EditFieldModal from "../../components/EditFieldModal";
-import { DB_TABLES } from "../../types/database";
+import { DB_TABLES, DB_COLUMNS } from "../../types/database";
 // view model helpers used inside useViewMutations (kept for types, not used here)
 // fetchWithBaseUrl used in hooks/utilities
 import { fetchWithBaseUrl } from "../../lib/fetchWithBaseUrl";
@@ -147,6 +147,7 @@ export default function WorkflowPage() {
     fields,
     setFields,
     dataObjectFields,
+    setDataObjectFields,
     views,
     setViews,
     dataObjects,
@@ -393,7 +394,7 @@ export default function WorkflowPage() {
       (async () => {
         try {
           const res = await fetch(
-            `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
+            `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appIdNum}&hasWorkflow=true`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -426,7 +427,7 @@ export default function WorkflowPage() {
 
         // Fetch and update the workflow data for the new ID
         const caseResponse = await fetchWithBaseUrl(
-          `/api/database?table=${DB_TABLES.CASES}&id=${newId}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${newId}`,
         );
         if (caseResponse.ok) {
           const caseData = await caseResponse.json();
@@ -439,7 +440,7 @@ export default function WorkflowPage() {
 
         // Fetch new fields
         const fieldsResponse = await fetchWithBaseUrl(
-          `/api/database?table=${DB_TABLES.FIELDS}&caseid=${newId}`,
+          `/api/database?table=${DB_TABLES.FIELDS}&${DB_COLUMNS.CASE_ID}=${newId}`,
         );
         if (fieldsResponse.ok) {
           const fieldsResult = await fieldsResponse.json();
@@ -448,7 +449,7 @@ export default function WorkflowPage() {
 
         // Fetch new views
         const viewsResponse = await fetchWithBaseUrl(
-          `/api/database?table=${DB_TABLES.VIEWS}&caseid=${newId}`,
+          `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${newId}`,
         );
         if (viewsResponse.ok) {
           const viewsData = await viewsResponse.json();
@@ -493,7 +494,7 @@ export default function WorkflowPage() {
       if (!Number.isNaN(appIdNum)) {
         try {
           const res = await fetchWithBaseUrl(
-            `/api/database?table=${DB_TABLES.CASES}&applicationid=${appIdNum}`,
+            `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appIdNum}&hasWorkflow=true`,
           );
           if (res.ok) {
             const data = await res.json();
@@ -554,11 +555,11 @@ export default function WorkflowPage() {
   const { handleAddField, handleUpdateField, handleDeleteField } =
     useFieldMutations({
       selectedCase,
-      fields,
+      fields: [...fields, ...dataObjectFields],
       setFields,
       setModel,
       setSelectedCase: (next) => setSelectedCase(next as any),
-      caseId: id,
+      objectid: id,
       eventName: MODEL_UPDATED_EVENT,
       fetchCaseData: _fetchCaseData,
     });
@@ -569,9 +570,10 @@ export default function WorkflowPage() {
     handleReorderFieldsInDataObject,
   } = useDataObjectMutations({
     selectedCase,
-    fields,
-    setFieldsAction: setFields,
+    fields: [...fields, ...dataObjectFields],
+    setDataObjectFieldsAction: setDataObjectFields,
     setDataObjectsAction: setDataObjects,
+    refreshWorkflowDataAction: refreshWorkflowData,
   });
 
   const {
@@ -586,7 +588,7 @@ export default function WorkflowPage() {
     setModelAction: setModel,
     setViewsAction: setViews,
     addCheckpointAction: addCheckpoint,
-    caseId: id,
+    objectid: id,
     eventName: MODEL_UPDATED_EVENT,
   });
 
@@ -703,7 +705,7 @@ export default function WorkflowPage() {
 
     try {
       // Direct database call - database layer will handle checkpoints
-      const requestUrl = `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`;
+      const requestUrl = `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`;
       const requestBody = {
         name: selectedCase.name,
         description: selectedCase.description,
@@ -782,7 +784,7 @@ export default function WorkflowPage() {
       console.log("[DEBUG] Sending request to /api/database:", requestBody);
 
       const response = await fetch(
-        `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+        `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
         {
           method: "PUT",
           headers: {
@@ -835,13 +837,13 @@ export default function WorkflowPage() {
         await fetch(`/api/checkpoint?action=deleteAll`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ caseid: selectedCase.id }),
+          body: JSON.stringify({ objectid: selectedCase.id }),
         });
       } catch {}
 
       // Delete the case with cascading cleanup
       const delRes = await fetch(
-        `/api/dynamic?ruleType=case&id=${selectedCase.id}`,
+        `/api/dynamic?ruleType=object&id=${selectedCase.id}`,
         { method: "DELETE" },
       );
       if (!delRes.ok) {
@@ -850,34 +852,36 @@ export default function WorkflowPage() {
       }
 
       // After deletion, try to navigate to the first remaining case
-      let nextCaseId: number | null = null;
+      let nextobjectid: number | null = null;
       if (applicationId) {
         try {
           const listRes = await fetch(
-            `/api/database?table=${DB_TABLES.CASES}&applicationid=${applicationId}`,
+            `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${applicationId}`,
           );
           if (listRes.ok) {
             const data = await listRes.json();
             const list =
               (data?.data as Array<{ id: number }> | undefined) || [];
-            nextCaseId = list[0]?.id ?? null;
+            nextobjectid = list[0]?.id ?? null;
           }
         } catch {}
       } else {
         try {
-          const listRes = await fetch(`/api/database?table=${DB_TABLES.CASES}`);
+          const listRes = await fetch(
+            `/api/database?table=${DB_TABLES.OBJECTS}`,
+          );
           if (listRes.ok) {
             const data = await listRes.json();
             const list =
               (data?.data as Array<{ id: number }> | undefined) || [];
-            nextCaseId = list[0]?.id ?? null;
+            nextobjectid = list[0]?.id ?? null;
           }
         } catch {}
       }
 
-      if (nextCaseId) {
+      if (nextobjectid) {
         const params = new URLSearchParams();
-        params.set("workflow", String(nextCaseId));
+        params.set("workflow", String(nextobjectid));
         router.push(`/application/${applicationId}?${params.toString()}`);
       } else {
         // No cases available; navigate to home (empty pattern)
@@ -967,7 +971,7 @@ export default function WorkflowPage() {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               name: view.name,
-              caseid: selectedCase.id,
+              objectid: selectedCase.id,
               model: {
                 fields: updatedViewModel.fields,
                 layout: updatedViewModel.layout,
@@ -1091,7 +1095,7 @@ export default function WorkflowPage() {
                 label: field.label,
                 type: field.type,
                 primary: field.primary,
-                caseid: selectedCase.id,
+                objectid: selectedCase.id,
                 options: field.options,
                 required: field.required,
                 order: nextOrder,
@@ -1158,7 +1162,7 @@ export default function WorkflowPage() {
             {leftPanelView === "history" ? (
               <div className="h-full">
                 <ChangesPanel
-                  caseid={selectedCase?.id}
+                  objectid={selectedCase?.id}
                   applicationid={applicationId || undefined}
                   onRefresh={() =>
                     window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT))
@@ -1168,7 +1172,7 @@ export default function WorkflowPage() {
             ) : (
               <div className="h-full">
                 <RulesCheckoutPanel
-                  caseId={selectedCase?.id}
+                  objectid={selectedCase?.id}
                   applicationId={applicationId || undefined}
                   stages={workflowModel.stages}
                   fields={fields}
@@ -1328,11 +1332,22 @@ export default function WorkflowPage() {
                         setEditingDataObjectId(id)
                       }
                       onDeleteDataObjectAction={async (id: number) => {
-                        await fetchWithBaseUrl(
-                          `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${id}`,
-                          { method: "DELETE" },
-                        );
-                        await refreshWorkflowData();
+                        try {
+                          const res = await fetchWithBaseUrl(
+                            `/api/database?table=${DB_TABLES.OBJECTS}&id=${id}`,
+                            { method: "DELETE" },
+                          );
+                          if (!res.ok) {
+                            const t = await res.text();
+                            throw new Error(
+                              `Failed to delete data object: ${res.status} ${t}`,
+                            );
+                          }
+                        } catch (e) {
+                          console.error("Error deleting data object:", e);
+                        } finally {
+                          await refreshWorkflowData();
+                        }
                       }}
                     />
                   </div>
@@ -1393,7 +1408,7 @@ export default function WorkflowPage() {
           <AddDataObjectModal
             isOpen={isAddDataObjectModalOpen}
             onCloseAction={() => setIsAddDataObjectModalOpen(false)}
-            caseId={parseInt(id)}
+            objectid={parseInt(id)}
             systemsOfRecord={systemsOfRecord || []}
             onCreateSorAction={async (name: string, icon?: string) => {
               const res = await fetchWithBaseUrl(
@@ -1409,14 +1424,28 @@ export default function WorkflowPage() {
               return data.data;
             }}
             onSaveAction={async (data) => {
-              await fetchWithBaseUrl(
-                `/api/database?table=${DB_TABLES.DATA_OBJECTS}`,
+              const payload = {
+                name: data.name,
+                description: data.description,
+                hasWorkflow: false,
+                applicationid: selectedCase?.applicationid ?? applicationId,
+                systemOfRecordId: data.systemOfRecordId,
+                model: {},
+              };
+              const res = await fetchWithBaseUrl(
+                `/api/database?table=${DB_TABLES.OBJECTS}`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(data),
+                  body: JSON.stringify(payload),
                 },
               );
+              if (!res.ok) {
+                const t = await res.text();
+                throw new Error(
+                  `Failed to create data object: ${res.status} ${t}`,
+                );
+              }
               await refreshWorkflowData();
             }}
           />
@@ -1427,9 +1456,10 @@ export default function WorkflowPage() {
             <EditFieldModal
               isOpen={!!editingField}
               onClose={() => setEditingField(null)}
-              onSubmit={(updates) =>
-                handleUpdateField({ ...updates, id: editingField.id })
-              }
+              onSubmit={async (updates) => {
+                await handleUpdateField({ ...updates, id: editingField.id });
+                await refreshWorkflowData();
+              }}
               field={editingField}
             />
           )}
@@ -1496,20 +1526,26 @@ export default function WorkflowPage() {
                   (d) => d.id === updates.id,
                 );
                 if (!current) return;
-                await fetchWithBaseUrl(
-                  `/api/database?table=${DB_TABLES.DATA_OBJECTS}&id=${updates.id}`,
+                const res = await fetchWithBaseUrl(
+                  `/api/database?table=${DB_TABLES.OBJECTS}&id=${updates.id}`,
                   {
                     method: "PUT",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                       name: updates.name,
                       description: updates.description,
-                      caseid: current.caseid,
                       systemOfRecordId: updates.systemOfRecordId,
-                      model: current.model || { fields: [] },
+                      hasWorkflow: false,
+                      model: current.model ?? {},
                     }),
                   },
                 );
+                if (!res.ok) {
+                  const t = await res.text();
+                  throw new Error(
+                    `Failed to update data object: ${res.status} ${t}`,
+                  );
+                }
                 await refreshWorkflowData();
               }}
             />
@@ -1529,7 +1565,7 @@ export default function WorkflowPage() {
               onSendMessage={(message) => void handleSendMessage(message)}
               onAbort={() => handleAbort()}
               isProcessing={isProcessing}
-              caseId={parseInt(id)}
+              objectid={parseInt(id)}
               onQuickAction={beginFreeFormSelection}
               onClearChat={handleClearChat}
             />
@@ -1585,7 +1621,7 @@ export default function WorkflowPage() {
         onSendMessage={(message) => void handleSendMessage(message)}
         onAbort={() => handleAbort()}
         isProcessing={isProcessing}
-        caseId={parseInt(id)}
+        objectid={parseInt(id)}
         onQuickAction={beginFreeFormSelection}
         onClearChat={handleClearChat}
       />
@@ -1596,7 +1632,7 @@ export default function WorkflowPage() {
         onClose={() => setIsLeftPanelModalOpen(false)}
         leftPanelView={leftPanelView}
         onViewChange={setLeftPanelView}
-        caseId={selectedCase?.id}
+        objectid={selectedCase?.id}
         applicationId={applicationId || undefined}
         stages={workflowModel.stages}
         fields={fields}

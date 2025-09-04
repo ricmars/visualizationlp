@@ -2,8 +2,7 @@
 
 import { useCallback } from "react";
 import { Field } from "../../../types";
-import { DB_COLUMNS, DB_TABLES } from "../../../types/database";
-import { fetchWithBaseUrl } from "../../../lib/fetchWithBaseUrl";
+import { DB_TABLES } from "../../../types/database";
 
 type MinimalCase = {
   id: number;
@@ -16,7 +15,7 @@ type DataObject = {
   id: number;
   name: string;
   description: string;
-  caseid: number;
+  objectid: number;
   systemOfRecordId: number;
   model?: any;
 };
@@ -24,11 +23,15 @@ type DataObject = {
 type UseDataObjectMutationsArgs = {
   selectedCase: MinimalCase | null;
   fields: Field[];
-  setFieldsAction: (next: Field[] | ((prev: Field[]) => Field[])) => void;
+  // Setter for data object-specific fields (not case-level fields)
+  setDataObjectFieldsAction: (
+    next: Field[] | ((prev: Field[]) => Field[]),
+  ) => void;
   setDataObjectsAction: (
     next: DataObject[] | ((prev: DataObject[]) => DataObject[]),
   ) => void;
   eventName?: string;
+  refreshWorkflowDataAction?: () => Promise<void>;
 };
 
 /**
@@ -36,25 +39,17 @@ type UseDataObjectMutationsArgs = {
  * Data object model shape used: { fields: Array<{ fieldId: number; required?: boolean; order?: number }> }
  */
 export default function useDataObjectMutations({
-  selectedCase,
-  setFieldsAction,
-  setDataObjectsAction,
+  selectedCase: _selectedCase,
+  fields,
+  setDataObjectFieldsAction,
   eventName = "model-updated",
+  refreshWorkflowDataAction,
 }: UseDataObjectMutationsArgs) {
   const refreshDataObjects = useCallback(async () => {
-    if (!selectedCase) return;
-    try {
-      const res = await fetchWithBaseUrl(
-        `/api/database?table=${DB_TABLES.DATA_OBJECTS}&${DB_COLUMNS.CASE_ID}=${selectedCase.id}`,
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setDataObjectsAction(data.data || []);
-      }
-    } catch (e) {
-      console.error("Failed to refresh data objects", e);
+    if (refreshWorkflowDataAction) {
+      await refreshWorkflowDataAction();
     }
-  }, [selectedCase, setDataObjectsAction]);
+  }, [refreshWorkflowDataAction]);
 
   const handleAddNewFieldAndAttach = useCallback(
     async (
@@ -81,7 +76,7 @@ export default function useDataObjectMutations({
               name: fieldName,
               type: field.type,
               primary: field.primary ?? false,
-              dataObjectId,
+              objectid: dataObjectId,
               label: field.label,
               description: field.label,
               order: 0,
@@ -103,13 +98,13 @@ export default function useDataObjectMutations({
 
       // Optimistically update fields list (append to global list)
       if (createdField) {
-        setFieldsAction((prev) => [...prev, createdField]);
+        setDataObjectFieldsAction((prev) => [...prev, createdField]);
       }
       // Refresh data objects list to maintain UI consistency
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [setFieldsAction, refreshDataObjects, eventName],
+    [setDataObjectFieldsAction, refreshDataObjects, eventName],
   );
 
   const handleRemoveFieldFromDataObject = useCallback(
@@ -122,23 +117,25 @@ export default function useDataObjectMutations({
       );
       if (!resp.ok) throw new Error("Failed to delete field");
       // Sync local state
-      setFieldsAction((prev) => prev.filter((f) => f.id !== field.id));
+      setDataObjectFieldsAction((prev) =>
+        prev.filter((f) => f.id !== field.id),
+      );
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [setFieldsAction, refreshDataObjects, eventName],
+    [setDataObjectFieldsAction, refreshDataObjects, eventName],
   );
 
   const handleReorderFieldsInDataObject = useCallback(
     async (dataObjectId: number, orderedFieldIds: number[]) => {
       // Optimistically update orders in local fields state
-      setFieldsAction((prev) => {
+      setDataObjectFieldsAction((prev) => {
         const next = [...prev];
         const idToOrder = new Map<number, number>();
         orderedFieldIds.forEach((fid, idx) => idToOrder.set(fid, idx + 1));
         return next.map((f) =>
           (f as any).id &&
-          (f as any).dataObjectId === dataObjectId &&
+          (f as any).objectid === dataObjectId &&
           idToOrder.has((f as any).id)
             ? ({ ...(f as any), order: idToOrder.get((f as any).id)! } as any)
             : f,
@@ -146,21 +143,36 @@ export default function useDataObjectMutations({
       });
 
       // Persist updated order for each affected field
-      const updates = orderedFieldIds.map((fid, index) =>
-        fetch(`/api/database?table=${DB_TABLES.FIELDS}&id=${fid}`, {
+      const updates = orderedFieldIds.map((fid, index) => {
+        const field = (fields || []).find((f) => (f as any).id === fid);
+        if (!field) return Promise.resolve(new Response(null));
+        return fetch(`/api/database?table=${DB_TABLES.FIELDS}&id=${fid}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             table: DB_TABLES.FIELDS,
-            data: { order: index + 1 },
+            data: {
+              // Include all required props for validation
+              id: field.id,
+              name: field.name,
+              label: field.label,
+              type: field.type,
+              primary: field.primary ?? false,
+              objectid: dataObjectId,
+              options: field.options ?? [],
+              required: field.required ?? false,
+              order: index + 1,
+              description: (field as any).description ?? "",
+              sampleValue: (field as any).sampleValue,
+            },
           }),
-        }),
-      );
+        });
+      });
       await Promise.all(updates);
       await refreshDataObjects();
       window.dispatchEvent(new CustomEvent(eventName));
     },
-    [setFieldsAction, refreshDataObjects, eventName],
+    [fields, setDataObjectFieldsAction, refreshDataObjects, eventName],
   );
 
   return {

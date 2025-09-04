@@ -286,15 +286,15 @@ export async function DELETE(request: Request) {
     // Special-case: delete a case with cascading cleanup using shared tool
     if (ruleTypeId === "case") {
       const tools = createSharedTools(pool);
-      const deleteCaseTool = tools.find((t) => t.name === "deleteCase");
-      if (!deleteCaseTool) {
+      const deleteObjectTool = tools.find((t) => t.name === "deleteObject");
+      if (!deleteObjectTool) {
         return NextResponse.json(
-          { success: false, error: "deleteCase tool not available" },
+          { success: false, error: "deleteObject tool not available" },
           { status: 500 },
         );
       }
       try {
-        const toolResult = await deleteCaseTool.execute({ id: Number(id) });
+        const toolResult = await deleteObjectTool.execute({ id: Number(id) });
         return NextResponse.json(
           { success: true, data: toolResult },
           { status: 200 },

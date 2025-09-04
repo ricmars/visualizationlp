@@ -90,19 +90,23 @@ export function createStreamProcessor(
         const resultObj: ToolResult = result as ToolResult;
         let userMessage = "Operation completed successfully";
 
-        if (toolName === "createCase") {
-          userMessage = `Created case '${(resultObj as any).name || "Unknown"}`;
-          // Inform client about newly created case ID for navigation
+        if (toolName === "createObject") {
+          userMessage = `Created object '${
+            (resultObj as any).name || "Unknown"
+          }`;
           try {
-            await safeWrite({
-              event: "caseCreated",
-              id: (resultObj as any).id,
-              name: (resultObj as any).name,
-            });
+            await writer.write(
+              encoder.encode(
+                `data: ${JSON.stringify({
+                  event: "objectCreated",
+                  id: (resultObj as any).id,
+                })}\n\n`,
+              ),
+            );
           } catch {}
-        } else if (toolName === "saveCase") {
+        } else if (toolName === "saveObject") {
           userMessage = `Workflow '${
-            resultObj.name || "Unknown"
+            (resultObj as any).name || "Unknown"
           }' saved successfully`;
         } else if (toolName === "saveView") {
           userMessage = `Saved '${resultObj.name || "Unknown"}'`;
@@ -176,8 +180,8 @@ export function createStreamProcessor(
         } else if (toolName === "deleteView") {
           const deletedName = (resultObj as any).deletedName || "Unknown view";
           userMessage = `Deleted view: ${deletedName}`;
-        } else if (toolName === "deleteCase") {
-          userMessage = `Deleted case successfully`;
+        } else if (toolName === "deleteObject") {
+          userMessage = `Deleted object successfully`;
         }
 
         // Ensure a leading newline so UI separates tool result from preceding stream chunk

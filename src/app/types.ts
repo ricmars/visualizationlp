@@ -153,7 +153,7 @@ export interface Application {
   /**
    * ID of the case type to open in the main content
    */
-  caseid?: number;
+  objectid?: number;
   /**
    * Name of the case type to open in the main content
    */

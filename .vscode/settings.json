@@ -1,4 +1,11 @@
 {
+  "terminal.integrated.defaultProfile.osx": "Zsh",
+  "terminal.integrated.profiles.osx": {
+    "Zsh": {
+      "path": "/bin/zsh",
+      "args": ["-l"] // Optional: use login shell for sourcing .zprofile, etc.
+    }
+  },
   "typescript.tsdk": "node_modules/typescript/lib",
   "typescript.enablePromptUseWorkspaceTsdk": true,
 
@@ -60,7 +67,6 @@
 
   "cSpell.words": [
     "applicationid",
-    "caseid",
     "dbname",
     "defaultvalue",
     "fieldid",

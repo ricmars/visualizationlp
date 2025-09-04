@@ -9,7 +9,7 @@ type ChatPanelContentProps = {
   onSendMessage: (message: string) => Promise<void> | void;
   onAbort: () => void;
   isProcessing: boolean;
-  caseId: number;
+  objectid: number;
   onQuickAction: () => void;
   onClearChat: () => void;
 };
@@ -19,7 +19,7 @@ export default function ChatPanelContent({
   onSendMessage,
   onAbort,
   isProcessing,
-  caseId,
+  objectid,
   onQuickAction,
   onClearChat,
 }: ChatPanelContentProps) {
@@ -36,7 +36,7 @@ export default function ChatPanelContent({
           onAbort={onAbort}
           isProcessing={isProcessing}
           isLoading={false}
-          caseid={caseId}
+          objectid={objectid}
         />
       </div>
     </div>

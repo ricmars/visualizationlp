@@ -58,7 +58,7 @@ interface ChatInterfaceProps {
   messages: ChatMessage[];
   isLoading: boolean;
   isProcessing: boolean;
-  caseid?: number;
+  objectid?: number;
 }
 
 // Function to format content based on its type
@@ -175,7 +175,7 @@ export default function ChatInterface({
   messages,
   isLoading,
   isProcessing,
-  caseid,
+  objectid,
 }: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -370,8 +370,8 @@ export default function ChatInterface({
 
   const fetchCheckpointStatus = async () => {
     try {
-      const url = caseid
-        ? `/api/checkpoint?caseid=${caseid}`
+      const url = objectid
+        ? `/api/checkpoint?objectid=${objectid}`
         : "/api/checkpoint";
       const response = await fetch(url);
       const data = await response.json();

@@ -36,7 +36,7 @@ interface View {
   id: number;
   name: string;
   model: unknown;
-  caseid: number;
+  objectid: number;
 }
 
 interface CollectStep {

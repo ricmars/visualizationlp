@@ -29,7 +29,7 @@ type GenerateInterfaceFromTemplate<T extends string> = T extends "case"
   ? {
       id?: number;
       name: string;
-      caseid?: number;
+      objectid?: number;
       dataObjectId?: number;
       type: FieldType;
       primary?: boolean;
@@ -44,7 +44,7 @@ type GenerateInterfaceFromTemplate<T extends string> = T extends "case"
   ? {
       id?: number;
       name: string;
-      caseid: number;
+      objectid: number;
       model: ViewModel;
     }
   : never;

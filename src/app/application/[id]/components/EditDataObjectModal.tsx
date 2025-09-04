@@ -13,7 +13,7 @@ type DataObject = {
   id: number;
   name: string;
   description: string;
-  caseid: number;
+  objectid: number;
   systemOfRecordId: number;
   model?: any;
 };

@@ -10,17 +10,17 @@ export async function POST(request: NextRequest) {
 
     switch (action) {
       case "begin": {
-        const { description, caseid, applicationid } = await request.json();
-        // Use provided caseid or default to 1, but log warning if defaulting
-        const caseId = caseid || 1;
-        if (!caseid) {
+        const { description, objectid, applicationid } = await request.json();
+        // Use provided objectid or default to 1, but log warning if defaulting
+        const resolvedObjectId = objectid || 1;
+        if (!resolvedObjectId) {
           console.warn(
-            "No caseid provided to checkpoint begin action, defaulting to 1",
+            "No objectid provided to checkpoint begin action, defaulting to 1",
           );
         }
         const applicationId = applicationid || undefined;
         const session = await checkpointSessionManager.beginSession(
-          caseId,
+          resolvedObjectId,
           description,
           undefined, // userCommand
           "LLM", // source
@@ -90,22 +90,22 @@ export async function POST(request: NextRequest) {
       }
 
       case "deleteAll": {
-        const { caseid } = await request
+        const { objectid } = await request
           .json()
-          .catch(() => ({ caseid: undefined }));
-        const caseIdNum =
-          typeof caseid === "number"
-            ? caseid
-            : caseid
-            ? parseInt(caseid)
+          .catch(() => ({ objectid: undefined }));
+        const objectidNum =
+          typeof objectid === "number"
+            ? objectid
+            : objectid
+            ? parseInt(objectid)
             : undefined;
-        await checkpointSessionManager.deleteAllCheckpoints(caseIdNum);
+        await checkpointSessionManager.deleteAllCheckpoints(objectidNum);
 
         return NextResponse.json({
           success: true,
           message:
-            caseIdNum !== undefined
-              ? `Successfully deleted all checkpoints for case ${caseIdNum}`
+            objectidNum !== undefined
+              ? `Successfully deleted all checkpoints for case ${objectidNum}`
               : "Successfully deleted all checkpoints",
         });
       }
@@ -134,9 +134,9 @@ export async function POST(request: NextRequest) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const caseid = searchParams.get("caseid");
+    const objectid = searchParams.get("objectid");
     const applicationid = searchParams.get("applicationid");
-    const caseIdNum = caseid ? parseInt(caseid) : undefined;
+    const objectidNum = objectid ? parseInt(objectid) : undefined;
     const applicationIdNum = applicationid
       ? parseInt(applicationid)
       : undefined;
@@ -144,7 +144,7 @@ export async function GET(request: NextRequest) {
     const activeSession = checkpointSessionManager.getActiveSession();
     const activeCheckpoints =
       await checkpointSessionManager.getActiveCheckpoints(
-        caseIdNum,
+        objectidNum,
         applicationIdNum,
       );
 

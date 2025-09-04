@@ -16,16 +16,20 @@ export interface LLMTool<TParams = ToolParams, TResult = ToolResult> {
 }
 
 // Define specific parameter types for each tool
-export interface CreateCaseParams extends ToolParams {
+export interface CreateObjectParams extends ToolParams {
   name: string;
   description: string;
+  applicationid?: number;
+  hasWorkflow?: boolean;
+  systemOfRecordId?: number;
+  model?: unknown;
 }
 
-export interface SaveCaseParams extends ToolParams {
+export interface SaveObjectParams extends ToolParams {
   id: number;
   name: string;
   description: string;
-  model: WorkflowModel;
+  model?: WorkflowModel;
 }
 
 export interface SaveFieldsParams extends ToolParams {
@@ -33,7 +37,7 @@ export interface SaveFieldsParams extends ToolParams {
     id?: number;
     name: string;
     type: FieldType;
-    caseid: number;
+    objectid: number;
     primary?: boolean;
     required?: boolean;
     label: string;
@@ -47,7 +51,7 @@ export interface SaveFieldsParams extends ToolParams {
 export interface SaveViewParams extends ToolParams {
   id?: number;
   name: string;
-  caseid: number;
+  objectid: number;
   model: {
     fields: ViewField[];
     layout: ViewLayout;

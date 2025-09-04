@@ -40,10 +40,10 @@ The application includes a universal database-backed checkpoint system with comp
 
 1. **Universal Database-Layer Tracking**: All database modifications automatically create checkpoints at the `/api/database` layer
 2. **LLM Sessions**: Group all AI actions from a single user prompt into one checkpoint for atomic rollback
-3. **UI Operations**: Each workflow modification (add stage, delete field, etc.) creates an individual checkpoint
+3. **UI Operations**: Each object modification (add stage, delete field, etc.) creates an individual checkpoint
 4. **MCP Interface**: Each tool execution creates an individual checkpoint automatically
 5. **No Bypass Possible**: Every database change is tracked regardless of source (UI, AI, MCP, API)
-6. **Referential Integrity**: Checkpoint restores maintain consistency across workflows, fields, and views
+6. **Referential Integrity**: Checkpoint restores maintain consistency across objects, fields, and views
 
 #### Supported Interfaces
 
@@ -102,13 +102,13 @@ Access via:
   "history": [
     {
       "id": "f47c2c58-f3a3-4de6-aaee-73cc2d9d71fe",
-      "description": "MCP Tool: createCase",
-      "user_command": "MCP createCase({\"name\":\"Test Case\"}...)",
+      "description": "MCP Tool: createObject",
+      "user_command": "MCP createObject({\"name\":\"Test Object\"}...)",
       "status": "historical",
       "source": "MCP",
       "created_at": "2025-07-17T05:55:17.980Z",
       "finished_at": "2025-07-17T05:55:18.176Z",
-      "tools_executed": ["createCase"],
+      "tools_executed": ["createObject"],
       "changes_count": 1
     }
   ]
@@ -119,7 +119,7 @@ Access via:
 
 - **Prevents Orphaned References**: Checkpoint restores automatically maintain referential integrity
 - **Universal Tracking**: No operation can bypass checkpoint system - all DB changes are captured
-- **Atomic Rollbacks**: Related changes (workflows, fields, views) are restored together
+- **Atomic Rollbacks**: Related changes (objects, fields, views) are restored together
 - **Root Cause Prevention**: Eliminates inconsistency issues where references point to deleted entities
 
 #### Troubleshooting Checkpoints
@@ -149,7 +149,7 @@ The application supports real-time thinking display for the GPT-4o model, provid
 
 - **`src/app/api/openai/route.ts`**: Streaming response handler sends thinking content in real-time
 - **`src/app/components/ChatInterface.tsx`**: Added visual indicators and thinking state management
-- **`src/app/workflow/[id]/page.tsx`**: Message accumulation and thinking flag management
+- **`src/app/application/[id]/page.tsx`**: Message accumulation and thinking flag management
 
 #### Key Interfaces
 
@@ -162,12 +162,6 @@ interface ChatMessage {
   isThinking?: boolean; // Indicates active content generation
 }
 ```
-
-#### Visual Components
-
-- `TypingIndicator`: Animated bouncing dots with staggered delays
-- `BlinkingCursor`: Pulsing cursor at text end during thinking
-- Thinking state styling: Blue background and border for active messages
 
 ### User Experience Benefits
 
@@ -185,28 +179,7 @@ interface ChatMessage {
 
 ### Enhanced System Prompt
 
-The system prompt has been enhanced to include a structured thinking and reasoning pattern that makes the AI's decision-making process more transparent:
-
-#### Thinking Pattern Structure
-
-1. **ANALYZE THE REQUEST**: Understanding what needs to be accomplished
-2. **PLAN THE APPROACH**: Logical step-by-step planning
-3. **CONSIDER ALTERNATIVES**: Evaluating different approaches and trade-offs
-4. **EXECUTE WITH REASONING**: Explaining actions as they're taken
-5. **VALIDATE AND REFINE**: Checking work and explaining adjustments
-
-#### Benefits
-
-- **Transparency**: Users can see the AI's reasoning process in real-time
-- **Understanding**: Clear explanation of why certain decisions are made
-- **Trust**: Users can follow the AI's logic and understand the approach
-- **Learning**: Users can learn from the AI's structured problem-solving approach
-
-#### Implementation
-
-- **System Prompt**: Enhanced in `src/app/lib/databasePrompt.ts`
-- **Example Response**: Updated to demonstrate the thinking pattern
-- **Real-time Display**: Combined with streaming to show reasoning as it happens
+The system prompt has been updated to the unified object model in `src/app/lib/databasePrompt.ts`.
 
 ## Required Environment Variables
 
@@ -289,69 +262,16 @@ await dynamicDatabaseService.initializeTables();
 
 ### Using the Dynamic API
 
-The dynamic API provides a single endpoint for all rule type operations:
-
-#### List All Rule Types
-
-```bash
-GET /api/dynamic?action=list-rule-types
-```
-
-#### Generate Migration SQL
-
-```bash
-GET /api/dynamic?action=generate-migration
-```
-
-#### Generate TypeScript Types
-
-```bash
-GET /api/dynamic?action=generate-types
-```
-
-#### CRUD Operations
-
-```bash
-# Create
-POST /api/dynamic
-{
-  "ruleType": "my-rule-type",
-  "data": { "name": "Example", "status": "active" }
-}
-
-# Read
-GET /api/dynamic?ruleType=my-rule-type&id=1
-
-# List
-GET /api/dynamic?ruleType=my-rule-type
-
-# Update
-PUT /api/dynamic
-{
-  "ruleType": "my-rule-type",
-  "id": 1,
-  "data": { "name": "Updated Name" }
-}
-
-# Delete
-DELETE /api/dynamic?ruleType=my-rule-type&id=1
-```
+The dynamic API provides a single endpoint for all rule type operations.
 
 ### Best Practices
 
 1. **Clear Naming**: Use descriptive, consistent names for rule types
 2. **Proper Categorization**: Group related rule types in the same category
-3. **Comprehensive Validation**: Include all necessary validation rules in the Zod schema
+3. **Comprehensive Validation**: Include all necessary validation rules
 4. **Version Management**: Use semantic versioning for rule type versions
 5. **Database Design**: Use snake_case for column names and include proper indexes
 6. **UI Configuration**: Create user-friendly forms with helpful placeholders and labels
-
-### Troubleshooting
-
-- **Rule Type Not Found**: Ensure the rule type is properly registered in the registry
-- **Validation Errors**: Check the Zod schema and custom validation logic
-- **Database Errors**: Verify the database schema definition and run migrations
-- **UI Issues**: Check the UI configuration for form fields and display settings
 
 ## ID Handling Convention
 

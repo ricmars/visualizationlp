@@ -76,7 +76,7 @@ export default function processToolResponse(text: string): string {
       }
       if (jsonData.name && jsonData.type && jsonData.id) {
         return `Field '${jsonData.name}' of type ${jsonData.type} saved successfully`;
-      } else if (jsonData.name && jsonData.caseid && jsonData.model) {
+      } else if (jsonData.name && jsonData.objectid && jsonData.model) {
         return `View '${jsonData.name}' saved successfully`;
       } else if (jsonData.name && jsonData.description && jsonData.model) {
         return `Workflow '${jsonData.name}' saved successfully`;

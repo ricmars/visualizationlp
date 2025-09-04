@@ -5,7 +5,7 @@ import { createSharedTools, SharedTool } from "./sharedTools";
 
 // Thread-local storage for current checkpoint and case context
 let currentCheckpointId: string | null = null;
-let currentCaseId: number | null = null;
+let currentobjectid: number | null = null;
 
 export function setCurrentCheckpoint(checkpointId: string | null) {
   currentCheckpointId = checkpointId;
@@ -16,13 +16,13 @@ export function getCurrentCheckpoint(): string | null {
   return currentCheckpointId;
 }
 
-export function setCurrentCaseId(caseId: number | null) {
-  currentCaseId = caseId;
-  console.log("Set current case ID:", caseId);
+export function setCurrentobjectid(objectid: number | null) {
+  currentobjectid = objectid;
+  console.log("Set current case ID:", objectid);
 }
 
-export function getCurrentCaseId(): number | null {
-  return currentCaseId;
+export function getCurrentobjectid(): number | null {
+  return currentobjectid;
 }
 
 // Wrapper for database operations to capture changes
@@ -37,7 +37,7 @@ export async function captureOperation(
     return;
   }
 
-  if (!currentCaseId) {
+  if (!currentobjectid) {
     console.warn("No case ID in context for operation capture, skipping");
     return;
   }
@@ -45,12 +45,12 @@ export async function captureOperation(
   console.log(`Capturing ${operation} on ${tableName}:`, {
     primaryKey,
     previousData,
-    caseid: currentCaseId,
+    objectid: currentobjectid,
   });
 
   await checkpointManager.logOperation(
     currentCheckpointId,
-    currentCaseId,
+    currentobjectid,
     operation,
     tableName,
     primaryKey,
@@ -116,11 +116,11 @@ export function createCheckpointTools(pool: Pool) {
         if (
           [
             "saveFields",
-            "saveCase",
+            "saveObject",
             "saveView",
             "deleteField",
             "deleteView",
-            "createCase",
+            "createObject",
             "saveApplication",
           ].includes(tool.name)
         ) {
@@ -156,8 +156,8 @@ async function executeCheckpointAwareTool(
   }
 
   switch (toolName) {
-    case "createCase":
-      return await wrapCreateCase(originalExecute, params, pool);
+    case "createObject":
+      return await wrapCreateObject(originalExecute, params, pool);
 
     case "saveFields":
       return await wrapSaveFields(originalExecute, params, pool);
@@ -165,8 +165,8 @@ async function executeCheckpointAwareTool(
     case "saveView":
       return await wrapSaveView(originalExecute, params, pool);
 
-    case "saveCase":
-      return await wrapSaveCase(originalExecute, params, pool);
+    case "saveObject":
+      return await wrapSaveObject(originalExecute, params, pool);
 
     case "saveApplication":
       // Treat as update to Applications table; capture insert/update accordingly handled inside wrapper
@@ -181,14 +181,18 @@ async function executeCheckpointAwareTool(
   }
 }
 
-async function wrapCreateCase(originalExecute: any, params: any, _pool: Pool) {
-  console.log("Wrapping createCase with checkpoint capture");
+async function wrapCreateObject(
+  originalExecute: any,
+  params: any,
+  _pool: Pool,
+) {
+  console.log("Wrapping createObject with checkpoint capture");
 
   const result = await originalExecute(params);
 
   // Capture the insert operation
   if (result.id) {
-    await captureOperation("insert", DB_TABLES.CASES, { id: result.id });
+    await captureOperation("insert", DB_TABLES.OBJECTS, { id: result.id });
   }
 
   return result;
@@ -206,7 +210,7 @@ async function wrapSaveFields(originalExecute: any, params: any, pool: Pool) {
   }> = [];
 
   for (const field of fields) {
-    const { id, name, caseid } = field || {};
+    const { id, name, objectid } = field || {};
     if (typeof id === "number") {
       // Explicit update by id
       try {
@@ -227,12 +231,12 @@ async function wrapSaveFields(originalExecute: any, params: any, pool: Pool) {
         );
         preUpdateState.push({ op: "update", prev: null, id });
       }
-    } else if (name && caseid) {
-      // Might be update by (name, caseid) or an insert
+    } else if (name && objectid) {
+      // Might be update by (name, objectid) or an insert
       try {
         const existing = await pool.query(
-          `SELECT * FROM "${DB_TABLES.FIELDS}" WHERE name = $1 AND caseid = $2`,
-          [name, caseid],
+          `SELECT * FROM "${DB_TABLES.FIELDS}" WHERE name = $1 AND objectid = $2`,
+          [name, objectid],
         );
         if ((existing.rowCount ?? 0) > 0) {
           preUpdateState.push({
@@ -245,9 +249,9 @@ async function wrapSaveFields(originalExecute: any, params: any, pool: Pool) {
         }
       } catch (e) {
         console.warn(
-          "wrapSaveFields: failed to detect existing field by (name, caseid)",
+          "wrapSaveFields: failed to detect existing field by (name, objectid)",
           name,
-          caseid,
+          objectid,
           e,
         );
         // Default to insert if uncertain
@@ -335,18 +339,18 @@ async function wrapSaveView(originalExecute: any, params: any, pool: Pool) {
   return result;
 }
 
-async function wrapSaveCase(originalExecute: any, params: any, pool: Pool) {
-  console.log("Wrapping saveCase with checkpoint capture");
+async function wrapSaveObject(originalExecute: any, params: any, pool: Pool) {
+  console.log("Wrapping saveObject with checkpoint capture");
 
-  // For saveCase, we need to capture the previous state before updating
-  const caseId = params.id;
+  // For saveObject, we need to capture the previous state before updating
+  const objectid = params.id;
   let previousData = null;
 
-  if (caseId) {
+  if (objectid) {
     try {
       const selectResult = await pool.query(
-        `SELECT * FROM "${DB_TABLES.CASES}" WHERE id = $1`,
-        [caseId],
+        `SELECT * FROM "${DB_TABLES.OBJECTS}" WHERE id = $1`,
+        [objectid],
       );
       previousData = selectResult.rows[0] || null;
     } catch (error) {
@@ -357,11 +361,11 @@ async function wrapSaveCase(originalExecute: any, params: any, pool: Pool) {
   const result = await originalExecute(params);
 
   // Capture the update operation
-  if (caseId && previousData) {
+  if (objectid && previousData) {
     await captureOperation(
       "update",
-      DB_TABLES.CASES,
-      { id: caseId },
+      DB_TABLES.OBJECTS,
+      { id: objectid },
       previousData,
     );
   }
@@ -406,15 +410,15 @@ async function wrapSaveApplication(
   }
 
   // Also capture linking cases to application as updates to Cases
-  if (Array.isArray(params.workflowIds) && params.workflowIds.length > 0) {
-    for (const cid of params.workflowIds) {
+  if (Array.isArray(params.objectIds) && params.objectIds.length > 0) {
+    for (const cid of params.objectIds) {
       try {
         const before = await pool.query(
-          `SELECT * FROM "${DB_TABLES.CASES}" WHERE id = $1`,
+          `SELECT * FROM "${DB_TABLES.OBJECTS}" WHERE id = $1`,
           [cid],
         );
         const prev = before.rows[0] || null;
-        await captureOperation("update", DB_TABLES.CASES, { id: cid }, prev);
+        await captureOperation("update", DB_TABLES.OBJECTS, { id: cid }, prev);
       } catch (e) {
         console.warn("Could not capture case link update for case", cid, e);
       }
@@ -471,7 +475,7 @@ export class CheckpointSessionManager {
   private activeSession: CheckpointSession | null = null;
 
   async beginSession(
-    caseid: number,
+    objectid: number,
     description?: string,
     userCommand?: string,
     source = "LLM",
@@ -483,14 +487,14 @@ export class CheckpointSessionManager {
     }
 
     const checkpointId = await checkpointManager.beginCheckpoint(
-      caseid,
+      objectid,
       description,
       userCommand,
       source,
       applicationid,
     );
     setCurrentCheckpoint(checkpointId);
-    setCurrentCaseId(caseid);
+    setCurrentobjectid(objectid);
 
     this.activeSession = {
       id: checkpointId,
@@ -510,7 +514,7 @@ export class CheckpointSessionManager {
 
     await checkpointManager.commitCheckpoint(this.activeSession.id);
     setCurrentCheckpoint(null);
-    setCurrentCaseId(null);
+    setCurrentobjectid(null);
 
     console.log("Committed checkpoint session:", this.activeSession.id);
     this.activeSession = null;
@@ -524,7 +528,7 @@ export class CheckpointSessionManager {
 
     await checkpointManager.rollbackCheckpoint(this.activeSession.id);
     setCurrentCheckpoint(null);
-    setCurrentCaseId(null);
+    setCurrentobjectid(null);
 
     console.log("Rolled back checkpoint session:", this.activeSession.id);
     this.activeSession = null;
@@ -534,8 +538,11 @@ export class CheckpointSessionManager {
     return this.activeSession;
   }
 
-  async getActiveCheckpoints(caseid?: number, applicationid?: number) {
-    return await checkpointManager.getActiveCheckpoints(caseid, applicationid);
+  async getActiveCheckpoints(objectid?: number, applicationid?: number) {
+    return await checkpointManager.getActiveCheckpoints(
+      objectid,
+      applicationid,
+    );
   }
 
   async restoreToCheckpoint(checkpointId: string): Promise<void> {
@@ -549,8 +556,11 @@ export class CheckpointSessionManager {
     console.log("Restored to checkpoint:", checkpointId);
   }
 
-  async getCheckpointHistory(caseid?: number, applicationid?: number) {
-    return await checkpointManager.getCheckpointHistory(caseid, applicationid);
+  async getCheckpointHistory(objectid?: number, applicationid?: number) {
+    return await checkpointManager.getCheckpointHistory(
+      objectid,
+      applicationid,
+    );
   }
 
   async deleteCheckpoint(checkpointId: string): Promise<void> {
@@ -558,10 +568,10 @@ export class CheckpointSessionManager {
     console.log("Deleted checkpoint:", checkpointId);
   }
 
-  async deleteAllCheckpoints(caseid?: number): Promise<void> {
-    await checkpointManager.deleteAllCheckpoints(caseid);
-    if (caseid !== undefined) {
-      console.log(`Deleted all checkpoints for case ${caseid}`);
+  async deleteAllCheckpoints(objectid?: number): Promise<void> {
+    await checkpointManager.deleteAllCheckpoints(objectid);
+    if (objectid !== undefined) {
+      console.log(`Deleted all checkpoints for case ${objectid}`);
     } else {
       console.log("Deleted all checkpoints");
     }

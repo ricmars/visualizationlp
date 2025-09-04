@@ -16,13 +16,13 @@ interface CheckpointHistoryItem {
 }
 
 interface ChangesPanelProps {
-  caseid?: number;
+  objectid?: number;
   applicationid?: number;
   onRefresh?: () => void; // Callback when restoration happens
 }
 
 export default function ChangesPanel({
-  caseid,
+  objectid,
   applicationid,
   onRefresh,
 }: ChangesPanelProps) {
@@ -55,8 +55,8 @@ export default function ChangesPanel({
 
       if (applicationid) {
         params.append("applicationid", applicationid.toString());
-      } else if (caseid) {
-        params.append("caseid", caseid.toString());
+      } else if (objectid) {
+        params.append("objectid", objectid.toString());
       }
 
       if (params.toString()) {

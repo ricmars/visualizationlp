@@ -43,7 +43,7 @@ export default function useStepsUpdate({
           name: selectedCase.name,
         };
 
-        const requestUrl = `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`;
+        const requestUrl = `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`;
         const requestBody = {
           name: selectedCase.name,
           description: selectedCase.description,

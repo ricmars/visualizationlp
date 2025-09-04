@@ -16,18 +16,19 @@
 
 import { ruleTypeRegistry, RuleTypeDefinition } from "./ruleTypeRegistry";
 
-// Case Rule Type Definition
-export const caseRuleType: RuleTypeDefinition = {
-  id: "case",
-  name: "Case",
-  description: "A workflow case that represents a business process or workflow",
-  category: "workflow",
+// Object Rule Type Definition (unifies previous Case and DataObject)
+export const objectRuleType: RuleTypeDefinition = {
+  id: "object",
+  name: "Object",
+  description:
+    "A business object that may represent a workflow (hasWorkflow=true) or a data object (hasWorkflow=false).",
+  category: "core",
   version: "1.0.0",
 
   interfaceTemplate: {
-    name: "Case",
+    name: "Object",
     description:
-      "A workflow case that represents a business process or workflow",
+      "A business object that contains a list of fields. If hasWorkflow is true, model contains also the workflow structure.",
     properties: [
       {
         name: "id",
@@ -36,25 +37,41 @@ export const caseRuleType: RuleTypeDefinition = {
         description: "Primary key identifier",
       },
       {
-        name: "name",
-        type: "string",
-        description: "Case name",
+        name: "applicationid",
+        type: "number",
+        optional: true,
+        description: "Reference to parent application",
       },
+      { name: "name", type: "string", description: "Object name" },
       {
         name: "description",
         type: "string",
-        description: "Case description",
+        description: "Object description",
+      },
+      {
+        name: "hasWorkflow",
+        type: "boolean",
+        optional: true,
+        description: "Whether this object contains a workflow",
+      },
+      {
+        name: "systemOfRecordId",
+        type: "number",
+        optional: true,
+        description:
+          "Optional reference to system of record - if hasWorkflow is true, this is not necessary",
       },
       {
         name: "model",
         type: "ViewModel",
-        description: "JSON model containing the workflow structure",
+        optional: true,
+        description: "JSON model containing workflow and/or metadata",
       },
     ],
   },
 
   databaseSchema: {
-    tableName: "Cases",
+    tableName: "Objects",
     columns: [
       {
         name: "id",
@@ -73,50 +90,64 @@ export const caseRuleType: RuleTypeDefinition = {
         name: "name",
         type: "TEXT",
         nullable: false,
-        description: "Case name",
+        description: "Object name",
       },
       {
         name: "description",
         type: "TEXT",
         nullable: false,
-        description: "Case description",
+        description: "Object description",
+      },
+      {
+        name: "hasWorkflow",
+        type: "BOOLEAN",
+        nullable: false,
+        defaultValue: false,
+        description: "Whether this object contains a workflow",
+      },
+      {
+        name: "systemOfRecordId",
+        type: "INTEGER",
+        nullable: true,
+        description: "Optional reference to system of record",
       },
       {
         name: "model",
         type: "JSONB",
         nullable: true,
-        description: "JSON workflow model",
+        description: "JSON model",
       },
     ],
     foreignKeys: [
       {
-        name: "cases_applicationid_fkey",
+        name: "objects_applicationid_fkey",
         columns: ["applicationid"],
         referenceTable: "Applications",
         referenceColumns: ["id"],
         onDelete: "SET NULL",
       },
+      {
+        name: "objects_sorid_fkey",
+        columns: ["systemOfRecordId"],
+        referenceTable: "SystemsOfRecord",
+        referenceColumns: ["id"],
+        onDelete: "SET NULL",
+      },
     ],
     indexes: [
-      {
-        name: "cases_name_idx",
-        columns: ["name"],
-      },
-      {
-        name: "cases_applicationid_idx",
-        columns: ["applicationid"],
-      },
+      { name: "objects_name_idx", columns: ["name"] },
+      { name: "objects_applicationid_idx", columns: ["applicationid"] },
+      { name: "objects_hasworkflow_idx", columns: ["hasWorkflow"] },
     ],
   },
 
   hooks: {
     beforeCreate: async (data) => {
-      // Normalize model to an object for JSONB storage
       if (data.model === undefined || data.model === null) {
-        data.model = { stages: [] };
+        // Default empty structures based on hasWorkflow
+        data.model = data.hasWorkflow ? { stages: [] } : {};
         return data;
       }
-
       if (typeof data.model === "string") {
         try {
           data.model = JSON.parse(data.model);
@@ -124,12 +155,9 @@ export const caseRuleType: RuleTypeDefinition = {
           throw new Error("Invalid JSON in model field");
         }
       }
-
       return data;
     },
-
     beforeUpdate: async (data) => {
-      // Normalize model for updates as well
       if (data.model === undefined || data.model === null) {
         return data;
       }
@@ -142,9 +170,10 @@ export const caseRuleType: RuleTypeDefinition = {
       }
       return data;
     },
-
     afterCreate: async (data, id) => {
-      console.log(`Created case ${id}: ${data.name}`);
+      console.log(
+        `Created object ${id}: ${data.name} (hasWorkflow=${data.hasWorkflow})`,
+      );
     },
   },
 };
@@ -154,13 +183,14 @@ export const applicationRuleType: RuleTypeDefinition = {
   id: "application",
   name: "Application",
   description:
-    "An application that groups multiple workflows (cases). Includes name, description, and icon.",
+    "An application that contains multiple objects includes some with workflows. Includes name, description, and icon.",
   category: "app",
   version: "1.0.0",
 
   interfaceTemplate: {
     name: "Application",
-    description: "An application that groups multiple workflows (cases).",
+    description:
+      "An application that contains multiple objects includes some with workflows.",
     properties: [
       {
         name: "id",
@@ -194,15 +224,13 @@ export const applicationRuleType: RuleTypeDefinition = {
 export const fieldRuleType: RuleTypeDefinition = {
   id: "field",
   name: "Field",
-  description:
-    "A field within a case or data object that can be collected and displayed",
+  description: "A field within an object that can be collected and displayed",
   category: "data",
   version: "1.0.0",
 
   interfaceTemplate: {
     name: "Field",
-    description:
-      "A field within a case or data object that can be collected and displayed",
+    description: "A field within an object that can be collected and displayed",
     properties: [
       {
         name: "id",
@@ -216,18 +244,9 @@ export const fieldRuleType: RuleTypeDefinition = {
         description: "Field name",
       },
       {
-        name: "caseid",
+        name: "objectid",
         type: "number",
-        optional: true,
-        description:
-          "Reference to parent case (required if dataObjectId is not set)",
-      },
-      {
-        name: "dataObjectId",
-        type: "number",
-        optional: true,
-        description:
-          "Reference to parent data object (required if caseid is not set)",
+        description: "Reference to parent object",
       },
       {
         name: "type",
@@ -304,18 +323,10 @@ export const fieldRuleType: RuleTypeDefinition = {
         description: "Whether this is a primary field",
       },
       {
-        name: "caseid",
+        name: "objectid",
         type: "INTEGER",
-        nullable: true,
-        description:
-          "Reference to parent case (nullable when dataObjectId is set)",
-      },
-      {
-        name: "dataObjectId",
-        type: "INTEGER",
-        nullable: true,
-        description:
-          "Reference to parent data object (nullable when caseid is set)",
+        nullable: false,
+        description: "Reference to parent object",
       },
       {
         name: "label",
@@ -360,55 +371,26 @@ export const fieldRuleType: RuleTypeDefinition = {
     ],
     foreignKeys: [
       {
-        name: "fields_caseid_fkey",
-        columns: ["caseid"],
-        referenceTable: "Cases",
-        referenceColumns: ["id"],
-        onDelete: "CASCADE",
-      },
-      {
-        name: "fields_dataobjectid_fkey",
-        columns: ["dataObjectId"],
-        referenceTable: "DataObjects",
+        name: "fields_objectid_fkey",
+        columns: ["objectid"],
+        referenceTable: "Objects",
         referenceColumns: ["id"],
         onDelete: "CASCADE",
       },
     ],
     indexes: [
+      { name: "fields_objectid_idx", columns: ["objectid"] },
       {
-        name: "fields_caseid_idx",
-        columns: ["caseid"],
-      },
-      {
-        name: "fields_dataobjectid_idx",
-        columns: ["dataObjectId"],
-      },
-      {
-        name: "fields_name_caseid_unique",
-        columns: ["name", "caseid"],
-        unique: true,
-      },
-      {
-        name: "fields_name_dataobjectid_unique",
-        columns: ["name", "dataObjectId"],
+        name: "fields_name_objectid_unique",
+        columns: ["name", "objectid"],
         unique: true,
       },
     ],
     constraints: [
       {
-        name: "fields_caseid_xor_dataobjectid",
-        type: "CHECK",
-        expression: '((caseid IS NOT NULL) <> ("dataObjectId" IS NOT NULL))',
-      },
-      {
-        name: "fields_name_caseid_unique",
+        name: "fields_name_objectid_unique",
         type: "UNIQUE",
-        expression: "(name, caseid)",
-      },
-      {
-        name: "fields_name_dataobjectid_unique",
-        type: "UNIQUE",
-        expression: '(name, "dataObjectId")',
+        expression: "(name, objectid)",
       },
     ],
   },
@@ -480,9 +462,9 @@ export const viewRuleType: RuleTypeDefinition = {
         description: "View name",
       },
       {
-        name: "caseid",
+        name: "objectid",
         type: "number",
-        description: "Reference to parent case",
+        description: "Reference to parent object",
       },
       {
         name: "model",
@@ -515,27 +497,22 @@ export const viewRuleType: RuleTypeDefinition = {
         description: "View configuration model",
       },
       {
-        name: "caseid",
+        name: "objectid",
         type: "INTEGER",
         nullable: false,
-        description: "Reference to parent case",
+        description: "Reference to parent object",
       },
     ],
     foreignKeys: [
       {
-        name: "views_caseid_fkey",
-        columns: ["caseid"],
-        referenceTable: "Cases",
+        name: "views_objectid_fkey",
+        columns: ["objectid"],
+        referenceTable: "Objects",
         referenceColumns: ["id"],
         onDelete: "CASCADE",
       },
     ],
-    indexes: [
-      {
-        name: "views_caseid_idx",
-        columns: ["caseid"],
-      },
-    ],
+    indexes: [{ name: "views_objectid_idx", columns: ["objectid"] }],
   },
 
   hooks: {
@@ -616,164 +593,16 @@ export const systemOfRecordRuleType: RuleTypeDefinition = {
   },
 };
 
-// Data Object Rule Type Definition
-export const dataObjectRuleType: RuleTypeDefinition = {
-  id: "dataObject",
-  name: "Data Object",
-  description:
-    "A business data object that can be integrated, stored, or updated within workflows. References a system of record and contains a model with fields.",
-  category: "data",
-  version: "1.0.0",
-
-  interfaceTemplate: {
-    name: "DataObject",
-    description:
-      "A business data object linked to a workflow (case) and a system of record. Model contains list of fields and integration configuration.",
-    properties: [
-      {
-        name: "id",
-        type: "number",
-        optional: true,
-        description: "Primary key identifier",
-      },
-      { name: "name", type: "string", description: "Data object name" },
-      {
-        name: "description",
-        type: "string",
-        description: "Data object description",
-      },
-      {
-        name: "caseid",
-        type: "number",
-        description: "Reference to parent case (workflow)",
-      },
-      {
-        name: "systemOfRecordId",
-        type: "number",
-        description: "Reference to system of record",
-      },
-      {
-        name: "model",
-        type: "ViewModel",
-        description: "JSON model including fields and integration details",
-      },
-    ],
-  },
-
-  databaseSchema: {
-    tableName: "DataObjects",
-    columns: [
-      {
-        name: "id",
-        type: "INTEGER",
-        primaryKey: true,
-        nullable: false,
-        description: "Primary key identifier",
-      },
-      {
-        name: "name",
-        type: "TEXT",
-        nullable: false,
-        description: "Data object name",
-      },
-      {
-        name: "description",
-        type: "TEXT",
-        nullable: false,
-        description: "Data object description",
-      },
-      {
-        name: "caseid",
-        type: "INTEGER",
-        nullable: false,
-        description: "Reference to parent case",
-      },
-      {
-        name: "systemOfRecordId",
-        type: "INTEGER",
-        nullable: false,
-        description: "Reference to system of record",
-      },
-      {
-        name: "model",
-        type: "JSONB",
-        nullable: true,
-        description: "JSON model containing list of fields and configuration",
-      },
-    ],
-    foreignKeys: [
-      {
-        name: "dataobjects_caseid_fkey",
-        columns: ["caseid"],
-        referenceTable: "Cases",
-        referenceColumns: ["id"],
-        onDelete: "CASCADE",
-      },
-      {
-        name: "dataobjects_sorid_fkey",
-        columns: ["systemOfRecordId"],
-        referenceTable: "SystemsOfRecord",
-        referenceColumns: ["id"],
-        onDelete: "RESTRICT",
-      },
-    ],
-    indexes: [
-      { name: "dataobjects_caseid_idx", columns: ["caseid"] },
-      { name: "dataobjects_sorid_idx", columns: ["systemOfRecordId"] },
-      {
-        name: "dataobjects_name_caseid_unique",
-        columns: ["name", "caseid"],
-        unique: true,
-      },
-    ],
-    constraints: [
-      {
-        name: "dataobjects_name_caseid_unique",
-        type: "UNIQUE",
-        expression: "(name, caseid)",
-      },
-    ],
-  },
-
-  hooks: {
-    beforeCreate: async (data) => {
-      // Provide a default model so validation passes when none supplied
-      if (data.model === undefined || data.model === null) {
-        data.model = { fields: [] };
-        return data;
-      }
-      if (data.model && typeof data.model === "string") {
-        try {
-          data.model = JSON.parse(data.model);
-        } catch {
-          throw new Error("Invalid JSON in model field");
-        }
-      }
-      return data;
-    },
-    beforeUpdate: async (data) => {
-      if (data.model && typeof data.model === "string") {
-        try {
-          data.model = JSON.parse(data.model);
-        } catch {
-          throw new Error("Invalid JSON in model field");
-        }
-      }
-      return data;
-    },
-  },
-};
+// Removed Data Object Rule Type (merged into Object)
 
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
-    // Register Applications first so Cases can reference it via FK
+    // Register in dependency order for FK correctness
+    // Applications → SystemsOfRecord → Objects → Fields → Views
     ruleTypeRegistry.register(applicationRuleType);
-    ruleTypeRegistry.register(caseRuleType);
-    // Ensure dependency order for foreign keys:
-    // SystemsOfRecord and DataObjects must exist before Fields (Fields -> DataObjects)
     ruleTypeRegistry.register(systemOfRecordRuleType);
-    ruleTypeRegistry.register(dataObjectRuleType);
+    ruleTypeRegistry.register(objectRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);
     console.log("✅ All rule types registered successfully");

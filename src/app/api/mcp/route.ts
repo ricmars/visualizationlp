@@ -105,11 +105,11 @@ export async function POST(request: NextRequest) {
       // Check if this is a database modification tool that needs checkpoint management
       const modificationTools = [
         "saveFields",
-        "saveCase",
+        "saveObject",
         "saveView",
         "deleteField",
         "deleteView",
-        "createCase",
+        "createObject",
         "saveApplication",
       ];
       const needsCheckpoint = modificationTools.includes(name);
@@ -122,16 +122,16 @@ export async function POST(request: NextRequest) {
           100,
         )}...)`;
 
-        // Get caseid from args - warn if defaulting to 1 for application context tracking
-        const caseid = args.caseid || args.caseId || 1;
-        if (!args.caseid && !args.caseId) {
+        // Get objectid from args - warn if defaulting to 1 for application context tracking
+        const objectid = args.objectid || args.objectid || 1;
+        if (!args.objectid && !args.objectid) {
           console.warn(
-            "No caseid provided to MCP tool, defaulting to 1 - this may cause incorrect application context",
+            "No objectid provided to MCP tool, defaulting to 1 - this may cause incorrect application context",
           );
         }
 
         checkpointSession = await checkpointSessionManager.beginSession(
-          caseid,
+          objectid,
           `MCP Tool: ${name}`,
           mcpCommand,
           "MCP",

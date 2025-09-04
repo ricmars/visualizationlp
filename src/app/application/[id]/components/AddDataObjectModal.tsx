@@ -12,13 +12,13 @@ type SystemOfRecord = {
 type AddDataObjectModalProps = {
   isOpen: boolean;
   onCloseAction: () => void;
-  caseId: number;
+  objectid: number;
   systemsOfRecord: SystemOfRecord[];
   onCreateSorAction?: (name: string, icon?: string) => Promise<SystemOfRecord>;
   onSaveAction: (data: {
     name: string;
     description: string;
-    caseid: number;
+    objectid: number;
     systemOfRecordId: number;
     model?: any;
   }) => Promise<void>;
@@ -27,7 +27,7 @@ type AddDataObjectModalProps = {
 export default function AddDataObjectModal({
   isOpen,
   onCloseAction,
-  caseId,
+  objectid,
   systemsOfRecord,
   onCreateSorAction,
   onSaveAction,
@@ -59,7 +59,7 @@ export default function AddDataObjectModal({
     await onSaveAction({
       name: name.trim(),
       description: description.trim(),
-      caseid: caseId,
+      objectid: objectid,
       systemOfRecordId: systemOfRecordId as number,
     });
     setName("");

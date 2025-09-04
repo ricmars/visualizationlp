@@ -93,7 +93,7 @@ describe("llmTools", () => {
     }
   });
 
-  describe("createCase", () => {
+  describe("createObject", () => {
     it("should create a new case successfully", async () => {
       const mockResult = {
         rows: [
@@ -108,20 +108,21 @@ describe("llmTools", () => {
       };
       mockQuery.mockResolvedValueOnce(mockResult);
 
-      const createCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "createCase",
+      const createObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "createObject",
       );
-      expect(createCaseTool).toBeDefined();
+      expect(createObjectTool).toBeDefined();
 
-      const result = await (createCaseTool!.execute as any)({
+      const result = await (createObjectTool!.execute as any)({
         name: "Test Case",
         description: "Test Description",
+        hasWorkflow: true,
         applicationid: 10,
       });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO "Cases"'),
-        ["Test Case", "Test Description", expect.any(String), 10],
+        ["Test Case", "Test Description", expect.any(String), 10, true, null],
       );
       expect(result).toEqual({
         id: 1,
@@ -132,50 +133,34 @@ describe("llmTools", () => {
     });
 
     it("should throw error for missing name", async () => {
-      const createCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "createCase",
+      const createObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "createObject",
       );
-      expect(createCaseTool).toBeDefined();
+      expect(createObjectTool).toBeDefined();
 
       await expect(
-        (createCaseTool!.execute as any)({
+        (createObjectTool!.execute as any)({
           description: "Test Description",
         }),
-      ).rejects.toThrow("Case name is required for createCase");
+      ).rejects.toThrow("Object name is required");
     });
 
     it("should throw error for missing description", async () => {
-      const createCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "createCase",
+      const createObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "createObject",
       );
-      expect(createCaseTool).toBeDefined();
+      expect(createObjectTool).toBeDefined();
 
       await expect(
-        (createCaseTool!.execute as any)({
+        (createObjectTool!.execute as any)({
           name: "Test Case",
           applicationid: 10,
         }),
-      ).rejects.toThrow("Case description is required for createCase");
-    });
-
-    it("should throw error for missing applicationid", async () => {
-      const createCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "createCase",
-      );
-      expect(createCaseTool).toBeDefined();
-
-      await expect(
-        (createCaseTool!.execute as any)({
-          name: "Test Case",
-          description: "Test Description",
-        }),
-      ).rejects.toThrow(
-        "Application ID (applicationid) is required for createCase",
-      );
+      ).rejects.toThrow("Object description is required");
     });
   });
 
-  describe("saveCase", () => {
+  describe("saveObject", () => {
     it("should update an existing case successfully when id is provided", async () => {
       const mockResult = {
         rows: [
@@ -192,12 +177,12 @@ describe("llmTools", () => {
       // Mock the update query
       mockQuery.mockResolvedValueOnce(mockResult);
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
-      const result = await (saveCaseTool!.execute as any)({
+      const result = await (saveObjectTool!.execute as any)({
         id: 1,
         name: "Updated Case",
         description: "Updated Description",
@@ -219,19 +204,19 @@ describe("llmTools", () => {
     });
 
     it("should throw error when id is missing", async () => {
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       await expect(
-        (saveCaseTool!.execute as any)({
+        (saveObjectTool!.execute as any)({
           name: "Test Case",
           description: "Test Description",
           model: { stages: [] },
         }),
       ).rejects.toThrow(
-        "Case ID is required for saveCase - use the ID returned from createCase",
+        "object ID is required for saveObject - use the ID returned from createObject",
       );
     });
 
@@ -239,13 +224,13 @@ describe("llmTools", () => {
       // Mock the viewId validation query (no viewIds to check)
       mockQuery.mockResolvedValueOnce({ rows: [] });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       await expect(
-        (saveCaseTool!.execute as any)({
+        (saveObjectTool!.execute as any)({
           id: 1,
           name: "Test Case",
           description: "Test Description",
@@ -281,13 +266,13 @@ describe("llmTools", () => {
     });
 
     it("should throw error when model is missing stages", async () => {
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       await expect(
-        (saveCaseTool!.execute as any)({
+        (saveObjectTool!.execute as any)({
           id: 1,
           name: "Test Case",
           description: "Test Description",
@@ -297,19 +282,19 @@ describe("llmTools", () => {
     });
 
     it("should throw error when model is null", async () => {
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       await expect(
-        (saveCaseTool!.execute as any)({
+        (saveObjectTool!.execute as any)({
           id: 1,
           name: "Test Case",
           description: "Test Description",
           model: null,
         }),
-      ).rejects.toThrow("Case model is required for saveCase");
+      ).rejects.toThrow("Case model is required for saveObject");
     });
 
     it("should validate collect_information steps have viewId", async () => {
@@ -327,15 +312,15 @@ describe("llmTools", () => {
         ],
       });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       // Spy on console.warn
       const consoleSpy = jest.spyOn(console, "warn").mockImplementation();
 
-      await (saveCaseTool!.execute as any)({
+      await (saveObjectTool!.execute as any)({
         id: 1,
         name: "Test Case",
         description: "Test Description",
@@ -388,12 +373,12 @@ describe("llmTools", () => {
         ],
       });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
-      await (saveCaseTool!.execute as any)({
+      await (saveObjectTool!.execute as any)({
         id: 1,
         name: "Test Case",
         description: "Test Description",
@@ -438,13 +423,13 @@ describe("llmTools", () => {
       // Mock the viewId validation query (viewId 999 does not exist)
       mockQuery.mockResolvedValueOnce({ rows: [{ id: 1 }] });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       await expect(
-        (saveCaseTool!.execute as any)({
+        (saveObjectTool!.execute as any)({
           id: 1,
           name: "Test Case",
           description: "Test Description",
@@ -503,10 +488,10 @@ describe("llmTools", () => {
         ],
       });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
       const inputModel = {
         stages: [
@@ -519,7 +504,7 @@ describe("llmTools", () => {
         ],
       };
 
-      const result = await (saveCaseTool!.execute as any)({
+      const result = await (saveObjectTool!.execute as any)({
         id: 1,
         name: "Test Case",
         description: "Test Description",
@@ -549,12 +534,12 @@ describe("llmTools", () => {
         ],
       });
 
-      const saveCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "saveCase",
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
       );
-      expect(saveCaseTool).toBeDefined();
+      expect(saveObjectTool).toBeDefined();
 
-      const result = await (saveCaseTool!.execute as any)({
+      const result = await (saveObjectTool!.execute as any)({
         id: 1,
         name: "Test Case",
         description: "Test Description",
@@ -579,7 +564,7 @@ describe("llmTools", () => {
             id: 1,
             name: "field1",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             primary: false,
             required: false,
             label: "Field 1",
@@ -596,7 +581,7 @@ describe("llmTools", () => {
             id: 2,
             name: "field2",
             type: "Email",
-            caseid: 1,
+            objectid: 1,
             primary: true,
             required: true,
             label: "Field 2",
@@ -623,7 +608,7 @@ describe("llmTools", () => {
           {
             name: "field1",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             label: "Field 1",
             description: "Test Description 1",
             sampleValue: "",
@@ -631,7 +616,7 @@ describe("llmTools", () => {
           {
             name: "field2",
             type: "Email",
-            caseid: 1,
+            objectid: 1,
             label: "Field 2",
             description: "Test Description 2",
             primary: true,
@@ -701,7 +686,7 @@ describe("llmTools", () => {
             id: 1,
             name: "existingField",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             primary: false,
             required: false,
             label: "Existing Field",
@@ -720,7 +705,7 @@ describe("llmTools", () => {
             id: 1,
             name: "existingField",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             primary: false,
             required: false,
             label: "Existing Field",
@@ -742,7 +727,7 @@ describe("llmTools", () => {
             id: 2,
             name: "newField",
             type: "Email",
-            caseid: 1,
+            objectid: 1,
             primary: false,
             required: false,
             label: "New Field",
@@ -765,7 +750,7 @@ describe("llmTools", () => {
           {
             name: "existingField",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             label: "Existing Field",
             description: "Existing Description",
             sampleValue: "",
@@ -773,7 +758,7 @@ describe("llmTools", () => {
           {
             name: "newField",
             type: "Email",
-            caseid: 1,
+            objectid: 1,
             label: "New Field",
             description: "New Description",
             order: 1,
@@ -789,7 +774,7 @@ describe("llmTools", () => {
             id: 1,
             name: "existingField",
             type: "Text",
-            caseid: 1,
+            objectid: 1,
             label: "Existing Field",
             description: "Existing Description",
             order: 0,
@@ -801,7 +786,7 @@ describe("llmTools", () => {
             id: 2,
             name: "newField",
             type: "Email",
-            caseid: 1,
+            objectid: 1,
             label: "New Field",
             description: "New Description",
             order: 1,
@@ -839,7 +824,7 @@ describe("llmTools", () => {
             id: 1,
             name: "testField",
             type: "InvalidType",
-            caseid: 1,
+            objectid: 1,
             primary: false,
             required: false,
             label: "Test Field",
@@ -863,7 +848,7 @@ describe("llmTools", () => {
             {
               name: "testField",
               type: "InvalidType",
-              caseid: 1,
+              objectid: 1,
               label: "Test Field",
             },
           ],
@@ -896,7 +881,7 @@ describe("llmTools", () => {
           {
             id: 1,
             name: "Test View",
-            caseid: 1,
+            objectid: 1,
             model: '{"fields":[]}',
           },
         ],
@@ -910,7 +895,7 @@ describe("llmTools", () => {
 
       const result = await (saveViewTool!.execute as any)({
         name: "Test View",
-        caseid: 1,
+        objectid: 1,
         model: { fields: [] },
       });
 
@@ -921,7 +906,7 @@ describe("llmTools", () => {
       expect(result).toEqual({
         id: 1,
         name: "Test View",
-        caseid: 1,
+        objectid: 1,
         model: { fields: [] },
       });
     });
@@ -932,7 +917,7 @@ describe("llmTools", () => {
           {
             id: 1,
             name: "Updated View",
-            caseid: 1,
+            objectid: 1,
             model: '{"fields":[]}',
           },
         ],
@@ -948,7 +933,7 @@ describe("llmTools", () => {
       const result = await (saveViewTool!.execute as any)({
         id: 1,
         name: "Updated View",
-        caseid: 1,
+        objectid: 1,
         model: { fields: [] },
       });
 
@@ -959,7 +944,7 @@ describe("llmTools", () => {
       expect(result).toEqual({
         id: 1,
         name: "Updated View",
-        caseid: 1,
+        objectid: 1,
         model: { fields: [] },
       });
     });
@@ -978,19 +963,19 @@ describe("llmTools", () => {
     });
   });
 
-  describe("deleteCase", () => {
+  describe("deleteObject", () => {
     it("should delete a case successfully", async () => {
       // Mock the three delete operations: fields, views, case
       mockQuery.mockResolvedValueOnce({ rowCount: 0 }); // delete fields
       mockQuery.mockResolvedValueOnce({ rowCount: 0 }); // delete views
       mockQuery.mockResolvedValueOnce({ rowCount: 1 }); // delete case
 
-      const deleteCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "deleteCase",
+      const deleteObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "deleteObject",
       );
-      expect(deleteCaseTool).toBeDefined();
+      expect(deleteObjectTool).toBeDefined();
 
-      const result = await (deleteCaseTool!.execute as any)({ id: 1 });
+      const result = await (deleteObjectTool!.execute as any)({ id: 1 });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('DELETE FROM "Fields"'),
@@ -1013,22 +998,22 @@ describe("llmTools", () => {
       mockQuery.mockResolvedValueOnce({ rowCount: 0 }); // delete views
       mockQuery.mockResolvedValueOnce({ rowCount: 0 }); // delete case - no rows affected
 
-      const deleteCaseTool = databaseTools.find(
-        (tool: any) => tool.name === "deleteCase",
+      const deleteObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "deleteObject",
       );
-      expect(deleteCaseTool).toBeDefined();
+      expect(deleteObjectTool).toBeDefined();
 
       await expect(
-        (deleteCaseTool!.execute as any)({ id: 999 }),
-      ).rejects.toThrow("No case found with id 999");
+        (deleteObjectTool!.execute as any)({ id: 999 }),
+      ).rejects.toThrow("No object found with id 999");
     });
   });
 
   describe("deleteField", () => {
     it("should delete a field successfully", async () => {
-      // Mock the SELECT query to get field name and caseid
+      // Mock the SELECT query to get field name and objectid
       mockQuery.mockResolvedValueOnce({
-        rows: [{ name: "Test Field", caseid: 1 }],
+        rows: [{ name: "Test Field", objectid: 1 }],
         rowCount: 1,
       });
       // Mock the SELECT query to get views that might reference this field
@@ -1047,7 +1032,9 @@ describe("llmTools", () => {
       const result = await (deleteFieldTool!.execute as any)({ id: 1 });
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT name, caseid FROM "Fields"'),
+        expect.stringContaining(
+          'SELECT name, objectid as objectid FROM "Fields"',
+        ),
         [1],
       );
       expect(mockQuery).toHaveBeenCalledWith(
@@ -1087,9 +1074,9 @@ describe("llmTools", () => {
 
   describe("deleteView", () => {
     it("should delete a view successfully", async () => {
-      // Mock the SELECT query to get view name and caseid
+      // Mock the SELECT query to get view name and objectid
       mockQuery.mockResolvedValueOnce({
-        rows: [{ name: "Test View", caseid: 10 }],
+        rows: [{ name: "Test View", objectid: 10 }],
         rowCount: 1,
       });
       // Mock load case for model cleanup
@@ -1140,7 +1127,9 @@ describe("llmTools", () => {
       const result = await (deleteViewTool!.execute as any)({ id: 1 });
 
       expect(mockQuery).toHaveBeenCalledWith(
-        expect.stringContaining('SELECT name, caseid FROM "Views"'),
+        expect.stringContaining(
+          'SELECT name, objectid as objectid FROM "Views"',
+        ),
         [1],
       );
       expect(mockQuery).toHaveBeenCalledWith(
@@ -1160,7 +1149,7 @@ describe("llmTools", () => {
         deletedId: 1,
         deletedName: "Test View",
         type: "view",
-        updatedCaseId: 10,
+        updatedobjectid: 10,
         updatedStepsCount: 1,
       });
     });

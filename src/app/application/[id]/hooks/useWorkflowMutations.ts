@@ -20,7 +20,7 @@ type UseWorkflowMutationsArgs = {
   setModelAction: (next: any) => void;
   setViewsAction: (next: any) => void;
   addCheckpointAction: (description: string, model: any) => void;
-  caseId: string;
+  objectid: string;
   eventName?: string; // defaults to 'model-updated'
 };
 
@@ -31,7 +31,7 @@ export default function useWorkflowMutations({
   setModelAction,
   setViewsAction,
   addCheckpointAction,
-  caseId,
+  objectid,
   eventName = "model-updated",
 }: UseWorkflowMutationsArgs) {
   const handleAddStep = useCallback(
@@ -53,7 +53,7 @@ export default function useWorkflowMutations({
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 name: stepName,
-                caseid: selectedCase.id,
+                objectid: selectedCase.id,
                 model: { fields: [], layout: { type: "form", columns: 1 } },
               }),
             },
@@ -96,7 +96,7 @@ export default function useWorkflowMutations({
         addCheckpointAction(`Added step: ${stepName}`, updatedModel);
 
         const response = await fetch(
-          `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -115,7 +115,7 @@ export default function useWorkflowMutations({
 
         try {
           const viewsResponse = await fetchWithBaseUrl(
-            `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${caseId}`,
+            `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${objectid}`,
           );
           if (viewsResponse.ok) {
             const viewsData = await viewsResponse.json();
@@ -136,7 +136,7 @@ export default function useWorkflowMutations({
       setModelAction,
       setViewsAction,
       addCheckpointAction,
-      caseId,
+      objectid,
       eventName,
     ],
   );
@@ -196,7 +196,7 @@ export default function useWorkflowMutations({
         }
 
         const response = await fetch(
-          `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -283,7 +283,7 @@ export default function useWorkflowMutations({
         }
 
         const response = await fetch(
-          `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
@@ -347,7 +347,7 @@ export default function useWorkflowMutations({
         stages: updatedStages,
       };
       addCheckpointAction(`Added process: ${processName}`, updatedModel);
-      const requestUrl = `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`;
+      const requestUrl = `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`;
       const requestBody = {
         name: selectedCase.name,
         description: selectedCase.description,
@@ -418,7 +418,7 @@ export default function useWorkflowMutations({
         }
 
         const response = await fetch(
-          `/api/database?table=${DB_TABLES.CASES}&id=${selectedCase.id}`,
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,
           {
             method: "PUT",
             headers: { "Content-Type": "application/json" },

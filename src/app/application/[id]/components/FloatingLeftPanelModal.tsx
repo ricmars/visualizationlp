@@ -15,7 +15,7 @@ interface FloatingLeftPanelModalProps {
   onClose: () => void;
   leftPanelView: "history" | "checkout";
   onViewChange: (view: "history" | "checkout") => void;
-  caseId?: number;
+  objectid?: number;
   applicationId?: number;
   stages: Stage[];
   fields: Field[];
@@ -26,7 +26,7 @@ export default function FloatingLeftPanelModal({
   onClose,
   leftPanelView,
   onViewChange,
-  caseId,
+  objectid,
   applicationId,
   stages,
   fields,
@@ -138,7 +138,7 @@ export default function FloatingLeftPanelModal({
             {leftPanelView === "history" ? (
               <div className="px-2 h-full overflow-y-auto">
                 <ChangesPanel
-                  caseid={caseId}
+                  objectid={objectid}
                   applicationid={applicationId}
                   onRefresh={() =>
                     window.dispatchEvent(new CustomEvent("model-updated"))
@@ -148,7 +148,7 @@ export default function FloatingLeftPanelModal({
             ) : (
               <div className="h-full overflow-y-auto">
                 <RulesCheckoutPanel
-                  caseId={caseId}
+                  objectid={objectid}
                   applicationId={applicationId}
                   stages={stages}
                   fields={fields}

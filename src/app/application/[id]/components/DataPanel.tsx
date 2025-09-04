@@ -4,7 +4,7 @@ import React, { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { Field } from "../../../types";
 import AddFieldModal from "@/app/components/AddFieldModal";
-import StepForm from "@/app/components/StepForm";
+import FieldsList from "@/app/components/FieldsList";
 import Tooltip from "@/app/components/Tooltip";
 import { FaTrash, FaPencilAlt } from "react-icons/fa";
 
@@ -12,7 +12,7 @@ type DataObject = {
   id: number;
   name: string;
   description: string;
-  caseid: number;
+  objectid: number;
   systemOfRecordId: number;
   model?: any;
 };
@@ -66,7 +66,7 @@ export default function DataPanel({
   const selectedFields: Field[] = useMemo(() => {
     if (!selectedDataObject) return [];
     const ownFields = (fields as any[]).filter(
-      (f) => (f as any)?.dataObjectId === selectedDataObject.id,
+      (f) => (f as any)?.objectid === selectedDataObject.id,
     );
     return ownFields.sort(
       (a, b) => ((a as any)?.order || 0) - ((b as any)?.order || 0),
@@ -163,12 +163,10 @@ export default function DataPanel({
               </div>
             ) : (
               <div className="relative">
-                <StepForm
+                <FieldsList
                   fields={selectedFields}
-                  onFieldChange={() => {}}
                   onDeleteField={handleDeleteField}
                   onEditField={(field) => {
-                    // Bubble up to page-level so the shared EditFieldModal renders
                     const event = new CustomEvent("edit-field", {
                       detail: { field },
                     });
