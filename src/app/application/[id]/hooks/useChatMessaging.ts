@@ -316,7 +316,7 @@ export default function useChatMessaging({
                       const params = new URLSearchParams(
                         searchParams?.toString() || "",
                       );
-                      params.set("workflow", String(newlyCreatedobjectid));
+                      params.set("object", String(newlyCreatedobjectid));
                       const path = window.location.pathname; // /application/{id}
                       router.push(`${path}?${params.toString()}`);
                     }

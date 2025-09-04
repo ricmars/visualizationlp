@@ -197,7 +197,7 @@ export default function Home() {
       const workflows = (data?.data as Array<{ id: number }> | undefined) || [];
       const first = workflows[0];
       if (first?.id) {
-        router.push(`/application/${applicationId}?workflow=${first.id}`);
+        router.push(`/application/${applicationId}?object=${first.id}`);
       } else {
         // No workflows yet; stay on home for now
         setIsNavigatingId(null);

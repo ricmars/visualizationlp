@@ -136,10 +136,10 @@ export default function WorkflowPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
-  // In the new route, path param is applicationId, query param is workflow id
+  // In the new route, path param is applicationId, query param is object id
   const applicationIdParam = params?.id as string;
-  const workflowIdQuery = searchParams?.get("workflow");
-  const id = workflowIdQuery || "";
+  const objectIdQuery = searchParams?.get("object");
+  const id = objectIdQuery || "";
 
   // 2. All useState hooks
   const {
@@ -435,6 +435,21 @@ export default function WorkflowPage() {
     }
   }, [applicationIdParam]);
 
+  // Keep selected data object in sync with URL (supports back/forward navigation)
+  useEffect(() => {
+    const q = searchParams?.get("object");
+    const objId = q ? parseInt(q, 10) : NaN;
+    if (
+      !Number.isNaN(objId) &&
+      (dataObjects || []).some((d) => d.id === objId)
+    ) {
+      setSelectedDataObjectId(objId);
+    } else if (!Number.isNaN(objId)) {
+      // If the object id is not a data object (likely a workflow), clear selection
+      setSelectedDataObjectId(null);
+    }
+  }, [searchParams, dataObjects]);
+
   // If not in application context, load a global list of cases for picker
   // No global list needed anymore since application context is required by path
 
@@ -442,9 +457,9 @@ export default function WorkflowPage() {
     async (nextId: number) => {
       // Clear any selected data object when switching workflow
       setSelectedDataObjectId(null);
-      // Update just the workflow query param on the same path
+      // Update just the object query param on the same path
       const params = new URLSearchParams(searchParams?.toString() || "");
-      params.set("workflow", String(nextId));
+      params.set("object", String(nextId));
       router.push(`/application/${applicationId}?${params.toString()}`);
 
       // Manually refresh the workflow data for the new ID
@@ -498,7 +513,7 @@ export default function WorkflowPage() {
         console.error("Error switching workflow:", error);
         // If there's an error, fall back to full navigation
         const params = new URLSearchParams(searchParams?.toString() || "");
-        params.set("workflow", String(nextId));
+        params.set("object", String(nextId));
         router.push(`/application/${applicationId}?${params.toString()}`);
       }
     },
@@ -514,9 +529,15 @@ export default function WorkflowPage() {
     ],
   );
 
-  const handleSelectDataObject = useCallback((dataObjectId: number) => {
-    setSelectedDataObjectId(dataObjectId);
-  }, []);
+  const handleSelectDataObject = useCallback(
+    (dataObjectId: number) => {
+      setSelectedDataObjectId(dataObjectId);
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      params.set("object", String(dataObjectId));
+      router.push(`/application/${applicationId}?${params.toString()}`);
+    },
+    [router, applicationId, searchParams],
+  );
 
   const selectedDataObject = useMemo(
     () =>
@@ -955,7 +976,7 @@ export default function WorkflowPage() {
 
       if (nextobjectid) {
         const params = new URLSearchParams();
-        params.set("workflow", String(nextobjectid));
+        params.set("object", String(nextobjectid));
         router.push(`/application/${applicationId}?${params.toString()}`);
       } else {
         // No cases available; navigate to home (empty pattern)
@@ -1361,6 +1382,7 @@ export default function WorkflowPage() {
                     selectedId={selectedDataObjectId}
                     dataObjects={dataObjects || []}
                     fields={[...fields, ...dataObjectFields]}
+                    onSelectDataObjectAction={handleSelectDataObject}
                     onAddNewFieldAndAttachAction={async (
                       dataObjectId,
                       field,

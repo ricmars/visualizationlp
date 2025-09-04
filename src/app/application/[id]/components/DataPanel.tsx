@@ -21,6 +21,7 @@ type DataPanelProps = {
   dataObjects: DataObject[];
   fields: Field[];
   selectedId?: number | null;
+  onSelectDataObjectAction?: (id: number) => void;
   onAddNewFieldAndAttachAction: (
     dataObjectId: number,
     field: {
@@ -48,6 +49,7 @@ export default function DataPanel({
   dataObjects,
   fields,
   selectedId,
+  onSelectDataObjectAction,
   onAddNewFieldAndAttachAction,
   onRemoveFieldFromDataObjectAction,
   onReorderFieldsInDataObjectAction,
@@ -115,7 +117,11 @@ export default function DataPanel({
               >
                 <div className="flex items-start justify-between gap-2">
                   <button
-                    onClick={() => setSelectedDataObjectId(d.id)}
+                    onClick={() => {
+                      setSelectedDataObjectId(d.id);
+                      onSelectDataObjectAction &&
+                        onSelectDataObjectAction(d.id);
+                    }}
                     className="text-left flex-1"
                   >
                     <div className="font-medium">{d.name}</div>
