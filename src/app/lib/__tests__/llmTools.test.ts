@@ -640,6 +640,8 @@ describe("llmTools", () => {
           false,
           false,
           null,
+          null,
+          null,
         ],
       );
       expect(mockQuery).toHaveBeenCalledWith(
@@ -655,6 +657,8 @@ describe("llmTools", () => {
           true,
           true,
           null,
+          null,
+          null,
         ],
       );
       expect(result).toEqual({
@@ -663,10 +667,14 @@ describe("llmTools", () => {
           {
             ...mockResult1.rows[0],
             options: [],
+            refObjectId: null,
+            refMultiplicity: null,
           },
           {
             ...mockResult2.rows[0],
             options: [],
+            refObjectId: null,
+            refMultiplicity: null,
           },
         ],
       });

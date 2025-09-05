@@ -874,8 +874,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               typeof (field as any).refObjectId === "number"
                 ? (field as any).refObjectId
                 : null,
-              typeof (field as any).refType === "string"
-                ? (field as any).refType
+              typeof (field as any).refMultiplicity === "string"
+                ? (field as any).refMultiplicity
                 : null,
               id,
             ]);
@@ -926,9 +926,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           } else {
             // Create new field
             const query = `
-              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, objectid, label, description, "order", options, required, "primary", "sampleValue")
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
+              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity")
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
             `;
             console.log("saveFields INSERT query:", query);
             const normalizedOptions = Array.isArray(options)
@@ -953,6 +953,12 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               required ?? false,
               primary ?? false,
               normalizedSampleValue,
+              typeof (field as any).refObjectId === "number"
+                ? (field as any).refObjectId
+                : null,
+              typeof (field as any).refMultiplicity === "string"
+                ? (field as any).refMultiplicity
+                : null,
             ]);
 
             const result = await pool.query(query, [
@@ -966,6 +972,12 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               required ?? false,
               primary ?? false,
               normalizedSampleValue,
+              typeof (field as any).refObjectId === "number"
+                ? (field as any).refObjectId
+                : null,
+              typeof (field as any).refMultiplicity === "string"
+                ? (field as any).refMultiplicity
+                : null,
             ]);
             const fieldData = result.rows[0] || {};
 
@@ -1001,6 +1013,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   : [],
                 required: fieldData.required ?? required ?? false,
                 primary: fieldData.primary ?? primary ?? false,
+                refObjectId:
+                  fieldData.refObjectId ??
+                  (typeof (field as any).refObjectId === "number"
+                    ? (field as any).refObjectId
+                    : null),
+                refMultiplicity:
+                  fieldData.refMultiplicity ??
+                  (typeof (field as any).refMultiplicity === "string"
+                    ? (field as any).refMultiplicity
+                    : null),
               };
               if (returnedSample !== null && returnedSample !== "") {
                 resultItem.sampleValue = returnedSample;

@@ -290,6 +290,8 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
     type: Field["type"];
     options?: string[];
     required?: boolean;
+    refObjectId?: number;
+    refMultiplicity?: "single" | "multi";
   }) => {
     if (editingField && onUpdateField) {
       onUpdateField({
@@ -300,6 +302,8 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         options: updates.options,
         primary: editingField.primary,
         required: updates.required ?? editingField.required,
+        refObjectId: updates.refObjectId,
+        refMultiplicity: updates.refMultiplicity,
       } as Partial<Field>);
       setEditingField(null);
     }
