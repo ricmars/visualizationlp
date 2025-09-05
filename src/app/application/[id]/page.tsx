@@ -10,6 +10,7 @@ const WorkflowLifecycleView = dynamic(
   { ssr: false },
 );
 import { ChatMessage } from "../../components/ChatInterface";
+import SystemOfRecordTag from "../../components/SystemOfRecordTag";
 import FreeFormSelectionOverlay from "./components/FreeFormSelectionOverlay";
 import QuickChatOverlay from "./components/QuickChatOverlay";
 import ChatPanelContent from "./components/ChatPanelContent";
@@ -538,6 +539,8 @@ export default function WorkflowPage() {
     },
     [router, applicationId, searchParams],
   );
+
+  // Reference links now push URLs directly inside FieldsList; no separate handler needed here
 
   const selectedDataObject = useMemo(
     () =>
@@ -1311,6 +1314,19 @@ export default function WorkflowPage() {
                     ? selectedDataObject?.name
                     : selectedCase?.name}
                 </h2>
+                {selectedDataObjectId !== null &&
+                  selectedDataObject?.systemOfRecordId &&
+                  (() => {
+                    const systemOfRecord = systemsOfRecord?.find(
+                      (sor) => sor.id === selectedDataObject.systemOfRecordId,
+                    );
+                    return systemOfRecord ? (
+                      <SystemOfRecordTag
+                        name={systemOfRecord.name}
+                        icon={systemOfRecord.icon}
+                      />
+                    ) : null;
+                  })()}
                 <button
                   className="btn-secondary w-8"
                   aria-label={

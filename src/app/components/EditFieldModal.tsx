@@ -78,18 +78,20 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
           setSampleValue(String(dv));
         }
       }
-      // Initialize reference state from options if present
-      const opts = parsedOptions;
-      const refToken = opts.find(
-        (o: any) =>
-          typeof o === "string" && (o as string).startsWith("__ref__:"),
-      );
-      if (typeof refToken === "string") {
-        const parts = refToken.split(":");
-        const grp = parts[1] as "workflow" | "data" | undefined;
-        const idNum = parseInt(parts[2] || "", 10);
-        if (grp === "workflow" || grp === "data") setRefGroup(grp);
-        setRefObjectId(Number.isNaN(idNum) ? null : idNum);
+      // Initialize reference state from field.type and field.refObjectId
+      const isCaseRef =
+        field.type === "CaseReferenceSingle" ||
+        field.type === "CaseReferenceMulti";
+      const isDataRef =
+        field.type === "DataReferenceSingle" ||
+        field.type === "DataReferenceMulti";
+      if (isCaseRef || isDataRef) {
+        setRefGroup(isCaseRef ? "workflow" : "data");
+        if (typeof field.refObjectId === "number") {
+          setRefObjectId(field.refObjectId);
+        } else {
+          setRefObjectId(null);
+        }
       } else {
         setRefGroup(null);
         setRefObjectId(null);
