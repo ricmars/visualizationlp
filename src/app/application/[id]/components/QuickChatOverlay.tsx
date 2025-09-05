@@ -36,7 +36,7 @@ export default function QuickChatOverlay({
           <div className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-600 text-white shadow">
             <FaMagic className="w-3.5 h-3.5" />
           </div>
-          <div className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          <div className="text-sm font-semibold text-white">
             {selectionSummary}
           </div>
         </div>
@@ -45,7 +45,7 @@ export default function QuickChatOverlay({
         </div>
         <input
           ref={inputRef}
-          className="mt-2 w-full rounded-md border border-purple-300/70 dark:border-purple-700/60 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="mt-2 w-full rounded-md border border-purple-300/70 dark:border-purple-700/60 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
           placeholder="Quick edit..."
           value={value}
           onChange={(e) => onChange(e.target.value)}

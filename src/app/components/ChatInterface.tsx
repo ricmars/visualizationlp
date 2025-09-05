@@ -1,12 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import {
-  FaUndo,
-  FaCheck,
-  FaClock,
-  FaArrowUp,
-  FaStop,
-  FaMicrophone,
-} from "react-icons/fa";
+import { FaUndo, FaCheck, FaClock, FaStop, FaMicrophone } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -459,21 +452,21 @@ export default function ChatInterface({
       const text = String(React.Children.toArray(children).join(" ")).trim();
       if (!text) return null;
       return (
-        <h2 className="text-lg md:text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 mt-3">
+        <h2 className="text-lg md:text-lg font-bold text-white mb-1 mt-2">
           {children}
         </h2>
       );
     },
     h2({ children }) {
       return (
-        <h2 className="text-lg md:text-lg font-bold text-gray-900 dark:text-gray-100 mb-2 mt-3">
+        <h2 className="text-lg md:text-lg font-bold text-white mb-1 mt-2">
           {children}
         </h2>
       );
     },
     h3({ children }) {
       return (
-        <h3 className="text-lg md:text-xl font-bold text-gray-900 dark:text-gray-100 mb-2 mt-3">
+        <h3 className="text-lg md:text-xl font-bold text-white mb-1 mt-2">
           {children}
         </h3>
       );
@@ -484,14 +477,14 @@ export default function ChatInterface({
 
       return isInline ? (
         <code
-          className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-sans"
+          className="font-bold px-1 py-0.5 rounded text-sm font-sans"
           style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
         >
           {children}
         </code>
       ) : (
         <pre
-          className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-sm overflow-x-auto font-sans"
+          className="font-bold p-2 rounded text-sm overflow-x-auto font-sans"
           style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
         >
           <code
@@ -526,7 +519,7 @@ export default function ChatInterface({
     pre({ children }) {
       return (
         <pre
-          className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-sm overflow-x-auto font-sans"
+          className="font-bold p-2 rounded text-sm overflow-x-auto font-sans"
           style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
         >
           {children}
@@ -585,11 +578,9 @@ export default function ChatInterface({
           const isLast = idx === filteredMessages.length - 1;
           const isAssistant = msg.sender !== "user";
           const baseBubbleClasses = isAssistant
-            ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-700 shadow-sm"
-            : "bg-gray-200 dark:bg-gray-700 text-purple-700 dark:text-purple-300";
-          const bubbleRadiusClasses = isAssistant
-            ? "rounded-xl rounded-bl-none"
-            : "rounded-xl rounded-br-none";
+            ? "llm-response-bubble"
+            : "user-message-bubble";
+          const bubbleRadiusClasses = isAssistant ? "" : "";
 
           return (
             <div
@@ -603,43 +594,68 @@ export default function ChatInterface({
                   msg.sender === "user" ? "items-end" : "items-start"
                 }`}
               >
-                <div
-                  className={`p-3 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
-                >
-                  <div
-                    className="prose prose-sm dark:prose-invert max-w-none font-sans"
-                    style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                  >
-                    <ReactMarkdown
-                      remarkPlugins={[remarkGfm, remarkBreaks]}
-                      components={markdownComponents}
+                {isAssistant && (
+                  <>
+                    <div
+                      className={`p-2 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
                     >
-                      {formatContent(msg.content)}
-                    </ReactMarkdown>
-                    {msg.isThinking && <BlinkingCursor />}
-                  </div>
-
-                  {/* In-bubble status and controls, matching screenshot style */}
-                  {isAssistant && msg.isThinking && isLast && (
-                    <div className="mt-3 flex items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
-                        <div className="w-3 h-3 border-2 border-blue-600 dark:border-blue-400 border-t-transparent rounded-full animate-spin" />
-                        <span className="text-xs">
-                          Generating your response…
-                        </span>
-                      </div>
-                      {onAbort && (
-                        <button
-                          onClick={() => onAbort?.()}
-                          className="px-3 py-1.5 text-xs rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-200 hover:bg-blue-100 dark:hover:bg-blue-900/50 border border-blue-200 dark:border-blue-800"
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="prose prose-sm dark:prose-invert max-w-none font-sans text-white"
+                          style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                         >
-                          Stop generating
-                        </button>
-                      )}
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            components={markdownComponents}
+                          >
+                            {formatContent(msg.content)}
+                          </ReactMarkdown>
+                          {msg.isThinking && <BlinkingCursor />}
+                        </div>
+                      </div>
                     </div>
-                  )}
-                </div>
+                  </>
+                )}
+                {!isAssistant && (
+                  <>
+                    <div
+                      className={`p-2 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div
+                          className="prose prose-sm dark:prose-invert max-w-none font-sans text-white"
+                          style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
+                        >
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            components={markdownComponents}
+                          >
+                            {formatContent(msg.content)}
+                          </ReactMarkdown>
+                          {msg.isThinking && <BlinkingCursor />}
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
+                {/* In-bubble status and controls, matching screenshot style */}
+                {isAssistant && msg.isThinking && isLast && (
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 text-white">
+                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span className="text-xs">Generating your response…</span>
+                    </div>
+                    {onAbort && (
+                      <button
+                        onClick={() => onAbort?.()}
+                        className="px-3 py-1.5 text-xs rounded-full bg-white/20 text-white hover:bg-white/30 border border-white/30"
+                      >
+                        Stop generating
+                      </button>
+                    )}
+                  </div>
+                )}
                 {/* Timestamp outside the bubble */}
                 <div
                   className={`text-xs mt-1.5 ${
@@ -669,73 +685,138 @@ export default function ChatInterface({
       </div>
 
       {/* Message input */}
+      <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg">
+        <div className="flex flex-col">
+          {/* Text area - full width with 3 lines */}
+          <div className="w-full">
+            <textarea
+              ref={textareaRef}
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Type a message..."
+              rows={3}
+              className="w-full min-h-[72px] max-h-[200px] p-4 bg-transparent text-white placeholder-gray-400 text-sm leading-relaxed resize-none overflow-y-auto focus:outline-none transition-all duration-200 ease-in-out"
+              disabled={isLoading || isProcessing}
+            />
+          </div>
 
-      <div className="flex flex-row items-center gap-2">
-        <div className="flex-1 min-w-0">
-          <textarea
-            ref={textareaRef}
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
-            rows={1}
-            className="w-full min-h-[40px] max-h-[120px] p-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none overflow-y-auto bg-transparent text-white placeholder-white text-sm leading-relaxed transition-all duration-200 ease-in-out"
-            disabled={isLoading || isProcessing}
-          />
-        </div>
-        <button
-          onClick={() => {
-            if (!recognition) return;
-            // First time, open config modal
-            if (!hasVoiceConfig) {
-              setIsRecordModalOpen(true);
-              return;
-            }
-            // Toggle record/stop
-            if (isRecording) {
-              stopRecording();
-            } else {
-              startRecording();
-            }
-          }}
-          disabled={isLoading || isProcessing || !recognition}
-          className="flex items-center justify-center w-10 h-10 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-          title={
-            recognition
-              ? isRecording
-                ? "Stop recording"
-                : "Start recording"
-              : "Speech recognition not supported"
-          }
-        >
-          {isRecording ? (
-            <FaStop className="w-4 h-4" />
-          ) : (
-            <FaMicrophone className="w-4 h-4" />
-          )}
-        </button>
-        {isProcessing ? (
-          <button
-            onClick={() => onAbort?.()}
-            className="flex items-center justify-center px-3 h-10 bg-red-600 text-white rounded-lg hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:ring-offset-1 transition-all duration-200 ease-in-out"
-            title="Stop"
-          >
-            <FaStop className="w-4 h-4 mr-1" /> Stop
-          </button>
-        ) : (
-          <button
-            onClick={handleSendMessage}
-            disabled={isLoading || !message.trim()}
-            className="flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 ease-in-out"
-            title="Send message"
-          >
-            {isLoading ? (
-              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+          {/* Bottom buttons row */}
+          <div className="flex items-center justify-between px-4 pb-4">
+            <div className="flex items-center gap-3">
+              {/* Emoji/Options button */}
+              <button
+                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                disabled={isLoading || isProcessing}
+                title="Add emoji or options"
+              >
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                  />
+                </svg>
+              </button>
+
+              {/* Microphone button */}
+              <button
+                onClick={() => {
+                  if (!recognition) return;
+                  // First time, open config modal
+                  if (!hasVoiceConfig) {
+                    setIsRecordModalOpen(true);
+                    return;
+                  }
+                  // Toggle record/stop
+                  if (isRecording) {
+                    stopRecording();
+                  } else {
+                    startRecording();
+                  }
+                }}
+                disabled={isLoading || isProcessing || !recognition}
+                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                title={
+                  recognition
+                    ? isRecording
+                      ? "Stop recording"
+                      : "Start recording"
+                    : "Speech recognition not supported"
+                }
+              >
+                {isRecording ? (
+                  <FaStop className="w-4 h-4" />
+                ) : (
+                  <FaMicrophone className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Attachment button */}
+              <button
+                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                disabled={isLoading || isProcessing}
+                title="Attach file"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Send button */}
+            {isProcessing ? (
+              <button
+                onClick={() => onAbort?.()}
+                className="flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-300 focus:text-red-300 active:text-red-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                title="Stop"
+              >
+                <FaStop className="w-4 h-4" />
+              </button>
             ) : (
-              <FaArrowUp className="w-4 h-4" />
+              <button
+                onClick={handleSendMessage}
+                disabled={isLoading || !message.trim()}
+                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                title="Send message"
+              >
+                {isLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                ) : (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+                    />
+                  </svg>
+                )}
+              </button>
             )}
-          </button>
-        )}
+          </div>
+        </div>
       </div>
       {isRecordModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -744,7 +825,7 @@ export default function ChatInterface({
             onClick={closeRecordModal}
           ></div>
           <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-3 p-4 border border-gray-200 dark:border-gray-700">
-            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-3">
+            <h4 className="text-sm font-semibold text-white mb-3">
               Voice input
             </h4>
             <div className="space-y-3">
@@ -753,7 +834,7 @@ export default function ChatInterface({
                   Language
                 </label>
                 <select
-                  className="w-full text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  className="w-full text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-white"
                   value={selectedLang}
                   onChange={(e) => setSelectedLang(e.target.value)}
                 >
@@ -775,7 +856,7 @@ export default function ChatInterface({
                 </label>
                 <div className="flex items-center gap-2">
                   <select
-                    className="flex-1 text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                    className="flex-1 text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-white"
                     value={
                       audioOutputDevice?.deviceId ||
                       preferredOutputDeviceId ||

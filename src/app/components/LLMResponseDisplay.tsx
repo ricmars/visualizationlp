@@ -92,21 +92,21 @@ export const LLMResponseDisplay: React.FC<LLMResponseDisplayProps> = ({
       const text = String(React.Children.toArray(children).join(" ")).trim();
       if (!text) return null;
       return (
-        <h2 className="text-lg md:text-lg font-bold text-white mb-2 mt-3">
+        <h2 className="text-lg md:text-lg font-bold text-white mb-1 mt-2">
           {children}
         </h2>
       );
     },
     h2({ children }) {
       return (
-        <h2 className="text-lg md:text-lg font-bold text-white mb-2 mt-3">
+        <h2 className="text-lg md:text-lg font-bold text-white mb-1 mt-2">
           {children}
         </h2>
       );
     },
     h3({ children }) {
       return (
-        <h3 className="text-lg md:text-xl font-bold text-white mb-2 mt-3">
+        <h3 className="text-lg md:text-xl font-bold text-white mb-1 mt-2">
           {children}
         </h3>
       );

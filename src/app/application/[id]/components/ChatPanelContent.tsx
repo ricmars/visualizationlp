@@ -29,7 +29,7 @@ export default function ChatPanelContent({
         onQuickAction={onQuickAction}
         onClearChat={onClearChat}
       />
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 overflow-hidden chat-panel-bg">
         <ChatInterface
           messages={messages}
           onSendMessage={onSendMessage}
