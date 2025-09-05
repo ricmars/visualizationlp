@@ -7,9 +7,14 @@ import {
   FaPlus,
   FaEdit,
   FaTrash,
-  FaFolder,
-  FaFolderOpen,
 } from "react-icons/fa";
+import {
+  MdAccountTree,
+  MdApps,
+  MdStorage,
+  MdTableView,
+  MdTextFields,
+} from "react-icons/md";
 import ModalPortal from "../../../components/ModalPortal";
 import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
@@ -37,7 +42,14 @@ interface CategoryGroup {
 }
 
 interface RuleCheckoutData {
-  categories: CategoryGroup[];
+  objectGroups: Array<{
+    objectId: number;
+    objectName: string;
+    hasWorkflow: boolean;
+    categories: CategoryGroup[];
+    totalChanges: number;
+  }>;
+  applicationCategory?: CategoryGroup | null;
   totalChanges: number;
   totalCheckpoints: number;
 }
@@ -56,9 +68,13 @@ export default function RulesCheckoutPanel({
 }: RulesCheckoutPanelProps) {
   const [data, setData] = useState<RuleCheckoutData | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(
+  const [expandedObjects, setExpandedObjects] = useState<Set<number>>(
     new Set(),
   );
+  const [expandedCategoryKeys, setExpandedCategoryKeys] = useState<Set<string>>(
+    new Set(),
+  );
+  const [isAppExpanded, setIsAppExpanded] = useState<boolean>(true);
 
   // Modal state management
   const [editingField, setEditingField] = useState<Field | null>(null);
@@ -111,8 +127,7 @@ export default function RulesCheckoutPanel({
 
   useEffect(() => {
     fetchCheckoutData();
-    // Expand all categories by default
-    setExpandedCategories(new Set(["app", "workflow", "ui", "data"]));
+    // Defaults will be set after first data load
 
     // Listen for model updates to refresh checkout data
     const handler = () => fetchCheckoutData();
@@ -129,14 +144,23 @@ export default function RulesCheckoutPanel({
     };
   }, [fetchCheckoutData]);
 
-  const toggleCategory = (category: string) => {
-    const newExpanded = new Set(expandedCategories);
-    if (newExpanded.has(category)) {
-      newExpanded.delete(category);
-    } else {
-      newExpanded.add(category);
-    }
-    setExpandedCategories(newExpanded);
+  // Expand helpers
+  const toggleObject = (objectId: number) => {
+    const next = new Set(expandedObjects);
+    if (next.has(objectId)) next.delete(objectId);
+    else next.add(objectId);
+    setExpandedObjects(next);
+  };
+
+  const makeCategoryKey = (objectId: number, category: string): string =>
+    `${objectId}:${category}`;
+
+  const toggleObjectCategory = (objectId: number, category: string) => {
+    const key = makeCategoryKey(objectId, category);
+    const next = new Set(expandedCategoryKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    setExpandedCategoryKeys(next);
   };
 
   const getOperationIcon = (operation: string) => {
@@ -152,12 +176,29 @@ export default function RulesCheckoutPanel({
     }
   };
 
-  const getCategoryIcon = (category: string, isExpanded: boolean) => {
+  const getCategoryIcon = (category: string, _isExpanded: boolean) => {
     const iconClass = "w-4 h-4 text-gray-400";
-    if (isExpanded) {
-      return <FaFolderOpen className={iconClass} />;
+    switch (category) {
+      case "workflow":
+        return <MdAccountTree className={iconClass} />;
+      case "ui":
+        return <MdTableView className={iconClass} />;
+      case "data":
+        return <MdTextFields className={iconClass} />;
+      case "app":
+        return <MdApps className={iconClass} />;
+      default:
+        return <MdAccountTree className={iconClass} />;
     }
-    return <FaFolder className={iconClass} />;
+  };
+
+  const getObjectIcon = (hasWorkflow: boolean) => {
+    const iconClass = "w-4 h-4 text-gray-400";
+    return hasWorkflow ? (
+      <MdAccountTree className={iconClass} />
+    ) : (
+      <MdStorage className={iconClass} />
+    );
   };
 
   // Extract table name from rule ID
@@ -509,59 +550,154 @@ export default function RulesCheckoutPanel({
             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
             <span className="ml-2 text-sm text-white/70">Loading...</span>
           </div>
-        ) : !data || data.categories.length === 0 ? (
+        ) : (() => {
+            const hasObjectChanges = (data?.objectGroups?.length || 0) > 0;
+            const hasAppChanges =
+              !!data?.applicationCategory &&
+              data.applicationCategory.rules.length > 0;
+            return !data || (!hasObjectChanges && !hasAppChanges);
+          })() ? (
           <div className="text-center py-8 text-white/70 text-sm">
             No rule changes found
           </div>
         ) : (
-          <div className="px-3">
-            {data.categories.map((category) => {
-              const isExpanded = expandedCategories.has(category.category);
-              const hasRules = category.rules.length > 0;
-
+          <div className="px-2">
+            {/* Object Groups */}
+            {data?.objectGroups?.map((group) => {
+              const isObjExpanded = expandedObjects.has(group.objectId);
               return (
-                <div key={category.category} className="mb-3">
-                  {/* Category Header */}
+                <div key={group.objectId} className="mb-2">
+                  {/* Object Header */}
                   <div
-                    className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
-                      hasRules
-                        ? "hover:bg-white/10"
-                        : "opacity-50 cursor-not-allowed"
-                    }`}
-                    onClick={() =>
-                      hasRules && toggleCategory(category.category)
-                    }
+                    className="flex items-start gap-2 p-1.5 rounded cursor-pointer hover:bg-white/10 transition-colors"
+                    onClick={() => toggleObject(group.objectId)}
                   >
-                    {hasRules ? (
-                      isExpanded ? (
-                        <FaChevronDown className="w-3 h-3 text-white/60" />
-                      ) : (
-                        <FaChevronRight className="w-3 h-3 text-white/60" />
-                      )
+                    {isObjExpanded ? (
+                      <FaChevronDown className="w-3 h-3 text-white/60" />
                     ) : (
-                      <div className="w-3 h-3" />
+                      <FaChevronRight className="w-3 h-3 text-white/60" />
                     )}
-                    {getCategoryIcon(category.category, isExpanded)}
-                    <span className="font-medium text-sm text-white">
-                      {category.categoryName}
-                    </span>
-                    <span className="ml-auto text-xs text-white/60">
-                      {category.rules.length}
+                    {getObjectIcon(group.hasWorkflow)}
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-[13px] leading-4 truncate text-white">
+                        {group.objectName}
+                      </div>
+                    </div>
+                    <span className="ml-2 text-[11px] text-white/60">
+                      {group.totalChanges}
                     </span>
                   </div>
 
-                  {/* Category Rules */}
-                  {isExpanded && hasRules && (
-                    <div className="ml-6 mt-1 space-y-1">
-                      {category.rules.map((rule) => (
+                  {/* Categories under object */}
+                  {isObjExpanded && group.categories.length > 0 && (
+                    <div className="ml-4 mt-0.5">
+                      {group.categories.map((category) => {
+                        const key = makeCategoryKey(
+                          group.objectId,
+                          category.category,
+                        );
+                        const isExpanded = expandedCategoryKeys.has(key);
+                        const hasRules = category.rules.length > 0;
+                        return (
+                          <div key={category.category} className="mb-0.5">
+                            <div
+                              className={`flex items-center gap-2 p-2 rounded-md cursor-pointer transition-colors ${
+                                hasRules
+                                  ? "hover:bg-white/10"
+                                  : "opacity-50 cursor-not-allowed"
+                              }`}
+                              onClick={() =>
+                                hasRules &&
+                                toggleObjectCategory(
+                                  group.objectId,
+                                  category.category,
+                                )
+                              }
+                            >
+                              {hasRules ? (
+                                isExpanded ? (
+                                  <FaChevronDown className="w-3 h-3 text-white/60" />
+                                ) : (
+                                  <FaChevronRight className="w-3 h-3 text-white/60" />
+                                )
+                              ) : (
+                                <div className="w-3 h-3" />
+                              )}
+                              {getCategoryIcon(category.category, isExpanded)}
+                              <span className="font-medium text-[12px] text-white">
+                                {category.categoryName}
+                              </span>
+                              <span className="ml-auto text-[11px] text-white/60">
+                                {category.rules.length}
+                              </span>
+                            </div>
+
+                            {isExpanded && hasRules && (
+                              <div className="ml-3 mt-0.5 space-y-0.5">
+                                {category.rules.map((rule) => (
+                                  <div
+                                    key={rule.id}
+                                    className="flex items-start gap-2 p-1.5 rounded text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
+                                    onClick={() => handleRuleClick(rule)}
+                                  >
+                                    <div className="flex items-start gap-2 min-w-0 flex-1">
+                                      {getOperationIcon(rule.operation)}
+                                      <div className="min-w-0 flex-1">
+                                        <div className="font-medium truncate text-[12px] leading-4">
+                                          {rule.name}
+                                        </div>
+                                        {category.category === "data" && (
+                                          <div className="text-[11px] text-white/60 leading-4 truncate">
+                                            {rule.type}
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Application Category (global) */}
+            {data?.applicationCategory &&
+              data.applicationCategory.rules.length > 0 && (
+                <div className="mt-2">
+                  <div
+                    className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors hover:bg-white/10`}
+                    onClick={() => setIsAppExpanded((v) => !v)}
+                  >
+                    {isAppExpanded ? (
+                      <FaChevronDown className="w-3 h-3 text-white/60" />
+                    ) : (
+                      <FaChevronRight className="w-3 h-3 text-white/60" />
+                    )}
+                    {getCategoryIcon("app", isAppExpanded)}
+                    <span className="font-medium text-[12px] text-white">
+                      {data.applicationCategory.categoryName}
+                    </span>
+                    <span className="ml-auto text-[11px] text-white/60">
+                      {data.applicationCategory.rules.length}
+                    </span>
+                  </div>
+                  {isAppExpanded && (
+                    <div className="ml-4 mt-0.5 space-y-0.5">
+                      {data.applicationCategory.rules.map((rule) => (
                         <div
                           key={rule.id}
-                          className="flex items-center gap-2 p-2 rounded-md text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
+                          className="flex items-start gap-2 p-1.5 rounded text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
                           onClick={() => handleRuleClick(rule)}
                         >
-                          <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <div className="flex items-start gap-2 min-w-0 flex-1">
                             {getOperationIcon(rule.operation)}
-                            <span className="font-medium truncate text-sm">
+                            <span className="font-medium truncate text-[12px] leading-4">
                               {rule.name}
                             </span>
                           </div>
@@ -570,8 +706,7 @@ export default function RulesCheckoutPanel({
                     </div>
                   )}
                 </div>
-              );
-            })}
+              )}
           </div>
         )}
       </div>

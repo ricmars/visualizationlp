@@ -21,6 +21,14 @@ interface CategoryGroup {
   rules: RuleChange[];
 }
 
+interface ObjectGroup {
+  objectId: number;
+  objectName: string;
+  hasWorkflow: boolean;
+  categories: CategoryGroup[];
+  totalChanges: number;
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -113,9 +121,12 @@ export async function GET(request: NextRequest) {
 
     // Batch fetch all current data from main tables
     const currentData = {
-      fields: new Map<number, { name: string; type: string }>(),
-      views: new Map<number, { name: string }>(),
-      cases: new Map<number, { name: string }>(),
+      fields: new Map<
+        number,
+        { name: string; type: string; objectid: number }
+      >(),
+      views: new Map<number, { name: string; objectid: number }>(),
+      cases: new Map<number, { name: string; hasWorkflow: boolean }>(),
       applications: new Map<number, { name: string }>(),
     };
 
@@ -123,11 +134,18 @@ export async function GET(request: NextRequest) {
     if (fieldIds.size > 0) {
       const fieldIdsArray = Array.from(fieldIds);
       const fieldsResult = await pool.query(
-        `SELECT id, name, type FROM "${DB_TABLES.FIELDS}" WHERE id = ANY($1)`,
+        `SELECT id, name, type, objectid FROM "${DB_TABLES.FIELDS}" WHERE id = ANY($1)`,
         [fieldIdsArray],
       );
       for (const row of fieldsResult.rows) {
-        currentData.fields.set(row.id, { name: row.name, type: row.type });
+        currentData.fields.set(row.id, {
+          name: row.name,
+          type: row.type,
+          objectid: row.objectid,
+        });
+        if (typeof row.objectid === "number") {
+          objectids.add(row.objectid);
+        }
       }
     }
 
@@ -135,11 +153,17 @@ export async function GET(request: NextRequest) {
     if (viewIds.size > 0) {
       const viewIdsArray = Array.from(viewIds);
       const viewsResult = await pool.query(
-        `SELECT id, name FROM "${DB_TABLES.VIEWS}" WHERE id = ANY($1)`,
+        `SELECT id, name, objectid FROM "${DB_TABLES.VIEWS}" WHERE id = ANY($1)`,
         [viewIdsArray],
       );
       for (const row of viewsResult.rows) {
-        currentData.views.set(row.id, { name: row.name });
+        currentData.views.set(row.id, {
+          name: row.name,
+          objectid: row.objectid,
+        });
+        if (typeof row.objectid === "number") {
+          objectids.add(row.objectid);
+        }
       }
     }
 
@@ -147,11 +171,14 @@ export async function GET(request: NextRequest) {
     if (objectids.size > 0) {
       const objectidsArray = Array.from(objectids);
       const casesResult = await pool.query(
-        `SELECT id, name FROM "${DB_TABLES.OBJECTS}" WHERE id = ANY($1)`,
+        `SELECT id, name, "hasWorkflow" FROM "${DB_TABLES.OBJECTS}" WHERE id = ANY($1)`,
         [objectidsArray],
       );
       for (const row of casesResult.rows) {
-        currentData.cases.set(row.id, { name: row.name });
+        currentData.cases.set(row.id, {
+          name: row.name,
+          hasWorkflow: !!row.hasWorkflow,
+        });
       }
     }
 
@@ -170,6 +197,8 @@ export async function GET(request: NextRequest) {
     // Collect all rule changes from all checkpoints
     const allRuleChanges: RuleChange[] = [];
     const seenRules = new Set<string>(); // Track unique rules by table-id combination
+    const objectChangeMap = new Map<number, RuleChange[]>();
+    const appChanges: RuleChange[] = [];
 
     for (const checkpoint of history) {
       const checkpointEntries = undoLogByCheckpoint.get(checkpoint.id) || [];
@@ -190,6 +219,7 @@ export async function GET(request: NextRequest) {
         let type: string | undefined;
         let category: string | undefined;
         let id: number | undefined;
+        let owningObjectId: number | undefined;
 
         try {
           id =
@@ -221,10 +251,12 @@ export async function GET(request: NextRequest) {
               const prev = readPrev();
               name = prev?.name;
               type = prev?.type || type;
+              owningObjectId = prev?.objectid || owningObjectId;
             } else if (id && currentData.fields.has(id)) {
               const fieldData = currentData.fields.get(id)!;
               name = fieldData.name;
               type = fieldData.type || type;
+              owningObjectId = fieldData.objectid;
             }
             break;
 
@@ -234,8 +266,11 @@ export async function GET(request: NextRequest) {
             if (operation === "Delete") {
               const prev = readPrev();
               name = prev?.name;
+              owningObjectId = prev?.objectid || owningObjectId;
             } else if (id && currentData.views.has(id)) {
-              name = currentData.views.get(id)!.name;
+              const viewData = currentData.views.get(id)!;
+              name = viewData.name;
+              owningObjectId = viewData.objectid;
             }
             break;
 
@@ -248,6 +283,7 @@ export async function GET(request: NextRequest) {
             } else if (id && currentData.cases.has(id)) {
               name = currentData.cases.get(id)!.name;
             }
+            owningObjectId = id;
             break;
 
           case DB_TABLES.APPLICATIONS:
@@ -269,7 +305,7 @@ export async function GET(request: NextRequest) {
           // Only add if we haven't seen this rule before
           if (!seenRules.has(uniqueKey)) {
             seenRules.add(uniqueKey);
-            allRuleChanges.push({
+            const change: RuleChange = {
               id: `${checkpoint.id}-${table}-${id}`,
               name,
               type,
@@ -279,14 +315,22 @@ export async function GET(request: NextRequest) {
               checkpointDescription: checkpoint.description,
               checkpointCreatedAt: checkpoint.created_at.toISOString(),
               checkpointSource: checkpoint.source,
-            });
+            };
+            allRuleChanges.push(change);
+            if (category === "app") {
+              appChanges.push(change);
+            } else if (typeof owningObjectId === "number") {
+              if (!objectChangeMap.has(owningObjectId)) {
+                objectChangeMap.set(owningObjectId, []);
+              }
+              objectChangeMap.get(owningObjectId)!.push(change);
+            }
           }
         }
       }
     }
 
-    // Group changes by category
-    const categoryMap = new Map<string, RuleChange[]>();
+    // Build object groups with nested categories
     const categoryNames: Record<string, string> = {
       workflow: "Workflow",
       ui: "View",
@@ -294,36 +338,60 @@ export async function GET(request: NextRequest) {
       app: "Application",
     };
 
-    for (const change of allRuleChanges) {
-      if (!categoryMap.has(change.category)) {
-        categoryMap.set(change.category, []);
+    const categoryOrder = ["workflow", "ui", "data"];
+
+    const objectGroups: ObjectGroup[] = Array.from(
+      objectChangeMap.entries(),
+    ).map(([objId, changes]) => {
+      const perCategory = new Map<string, RuleChange[]>();
+      for (const ch of changes) {
+        if (!perCategory.has(ch.category)) perCategory.set(ch.category, []);
+        perCategory.get(ch.category)!.push(ch);
       }
-      categoryMap.get(change.category)!.push(change);
-    }
-
-    // Convert to array format and sort
-    const categories: CategoryGroup[] = Array.from(categoryMap.entries()).map(
-      ([category, rules]) => ({
-        category,
-        categoryName: categoryNames[category] || category,
-        rules: rules.sort(
-          (a, b) =>
-            new Date(b.checkpointCreatedAt).getTime() -
-            new Date(a.checkpointCreatedAt).getTime(),
-        ),
-      }),
-    );
-
-    // Sort categories by order: app, workflow, ui, data
-    const categoryOrder = ["app", "workflow", "ui", "data"];
-    categories.sort((a, b) => {
-      const aIndex = categoryOrder.indexOf(a.category);
-      const bIndex = categoryOrder.indexOf(b.category);
-      return aIndex - bIndex;
+      const categories: CategoryGroup[] = categoryOrder
+        .filter((cat) => perCategory.has(cat))
+        .map((cat) => ({
+          category: cat,
+          categoryName: categoryNames[cat] || cat,
+          rules: perCategory
+            .get(cat)!
+            .sort(
+              (a, b) =>
+                new Date(b.checkpointCreatedAt).getTime() -
+                new Date(a.checkpointCreatedAt).getTime(),
+            ),
+        }));
+      const caseInfo = currentData.cases.get(objId);
+      const objectName = caseInfo?.name || `Object ${objId}`;
+      return {
+        objectId: objId,
+        objectName,
+        hasWorkflow: !!caseInfo?.hasWorkflow,
+        categories,
+        totalChanges: changes.length,
+      };
     });
 
+    // Sort object groups alphabetically by name
+    objectGroups.sort((a, b) => a.objectName.localeCompare(b.objectName));
+
+    // Build application category (if any)
+    const applicationCategory: CategoryGroup | null =
+      appChanges.length > 0
+        ? {
+            category: "app",
+            categoryName: categoryNames.app,
+            rules: appChanges.sort(
+              (a, b) =>
+                new Date(b.checkpointCreatedAt).getTime() -
+                new Date(a.checkpointCreatedAt).getTime(),
+            ),
+          }
+        : null;
+
     return NextResponse.json({
-      categories,
+      objectGroups,
+      applicationCategory,
       totalChanges: allRuleChanges.length,
       totalCheckpoints: history.length,
     });

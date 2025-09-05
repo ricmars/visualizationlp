@@ -31,6 +31,8 @@ type DataPanelProps = {
       required?: boolean;
       primary?: boolean;
       sampleValue?: string;
+      refObjectId?: number;
+      refMultiplicity?: "single" | "multi";
     },
   ) => Promise<void>;
   onRemoveFieldFromDataObjectAction: (

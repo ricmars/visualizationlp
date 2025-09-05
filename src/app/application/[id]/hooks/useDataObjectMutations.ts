@@ -61,6 +61,8 @@ export default function useDataObjectMutations({
         required?: boolean;
         primary?: boolean;
         sampleValue?: string;
+        refObjectId?: number;
+        refMultiplicity?: "single" | "multi";
       },
     ) => {
       // Create a new field specific to this data object
@@ -83,6 +85,11 @@ export default function useDataObjectMutations({
               options: field.options ?? [],
               required: field.required ?? false,
               sampleValue: field.sampleValue,
+              refObjectId:
+                typeof field.refObjectId === "number"
+                  ? field.refObjectId
+                  : undefined,
+              refMultiplicity: field.refMultiplicity,
             },
           }),
         },

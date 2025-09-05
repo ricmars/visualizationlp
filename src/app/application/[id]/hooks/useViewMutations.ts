@@ -92,11 +92,22 @@ export function useViewMutations({
       if (!selectedCase) return;
       const view = views.find((v) => v.id === viewId);
       if (!view) throw new Error("View not found");
+      // Parse model robustly whether it's already an object or a JSON string
       let viewModel: any = {};
       try {
-        viewModel = JSON.parse(view.model || "{}");
+        viewModel =
+          typeof view.model === "string"
+            ? JSON.parse(view.model || "{}")
+            : view.model || {};
       } catch {
-        viewModel = { fields: [] };
+        // Fallback: preserve fields if present on object form; otherwise start empty
+        const fallbackFields = Array.isArray((view as any)?.model?.fields)
+          ? (view as any).model.fields
+          : [];
+        viewModel = { fields: fallbackFields };
+      }
+      if (!Array.isArray(viewModel.fields)) {
+        viewModel.fields = [];
       }
       const resolvedFieldIds: number[] = [];
       const unresolved: string[] = [];

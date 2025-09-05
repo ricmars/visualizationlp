@@ -170,6 +170,15 @@ export default function useFieldMutations({
               (updates as any).sampleValue !== undefined
                 ? (updates as any).sampleValue
                 : (targetField as any).sampleValue ?? null,
+            // Persist reference metadata when present
+            refObjectId:
+              typeof (updates as any).refObjectId === "number"
+                ? (updates as any).refObjectId
+                : (targetField as any).refObjectId ?? null,
+            refMultiplicity:
+              (updates as any).refMultiplicity !== undefined
+                ? ((updates as any).refMultiplicity as any)
+                : ((targetField as any).refMultiplicity as any) ?? null,
           },
         };
 

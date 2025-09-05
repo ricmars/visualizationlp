@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Tooltip from "./Tooltip";
 import { Field } from "../types";
 import { getAllFieldTypes, getFieldTypeDisplayName } from "../utils/fieldTypes";
+import FieldRow from "./FieldRow";
 import { DB_TABLES } from "../types/database";
 
 export type FieldModalMode = "add" | "edit";
@@ -433,13 +434,13 @@ const FieldModal: React.FC<FieldModalProps> = ({
                                 }
                                 className="rounded border-gray-600 text-blue-500 focus:ring-blue-500 mr-3"
                               />
-                              <div className="flex-1">
-                                <div className="font-medium text-white">
-                                  {field.label}
-                                </div>
-                                <div className="text-sm text-white/70">
-                                  Type:{" "}
-                                  {getFieldTypeDisplayName(field.type as any)}
+                              <div className="flex-1 flex items-center">
+                                <div className="flex items-center space-x-3 p-0 rounded-lg text-white w-full">
+                                  <FieldRow
+                                    field={field}
+                                    hideDragHandle
+                                    disableRefNavigation
+                                  />
                                 </div>
                               </div>
                             </label>
