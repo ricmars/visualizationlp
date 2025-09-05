@@ -125,6 +125,7 @@ export default function useChatMessaging({
         const readerRef = { current: reader };
 
         let newlyCreatedobjectid: number | null = null;
+        let shouldRefreshApplicationWorkflows = false;
         try {
           while (true) {
             const { done, value } = await readerRef.current.read();
@@ -140,6 +141,23 @@ export default function useChatMessaging({
                   // Capture caseCreated event for navigation
                   if (data.event === "caseCreated" && data.id) {
                     newlyCreatedobjectid = Number(data.id);
+                  }
+
+                  // Track when workflow or data object creation tools are executed
+                  if (data.text) {
+                    const text = String(data.text).toLowerCase();
+                    if (
+                      text.includes("executing createobject") ||
+                      text.includes("executing saveapplication") ||
+                      (text.includes("created") &&
+                        (text.includes("workflow") ||
+                          text.includes("object"))) ||
+                      (text.includes("saved") &&
+                        (text.includes("workflow") ||
+                          text.includes("application")))
+                    ) {
+                      shouldRefreshApplicationWorkflows = true;
+                    }
                   }
 
                   // Capture usage for this response (prefer total tokens when available)
@@ -319,6 +337,11 @@ export default function useChatMessaging({
                       params.set("object", String(newlyCreatedobjectid));
                       const path = window.location.pathname; // /application/{id}
                       router.push(`${path}?${params.toString()}`);
+                    } else if (shouldRefreshApplicationWorkflows) {
+                      // Refresh application workflows list for any workflow/data object creation
+                      if (refreshApplicationWorkflowsAction) {
+                        await refreshApplicationWorkflowsAction();
+                      }
                     }
                     break;
                   }
