@@ -84,7 +84,7 @@ export function composeQuickChatMessage({
     addIfNonEmpty("Selected viewIds", selectedViewIds);
     addIfNonEmpty("Selected viewNames", viewNames);
   }
-  if (isDataObjectView && selectedObjectId !== null) {
+  if (selectedObjectId !== null) {
     contextLines.push(`Selected objectId=${JSON.stringify(selectedObjectId)}`);
   }
   addIfNonEmpty("Selected stageIds", selectedStageIds);

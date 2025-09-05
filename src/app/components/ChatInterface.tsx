@@ -573,7 +573,7 @@ export default function ChatInterface({
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm min-h-0">
+      <div className="flex-1 chat-panel-content p-3 space-y-3 text-sm min-h-0">
         {filteredMessages.map((msg, idx) => {
           const isLast = idx === filteredMessages.length - 1;
           const isAssistant = msg.sender !== "user";
@@ -746,8 +746,8 @@ export default function ChatInterface({
                 title={
                   recognition
                     ? isRecording
-                      ? "Stop recording"
-                      : "Start recording"
+                      ? "Stop"
+                      : "Record"
                     : "Speech recognition not supported"
                 }
               >
@@ -861,7 +861,7 @@ export default function ChatInterface({
                     {disableRecord && (
                       <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
                     )}
-                    {disableRecord ? "Recording…" : "Start Recording"}
+                    {disableRecord ? "Recording…" : "Record"}
                   </button>
                 </div>
               </div>

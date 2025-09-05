@@ -30,6 +30,7 @@ export interface SaveObjectParams extends ToolParams {
   name: string;
   description: string;
   model?: WorkflowModel;
+  hasWorkflow?: boolean;
 }
 
 export interface SaveFieldsParams extends ToolParams {

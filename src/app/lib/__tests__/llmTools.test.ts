@@ -169,6 +169,54 @@ describe("llmTools", () => {
             name: "Updated Case",
             description: "Updated Description",
             model: '{"stages": []}',
+            hasWorkflow: false,
+          },
+        ],
+      };
+      // Mock the update query (no viewId validation needed since no viewIds in model)
+      mockQuery.mockResolvedValueOnce(mockResult);
+
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
+      );
+      expect(saveObjectTool).toBeDefined();
+
+      const result = await (saveObjectTool!.execute as any)({
+        id: 1,
+        name: "Updated Case",
+        description: "Updated Description",
+        model: { stages: [] },
+      });
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "Cases"'),
+        expect.arrayContaining([
+          "Updated Case",
+          "Updated Description",
+          1,
+          undefined,
+        ]),
+      );
+      const callArgs = mockQuery.mock.calls[0][1]; // Only one call is the UPDATE query (no viewId validation needed)
+      expect(JSON.parse(callArgs[2])).toEqual({ stages: [] });
+      expect(result).toEqual({
+        id: 1,
+        name: "Updated Case",
+        description: "Updated Description",
+        hasWorkflow: false, // This comes from the mock database result
+        model: { stages: [] },
+      });
+    });
+
+    it("should update hasWorkflow parameter when provided", async () => {
+      const mockResult = {
+        rows: [
+          {
+            id: 1,
+            name: "Updated Case",
+            description: "Updated Description",
+            model: '{"stages": []}',
+            hasWorkflow: true,
           },
         ],
       };
@@ -186,19 +234,27 @@ describe("llmTools", () => {
         id: 1,
         name: "Updated Case",
         description: "Updated Description",
+        hasWorkflow: true,
         model: { stages: [] },
       });
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('UPDATE "Cases"'),
-        expect.arrayContaining(["Updated Case", "Updated Description", 1]),
+        expect.arrayContaining([
+          "Updated Case",
+          "Updated Description",
+          1,
+          true,
+        ]),
       );
       const callArgs = mockQuery.mock.calls[0][1];
       expect(JSON.parse(callArgs[2])).toEqual({ stages: [] });
+      expect(callArgs[4]).toBe(true); // hasWorkflow parameter
       expect(result).toEqual({
         id: 1,
         name: "Updated Case",
         description: "Updated Description",
+        hasWorkflow: true,
         model: { stages: [] },
       });
     });

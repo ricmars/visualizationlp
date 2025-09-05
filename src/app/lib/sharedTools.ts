@@ -280,6 +280,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           },
           name: { type: "string", description: "Object name" },
           description: { type: "string", description: "Object description" },
+          hasWorkflow: {
+            type: "boolean",
+            description:
+              "Whether this object contains a workflow (optional, defaults to current value)",
+          },
           model: {
             type: "object",
             description:
@@ -355,7 +360,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("saveObject parameters:", JSON.stringify(params, null, 2));
         console.log("saveObject called at:", new Date().toISOString());
 
-        const { id, name, description, model } = params;
+        const { id, name, description, model, hasWorkflow } = params;
 
         // Validation
         if (!id)
@@ -509,9 +514,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         // Update existing case
         const query = `
           UPDATE "${OBJECTS_TABLE}"
-          SET name = $1, description = $2, model = COALESCE($3, model)
+          SET name = $1, description = $2, model = COALESCE($3, model), "hasWorkflow" = COALESCE($5, "hasWorkflow")
           WHERE id = $4
-          RETURNING id, name, description, model
+          RETURNING id, name, description, model, "hasWorkflow"
         `;
         console.log("saveObject UPDATE query:", query);
         const modelJson = cleanedModel ? JSON.stringify(cleanedModel) : null;
@@ -520,6 +525,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description,
           modelJson,
           id,
+          hasWorkflow,
         ]);
 
         const result = await pool.query(query, [
@@ -527,6 +533,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description,
           modelJson,
           id,
+          hasWorkflow,
         ]);
         if (result.rowCount === 0) {
           console.error(`saveObject ERROR: No object found with id ${id}`);
@@ -555,6 +562,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id: objectData.id ?? id,
           name: objectData.name ?? name,
           description: objectData.description ?? description,
+          hasWorkflow: objectData.hasWorkflow ?? hasWorkflow,
           model:
             typeof objectData.model === "string"
               ? (() => {

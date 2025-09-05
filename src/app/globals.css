@@ -239,6 +239,12 @@ body {
     background-color: var(--color-chat-panel-bg);
   }
 
+  .chat-panel-content {
+    max-height: calc(100vh - 266px);
+    height: calc(100vh - 266px);
+    overflow-y: auto;
+  }
+
   /* Toggle (Preview switch) */
   .lp-toggle {
     position: relative;

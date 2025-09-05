@@ -31,7 +31,7 @@ export default function QuickChatOverlay({
       className="fixed z-[110]"
       style={{ left: position.x, top: position.y }}
     >
-      <div className="w-[360px] min-w-[450px] rounded-xl shadow-2xl ring-1 ring-purple-400/40 border border-purple-300/60 dark:border-purple-700/60 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm p-3">
+      <div className="w-[360px] min-w-[450px] rounded-xl shadow-2xl border border-[rgb(172,117,240)] bg-[rgb(14,10,42)] text-white p-3">
         <div className="flex items-center gap-2">
           <div className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-600 text-white shadow">
             <FaMagic className="w-3.5 h-3.5" />
@@ -40,12 +40,12 @@ export default function QuickChatOverlay({
             {selectionSummary}
           </div>
         </div>
-        <div className="mt-1 text-xs text-purple-800 dark:text-purple-300">
+        <div className="mt-1 text-xs text-gray-300">
           AI quick action — type and press Enter. Esc to close.
         </div>
         <input
           ref={inputRef}
-          className="mt-2 w-full rounded-md border border-purple-300/70 dark:border-purple-700/60 bg-white dark:bg-gray-900 px-2 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          className="mt-2 w-full rounded-md border border-gray-600 bg-gray-800 text-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
           placeholder="Quick edit..."
           value={value}
           onChange={(e) => onChange(e.target.value)}
