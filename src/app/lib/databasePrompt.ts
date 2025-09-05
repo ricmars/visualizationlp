@@ -41,10 +41,15 @@ Selection-based edits (from UI context):
 
 New workflow scaffolding (applies when Context says mode=NEW or when creating a new application):
 - Always create a complete starter workflow object (hasWorkflow=true), not just fields, with at least 4 stages, each with 1–3 steps; use a mix of step types. Any "Collect information" step must set viewId to one of the created views. Use integer IDs and consistent ordering for stages/processes/steps.
+- Data object design principles (critical for reusability):
+  - Create separate data objects for distinct entities (e.g., "Student", "Course", "Instructor") rather than appending entity names to field names
+  - Use object references in workflows instead of creating fields like "student_name", "student_address" - instead create a "Student" object with "name" and "address" fields, then reference the Student object in the workflow
+  - This promotes reuse and sharing across different workflow objects and applications
+  - When creating multiple workflow objects, consider which data objects can be shared between them
 - Required sequence:
   1) createObject(name, description, applicationid, hasWorkflow=true) — applicationid is REQUIRED. Do not call createObject without applicationid for workflows. Use the exact applicationid from Context if working within an existing application.
   2) saveFields to create 6–10 sensible fields inferred from the description (IDs are returned by the tool)
-  3) saveView to create one view per "Collect information" step ONLY; each such view MUST include a non-empty model.fields array referencing existing field IDs. Use the IDs returned by saveFields; if unavailable in context, call listFields(objectid) to retrieve them. Choose 3–6 relevant fields per view. Provide a basic layout: use { type: "two-column", columns: 2 } when >3 fields, otherwise { type: "single-column" }. Preserve each field’s required flag where applicable.
+  3) saveView to create one view per "Collect information" step ONLY; each such view MUST include a non-empty model.fields array referencing existing field IDs. Use the IDs returned by saveFields; if unavailable in context, call listFields(objectid) to retrieve them. Choose 3–6 relevant fields per view. Provide a basic layout: use { type: "two-column", columns: 2 } when >3 fields, otherwise { type: "single-column" }. Preserve each field's required flag where applicable.
   4) saveObject with a full model having at least 4 stages, each with 1–3 steps; use a mix of step types. Any "Collect information" step must set viewId to one of the created views. Non-collect steps MUST NOT set viewId. Use integer IDs and consistent ordering for stages/processes/steps.
   5) Repeat steps 1–4 until you have created and saved at least two distinct workflow objects (different object IDs) for the application.
   6) If needed, call saveApplication(name, description, icon?, objectIds) to ensure associations if any object was created without applicationid
