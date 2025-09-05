@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CreateApplicationModal } from "./components/CreateApplicationModal";
-import DeleteApplicationModal from "./components/DeleteApplicationModal";
+import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
 import EditApplicationModal from "./components/EditApplicationModal";
 import { useRouter } from "next/navigation";
 import { FaTrash, FaPencilAlt } from "react-icons/fa";
@@ -13,6 +13,51 @@ import { registerRuleTypes } from "./types/ruleTypeDefinitions";
 
 // Initialize rule types on module load
 registerRuleTypes();
+
+/**
+ * Deletes an application and all its associated workflows, fields, views, and checkpoints
+ */
+async function deleteApplication(applicationId: number): Promise<void> {
+  // 1) Load all cases/workflows for this application
+  const casesRes = await fetchWithBaseUrl(
+    `/api/database?table=Objects&applicationid=${applicationId}`,
+  );
+  if (!casesRes.ok) {
+    const err = await casesRes.text();
+    throw new Error(`Failed to load workflows: ${err}`);
+  }
+  const casesJson = await casesRes.json();
+  const workflows: Array<{ id: number; name?: string }> =
+    (casesJson?.data as any[]) || [];
+
+  // 2) For each workflow, delete checkpoints then delete the case (cascades fields/views)
+  for (const wf of workflows) {
+    await fetchWithBaseUrl(`/api/checkpoint?action=deleteAll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ objectid: wf.id }),
+    });
+
+    const delCaseRes = await fetchWithBaseUrl(
+      `/api/dynamic?ruleType=case&id=${wf.id}`,
+      { method: "DELETE" },
+    );
+    if (!delCaseRes.ok) {
+      const err = await delCaseRes.text();
+      throw new Error(`Failed to delete workflow ${wf.id}: ${err}`);
+    }
+  }
+
+  // 3) Delete the application itself
+  const delAppRes = await fetchWithBaseUrl(
+    `/api/dynamic?ruleType=application&id=${applicationId}`,
+    { method: "DELETE" },
+  );
+  if (!delAppRes.ok) {
+    const err = await delAppRes.text();
+    throw new Error(`Failed to delete application: ${err}`);
+  }
+}
 
 /**
  * Main page component for the workflow application
@@ -355,13 +400,17 @@ export default function Home() {
         creationError={error}
         title="Create new application"
       />
-      <DeleteApplicationModal
+      <ConfirmDeleteModal
         isOpen={!!deleteTarget}
-        applicationId={deleteTarget?.id}
-        applicationName={deleteTarget?.name}
+        title="Delete application"
+        message={`Are you sure you want to delete "${deleteTarget?.name}"? This will permanently remove the application, all of its workflows, fields, views, and checkpoints.`}
         onCancel={() => setDeleteTarget(null)}
-        onConfirm={async (id) => {
-          setApplications((prev) => prev.filter((a) => a.id !== id));
+        onConfirm={async () => {
+          if (!deleteTarget) return;
+          await deleteApplication(deleteTarget.id);
+          setApplications((prev) =>
+            prev.filter((a) => a.id !== deleteTarget.id),
+          );
           setDeleteTarget(null);
         }}
       />
