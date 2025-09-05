@@ -26,6 +26,8 @@ type UseQuickChatArgs = {
   setActiveStageAction: (next: string | undefined) => void;
   setActiveProcessAction: (next: string | undefined) => void;
   setActiveStepAction: (next: string | undefined) => void;
+  isDataObjectView?: boolean;
+  selectedObjectId?: number | null;
 };
 
 export function useQuickChat({
@@ -48,10 +50,13 @@ export function useQuickChat({
   setActiveStageAction,
   setActiveProcessAction,
   setActiveStepAction,
+  isDataObjectView = false,
+  selectedObjectId = null,
 }: UseQuickChatArgs) {
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
   const [quickChatText, setQuickChatText] = useState("");
   const quickInputRef = useRef<HTMLInputElement>(null);
+  const selectedCaseId = selectedCase?.id ?? null;
 
   const quickSelectionSummary = useQuickSelectionSummary({
     stages,
@@ -60,6 +65,8 @@ export function useQuickChat({
     selectedStepIds,
     selectedFieldIds,
     selectedViewIds,
+    isDataObjectView,
+    selectedObjectId,
   });
 
   const { handleSendMessage } = useChatMessaging({
@@ -84,13 +91,15 @@ export function useQuickChat({
       const composedMessage = composeQuickChatMessage({
         quickChatText: text,
         selectedFieldIds,
-        selectedViewIds,
+        selectedViewIds: isDataObjectView ? [] : selectedViewIds,
         selectedStageIds,
         selectedProcessIds,
         selectedStepIds,
         fields: fields.map((f) => ({ id: f.id as number, name: f.name })),
         views: views.map((v) => ({ id: v.id as number, name: v.name })),
         stages: stages as any,
+        selectedObjectId: selectedObjectId ?? selectedCaseId ?? null,
+        isDataObjectView,
       });
       // Leave closing/clearing to caller (so UI can control timing)
       void handleSendMessage(composedMessage);
@@ -106,6 +115,9 @@ export function useQuickChat({
       views,
       stages,
       handleSendMessage,
+      isDataObjectView,
+      selectedObjectId,
+      selectedCaseId,
     ],
   );
 

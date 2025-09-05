@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Field } from "../../../types";
 import AddFieldModal from "@/app/components/AddFieldModal";
 import FieldsList from "@/app/components/FieldsList";
-import Tooltip from "@/app/components/Tooltip";
 import { FaTrash, FaPencilAlt } from "react-icons/fa";
 
 type DataObject = {
@@ -158,18 +157,16 @@ export default function DataPanel({
           <div>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-medium">{selectedDataObject.name}</h3>
-              <Tooltip content="Add Field">
-                <motion.button
-                  ref={addFieldButtonRef}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsAddFieldOpen(true)}
-                  className="interactive-button"
-                  aria-label="Add Field"
-                >
-                  Add Field
-                </motion.button>
-              </Tooltip>
+              <motion.button
+                ref={addFieldButtonRef}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsAddFieldOpen(true)}
+                className="interactive-button"
+                aria-label="Add Field"
+              >
+                Add Field
+              </motion.button>
             </div>
 
             {selectedFields.length === 0 ? (

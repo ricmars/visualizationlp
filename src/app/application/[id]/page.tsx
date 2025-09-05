@@ -237,6 +237,7 @@ export default function WorkflowPage() {
     activeTab,
     selectedView,
     onOpenQuickChatAction: () => setIsQuickChatOpen(true),
+    isDataObjectView: selectedDataObjectId !== null,
     resolveExternalIdsAction: (_rect) =>
       Promise.resolve({ fieldIds: [], viewIds: [] }),
   });
@@ -686,7 +687,8 @@ export default function WorkflowPage() {
   const quickInputRef = useRef<HTMLInputElement>(null);
   const { quickSelectionSummary, sendQuickChat } = useQuickChat({
     stages: workflowModel.stages,
-    fields,
+    // In Data Object view, use dataObjectFields; otherwise use workflow fields
+    fields: selectedDataObjectId !== null ? dataObjectFields : fields,
     views,
     selectedFieldIds: (selectedFieldIds as number[]) || [],
     selectedViewIds: (selectedViewIds as number[]) || [],
@@ -704,6 +706,8 @@ export default function WorkflowPage() {
     setActiveStageAction: setActiveStage,
     setActiveProcessAction: setActiveProcess,
     setActiveStepAction: setActiveStep,
+    isDataObjectView: selectedDataObjectId !== null,
+    selectedObjectId: selectedDataObjectId,
   });
 
   useEffect(() => {

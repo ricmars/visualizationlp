@@ -8,7 +8,6 @@ import React, {
 import { Stage, Field, FieldReference } from "../types";
 import AddFieldModal from "./AddFieldModal";
 import StepForm from "./StepForm";
-import Tooltip from "./Tooltip";
 import { motion } from "framer-motion";
 
 interface ViewsPanelProps {
@@ -421,18 +420,16 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                 {allViews.find((v) => v.id.toString() === selectedView)?.name ||
                   selectedView}
               </h3>
-              <Tooltip content="Add Field">
-                <motion.button
-                  ref={addFieldButtonRef}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => setIsAddFieldOpen(true)}
-                  className="interactive-button"
-                  aria-label="Add Field"
-                >
-                  Add Field
-                </motion.button>
-              </Tooltip>
+              <motion.button
+                ref={addFieldButtonRef}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setIsAddFieldOpen(true)}
+                className="interactive-button"
+                aria-label="Add Field"
+              >
+                Add Field
+              </motion.button>
             </div>
 
             {selectedViewFields.length === 0 ? (

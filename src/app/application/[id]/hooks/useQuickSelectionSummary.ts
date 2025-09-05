@@ -10,6 +10,11 @@ type Params = {
   selectedStepIds: number[];
   selectedFieldIds: number[];
   selectedViewIds: number[];
+  // If true, we're in the Data Object view (fields of a data object),
+  // not the Views tab. In that case, do not refer to view counts.
+  isDataObjectView?: boolean;
+  // Optional selected object id to display in summary for data object view
+  selectedObjectId?: number | null;
 };
 
 export default function useQuickSelectionSummary({
@@ -19,6 +24,8 @@ export default function useQuickSelectionSummary({
   selectedStepIds,
   selectedFieldIds,
   selectedViewIds,
+  isDataObjectView = false,
+  selectedObjectId = null,
 }: Params) {
   return useMemo(() => {
     const stageCount = selectedStageIds.length;
@@ -44,7 +51,7 @@ export default function useQuickSelectionSummary({
     }
     const viewIdsUnion = new Set<number>(selectedViewIds);
     impliedViewIds.forEach((v) => viewIdsUnion.add(v));
-    const viewCount = viewIdsUnion.size;
+    const viewCount = isDataObjectView ? 0 : viewIdsUnion.size;
 
     const parts: string[] = [];
     if (stageCount > 0)
@@ -55,11 +62,14 @@ export default function useQuickSelectionSummary({
       parts.push(`${stepCount} step${stepCount === 1 ? "" : "s"}`);
     if (fieldCount > 0)
       parts.push(`${fieldCount} field${fieldCount === 1 ? "" : "s"}`);
+    if (isDataObjectView && selectedObjectId !== null) {
+      parts.push(`1 object`);
+    }
 
     let suffix = "";
-    if (stepCount > 0 && viewCount > 0) {
+    if (!isDataObjectView && stepCount > 0 && viewCount > 0) {
       suffix = ` including ${viewCount} view${viewCount === 1 ? "" : "s"}`;
-    } else if (stepCount === 0 && viewCount > 0) {
+    } else if (!isDataObjectView && stepCount === 0 && viewCount > 0) {
       parts.push(`${viewCount} view${viewCount === 1 ? "" : "s"}`);
     }
 
@@ -77,5 +87,7 @@ export default function useQuickSelectionSummary({
     selectedStepIds,
     selectedFieldIds,
     selectedViewIds,
+    isDataObjectView,
+    selectedObjectId,
   ]);
 }

@@ -20,6 +20,9 @@ type UseFreeFormSelectionArgs = {
   activeTab: "workflow" | "fields" | "data" | "views" | "chat" | "history";
   selectedView: string | null;
   onOpenQuickChatAction: () => void;
+  // When true, we are in the Data Object fields view, not the Views tab
+  // and should avoid auto-augmenting selected viewIds based on selectedView
+  isDataObjectView?: boolean;
   resolveExternalFieldIdsAction?: (rect: {
     x: number;
     y: number;
@@ -38,6 +41,7 @@ export function useFreeFormSelection({
   activeTab,
   selectedView,
   onOpenQuickChatAction,
+  isDataObjectView = false,
   resolveExternalFieldIdsAction,
   resolveExternalIdsAction,
 }: UseFreeFormSelectionArgs) {
@@ -268,7 +272,7 @@ export function useFreeFormSelection({
     const stepIds = Array.from(pickedStepIds.values());
 
     let augmentedVIds = vIds;
-    if (activeTab === "views" && selectedView) {
+    if (!isDataObjectView && activeTab === "views" && selectedView) {
       let currentViewId: number | null = null;
       if (selectedView.startsWith("db-")) {
         const parsed = parseInt(selectedView.substring(3), 10);
@@ -323,6 +327,7 @@ export function useFreeFormSelection({
     activeTab,
     selectedView,
     selectionRect,
+    isDataObjectView,
     onOpenQuickChatAction,
     resolveExternalFieldIdsAction,
     resolveExternalIdsAction,

@@ -22,6 +22,9 @@ type ComposeQuickChatMessageArgs = {
   fields: MinimalField[];
   views: MinimalView[];
   stages: MinimalStage[];
+  // When interacting with the Data Object fields view, include object id
+  selectedObjectId?: number | null;
+  isDataObjectView?: boolean;
 };
 
 export function composeQuickChatMessage({
@@ -34,6 +37,8 @@ export function composeQuickChatMessage({
   fields,
   views,
   stages,
+  selectedObjectId = null,
+  isDataObjectView = false,
 }: ComposeQuickChatMessageArgs): string {
   const chosenFields = fields.filter((f) => selectedFieldIds.includes(f.id));
   const fieldNames = chosenFields.map((f) => f.name);
@@ -75,8 +80,13 @@ export function composeQuickChatMessage({
 
   addIfNonEmpty("Selected fieldIds", selectedFieldIds);
   addIfNonEmpty("Selected fieldNames", fieldNames);
-  addIfNonEmpty("Selected viewIds", selectedViewIds);
-  addIfNonEmpty("Selected viewNames", viewNames);
+  if (!isDataObjectView) {
+    addIfNonEmpty("Selected viewIds", selectedViewIds);
+    addIfNonEmpty("Selected viewNames", viewNames);
+  }
+  if (isDataObjectView && selectedObjectId !== null) {
+    contextLines.push(`Selected objectId=${JSON.stringify(selectedObjectId)}`);
+  }
   addIfNonEmpty("Selected stageIds", selectedStageIds);
   addIfNonEmpty("Selected stageNames", stageNames);
   addIfNonEmpty("Selected processIds", processMap.ids);

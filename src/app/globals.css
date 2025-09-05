@@ -105,6 +105,7 @@ body {
   /* App panels horizontal gutter */
   .app-panels {
     gap: var(--panel-gutter);
+    padding: 0 16px;
   }
 
   /* Unified modal backdrop: subtle 20% opacity with slight blur */
@@ -540,13 +541,6 @@ body {
 
 .min-h-app-screen {
   min-height: calc(100vh - 8px - var(--header-height));
-}
-
-/* Responsive breakpoints */
-@media (max-width: 1599px) {
-  .app-panels {
-    gap: 0;
-  }
 }
 
 @media (max-width: 1199px) {
