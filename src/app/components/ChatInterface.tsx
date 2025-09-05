@@ -819,44 +819,82 @@ export default function ChatInterface({
         </div>
       </div>
       {isRecordModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
+        <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[80] modal-overlay p-4">
           <div
-            className="absolute inset-0 modal-backdrop modal-overlay"
-            onClick={closeRecordModal}
-          ></div>
-          <div className="relative bg-white dark:bg-gray-900 rounded-lg shadow-lg w-full max-w-md mx-3 p-4 border border-gray-200 dark:border-gray-700">
-            <h4 className="text-sm font-semibold text-white mb-3">
-              Voice input
-            </h4>
-            <div className="space-y-3">
-              <div>
-                <label className="block text-xs text-white dark:text-gray-300 mb-1">
-                  Language
-                </label>
-                <select
-                  className="w-full text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-white"
-                  value={selectedLang}
-                  onChange={(e) => setSelectedLang(e.target.value)}
-                >
-                  <option value="en-US">English (US)</option>
-                  <option value="en-GB">English (UK)</option>
-                  <option value="es-ES">Español (ES)</option>
-                  <option value="fr-FR">Français (FR)</option>
-                  <option value="de-DE">Deutsch (DE)</option>
-                  <option value="pt-BR">Português (BR)</option>
-                  <option value="it-IT">Italiano (IT)</option>
-                  <option value="ja-JP">日本語 (JP)</option>
-                  <option value="ko-KR">한국어 (KR)</option>
-                  <option value="zh-CN">中文 (简体)</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-white dark:text-gray-300 mb-1">
-                  Audio output device
-                </label>
+            className="rounded-lg shadow-xl w-full max-w-md z-[90] bg-[rgb(14,10,42)] text-white min-w-[450px]"
+            role="dialog"
+          >
+            <div className="p-6">
+              <div className="lp-modal-header">
+                <h2 className="text-lg font-semibold text-white">
+                  Voice Input Settings
+                </h2>
                 <div className="flex items-center gap-2">
+                  <button
+                    onClick={closeRecordModal}
+                    className="btn-secondary px-3"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      try {
+                        localStorage.setItem("voice.lang", selectedLang);
+                        if (audioOutputDevice) {
+                          localStorage.setItem(
+                            "voice.audioOutputDeviceId",
+                            audioOutputDevice.deviceId,
+                          );
+                          setPreferredOutputDeviceId(
+                            audioOutputDevice.deviceId,
+                          );
+                        }
+                        localStorage.setItem("voice.configured", "true");
+                      } catch {}
+                      setHasVoiceConfig(true);
+                      closeRecordModal();
+                      startRecording();
+                    }}
+                    disabled={disableRecord || !recognition}
+                    className="interactive-button px-3 flex items-center gap-2"
+                  >
+                    {disableRecord && (
+                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                    )}
+                    {disableRecord ? "Recording…" : "Start Recording"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-4 mt-4">
+                <div>
+                  <label className="block text-sm text-white mb-2">
+                    Language
+                  </label>
                   <select
-                    className="flex-1 text-sm p-2 rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-white"
+                    className="lp-input w-full"
+                    value={selectedLang}
+                    onChange={(e) => setSelectedLang(e.target.value)}
+                  >
+                    <option value="en-US">English (US)</option>
+                    <option value="en-GB">English (UK)</option>
+                    <option value="es-ES">Español (ES)</option>
+                    <option value="fr-FR">Français (FR)</option>
+                    <option value="de-DE">Deutsch (DE)</option>
+                    <option value="pt-BR">Português (BR)</option>
+                    <option value="it-IT">Italiano (IT)</option>
+                    <option value="ja-JP">日本語 (JP)</option>
+                    <option value="ko-KR">한국어 (KR)</option>
+                    <option value="zh-CN">中文 (简体)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-white mb-2">
+                    Audio Output Device
+                  </label>
+                  <select
+                    className="lp-input w-full"
                     value={
                       audioOutputDevice?.deviceId ||
                       preferredOutputDeviceId ||
@@ -902,39 +940,9 @@ export default function ChatInterface({
                       </option>
                     ))}
                   </select>
+                  <audio ref={audioRef} className="hidden" />
                 </div>
-                <audio ref={audioRef} className="hidden" />
               </div>
-            </div>
-            <div className="mt-4 flex items-center justify-end gap-2">
-              <button
-                onClick={closeRecordModal}
-                className="px-3 py-2 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => {
-                  try {
-                    localStorage.setItem("voice.lang", selectedLang);
-                    if (audioOutputDevice) {
-                      localStorage.setItem(
-                        "voice.audioOutputDeviceId",
-                        audioOutputDevice.deviceId,
-                      );
-                      setPreferredOutputDeviceId(audioOutputDevice.deviceId);
-                    }
-                    localStorage.setItem("voice.configured", "true");
-                  } catch {}
-                  setHasVoiceConfig(true);
-                  closeRecordModal();
-                  startRecording();
-                }}
-                disabled={disableRecord || !recognition}
-                className="px-3 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {disableRecord ? "Recording…" : "Start Recording"}
-              </button>
             </div>
           </div>
         </div>

@@ -19,7 +19,6 @@ import ModalPortal from "./ModalPortal";
 import dynamic from "next/dynamic";
 import { StyleSheetManager } from "styled-components";
 
-import { Bootes2025DarkTheme } from "@pega/cosmos-react-core";
 const PegaLifeCycle = dynamic(
   () =>
     import("@pega/cosmos-react-build").then((mod) => ({
@@ -144,9 +143,6 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-const theme = Bootes2025DarkTheme;
-theme.base["font-family"] = "Montserrat, Helvetica, sans-serif";
-
 // Stable provider composition to prevent duplicate style tags on re-renders
 const PegaProviders = React.memo(
   ({
@@ -155,24 +151,43 @@ const PegaProviders = React.memo(
   }: {
     container: HTMLElement;
     children: React.ReactNode;
-  }) => (
-    <StyleSheetManager target={container}>
-      <PegaConfiguration
-        theme={theme}
-        disableDefaultFontLoading
-        styleSheetTarget={container}
-        portalTarget={container}
-      >
-        <PegaLiveLog maxLength={50}>
-          <PegaPopoverManager>
-            <PegaToaster dismissAfter={5000}>
-              <PegaModalManager>{children as unknown as any}</PegaModalManager>
-            </PegaToaster>
-          </PegaPopoverManager>
-        </PegaLiveLog>
-      </PegaConfiguration>
-    </StyleSheetManager>
-  ),
+  }) => {
+    const [theme, setTheme] = React.useState<any>(null);
+
+    React.useEffect(() => {
+      // Dynamically import the theme to avoid SSR issues
+      import("@pega/cosmos-react-core").then(({ Bootes2025DarkTheme }) => {
+        const importedTheme = Bootes2025DarkTheme;
+        importedTheme.base["font-family"] = "Montserrat, Helvetica, sans-serif";
+        setTheme(importedTheme);
+      });
+    }, []);
+
+    if (!theme) {
+      return <div>Loading...</div>;
+    }
+
+    return (
+      <StyleSheetManager target={container}>
+        <PegaConfiguration
+          theme={theme}
+          disableDefaultFontLoading
+          styleSheetTarget={container}
+          portalTarget={container}
+        >
+          <PegaLiveLog maxLength={50}>
+            <PegaPopoverManager>
+              <PegaToaster dismissAfter={5000}>
+                <PegaModalManager>
+                  {children as unknown as any}
+                </PegaModalManager>
+              </PegaToaster>
+            </PegaPopoverManager>
+          </PegaLiveLog>
+        </PegaConfiguration>
+      </StyleSheetManager>
+    );
+  },
 );
 
 const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({

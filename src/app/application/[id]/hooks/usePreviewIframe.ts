@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { Bootes2025DarkTheme } from "@pega/cosmos-react-core";
 import type { channel } from "../../../types";
 
 type GenerateModel = () => any;
@@ -215,7 +214,10 @@ export default function usePreviewIframe({
               PREVIEW_ORIGIN,
             );
             hasSentInitialRef.current = true;
-            setTimeout(() => {
+            setTimeout(async () => {
+              const { Bootes2025DarkTheme } = await import(
+                "@pega/cosmos-react-core"
+              );
               iframeRef.current?.contentWindow?.postMessage(
                 { theme: Bootes2025DarkTheme },
                 PREVIEW_ORIGIN,

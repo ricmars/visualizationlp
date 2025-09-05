@@ -2,7 +2,13 @@
 
 import React from "react";
 import { FaMagic } from "react-icons/fa";
-import { Icon } from "@pega/cosmos-react-core";
+import dynamic from "next/dynamic";
+
+const Icon = dynamic(
+  () =>
+    import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
+  { ssr: false },
+);
 
 type ChatPanelHeaderProps = {
   onQuickAction: () => void;

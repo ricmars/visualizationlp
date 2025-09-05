@@ -221,7 +221,7 @@ body {
 
   .main-border-radius {
     border-radius: var(--header-radius);
-    border-color: rgb(172, 117, 240);
+    border: 1px solid rgb(172, 117, 240);
   }
 
   .main-header-bg {
@@ -231,6 +231,7 @@ body {
   /* Chat header background */
   .chat-header-bg {
     background-color: var(--color-main-header-bg);
+    border-radius: var(--header-radius) var(--header-radius) 0 0;
   }
 
   /* Chat panel background */
