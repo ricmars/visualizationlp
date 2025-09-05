@@ -203,6 +203,19 @@ export default function WorkflowPage() {
   const [selectedDataObjectId, setSelectedDataObjectId] = useState<
     number | null
   >(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = useCallback((message: string) => {
+    setToastMessage(message);
+    if (toastTimerRef.current) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 2000);
+  }, []);
 
   // Responsive state
   const [isChatModalOpen, setIsChatModalOpen] = useState(false);
@@ -842,6 +855,7 @@ export default function WorkflowPage() {
       const json = await res.json();
       const newId: number | undefined = json?.data?.id;
       await refreshWorkflowData();
+      showToast("Workflow created.");
       if (newId) {
         await handleChangeWorkflow(newId);
       }
@@ -984,6 +998,11 @@ export default function WorkflowPage() {
       if (nextobjectid) {
         const params = new URLSearchParams();
         params.set("object", String(nextobjectid));
+        // Refresh header lists before navigating to ensure consistency
+        try {
+          await refreshApplicationWorkflows();
+        } catch {}
+        showToast("Workflow deleted. Navigated to next workflow.");
         router.push(`/application/${applicationId}?${params.toString()}`);
       } else {
         // No cases available; navigate to home (empty pattern)
@@ -1402,7 +1421,6 @@ export default function WorkflowPage() {
                     selectedId={selectedDataObjectId}
                     dataObjects={dataObjects || []}
                     fields={dataObjectFields}
-                    onSelectDataObjectAction={handleSelectDataObject}
                     workflowObjects={applicationWorkflows}
                     onAddNewFieldAndAttachAction={async (
                       dataObjectId,
@@ -1419,28 +1437,6 @@ export default function WorkflowPage() {
                     ) =>
                       handleReorderFieldsInDataObject(dataObjectId, fieldIds)
                     }
-                    onEditDataObjectAction={(did: number) =>
-                      setEditingDataObjectId(did)
-                    }
-                    onDeleteDataObjectAction={async (did: number) => {
-                      try {
-                        const res = await fetchWithBaseUrl(
-                          `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
-                          { method: "DELETE" },
-                        );
-                        if (!res.ok) {
-                          const t = await res.text();
-                          throw new Error(
-                            `Failed to delete data object: ${res.status} ${t}`,
-                          );
-                        }
-                      } catch (e) {
-                        console.error("Error deleting data object:", e);
-                      } finally {
-                        await refreshWorkflowData();
-                        setSelectedDataObjectId(null);
-                      }
-                    }}
                   />
                 </div>
               </div>
@@ -1630,6 +1626,7 @@ export default function WorkflowPage() {
                 );
               }
               await refreshWorkflowData();
+              showToast("Data object created.");
             }}
           />
         </ModalPortal>
@@ -1746,6 +1743,64 @@ export default function WorkflowPage() {
                 }
                 await refreshWorkflowData();
               }}
+              onDeleteAction={async (did: number) => {
+                try {
+                  const res = await fetchWithBaseUrl(
+                    `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
+                    { method: "DELETE" },
+                  );
+                  if (!res.ok) {
+                    const t = await res.text();
+                    throw new Error(
+                      `Failed to delete data object: ${res.status} ${t}`,
+                    );
+                  }
+                } catch (e) {
+                  console.error("Error deleting data object:", e);
+                } finally {
+                  try {
+                    // Find first remaining data object in this application
+                    const appId = applicationId || selectedCase?.applicationid;
+                    if (appId) {
+                      const listRes = await fetchWithBaseUrl(
+                        `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appId}&hasWorkflow=false`,
+                      );
+                      if (listRes.ok) {
+                        const data = await listRes.json();
+                        const list =
+                          (data?.data as Array<{ id: number }> | undefined) ||
+                          [];
+                        // Update header immediately
+                        setDataObjects(list as any);
+                        const nextDataObjectId = list[0]?.id ?? null;
+                        if (nextDataObjectId) {
+                          // Navigate to the first remaining data object
+                          handleSelectDataObject(nextDataObjectId);
+                          showToast(
+                            "Data object deleted. Navigated to next data object.",
+                          );
+                        } else {
+                          // No data objects left; return to workflow view (if exists)
+                          setSelectedDataObjectId(null);
+                          const params = new URLSearchParams();
+                          if (selectedCase?.id) {
+                            params.set("object", String(selectedCase.id));
+                            router.push(
+                              `/application/${appId}?${params.toString()}`,
+                            );
+                            showToast("Data object deleted.");
+                          }
+                        }
+                      } else {
+                        setSelectedDataObjectId(null);
+                      }
+                    } else {
+                      setSelectedDataObjectId(null);
+                    }
+                  } catch {}
+                  setEditingDataObjectId(null);
+                }
+              }}
             />
           )}
         </ModalPortal>
@@ -1835,6 +1890,13 @@ export default function WorkflowPage() {
         stages={workflowModel.stages}
         fields={fields}
       />
+      {toastMessage && (
+        <div className="absolute left-1/2 bottom-6 -translate-x-1/2 z-[110]">
+          <div className="px-4 py-2 rounded shadow-lg border border-white/20 bg-[rgb(20,16,60)] text-white">
+            {toastMessage}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import ModalPortal from "@/app/components/ModalPortal";
+import DeleteDataObjectModal from "@/app/components/DeleteDataObjectModal";
 
 type SystemOfRecord = {
   id: number;
@@ -29,6 +30,7 @@ type EditDataObjectModalProps = {
     description: string;
     systemOfRecordId: number;
   }) => Promise<void>;
+  onDeleteAction?: (id: number) => Promise<void> | void;
 };
 
 export default function EditDataObjectModal({
@@ -37,6 +39,7 @@ export default function EditDataObjectModal({
   systemsOfRecord,
   initialData,
   onSaveAction,
+  onDeleteAction,
 }: EditDataObjectModalProps) {
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description);
@@ -44,6 +47,7 @@ export default function EditDataObjectModal({
     initialData.systemOfRecordId,
   );
   const nameInputRef = useRef<HTMLInputElement>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -88,6 +92,14 @@ export default function EditDataObjectModal({
                   Edit Data Object
                 </h3>
                 <div className="flex items-center gap-2">
+                  {onDeleteAction && !isConfirmingDelete && (
+                    <button
+                      onClick={() => setIsConfirmingDelete(true)}
+                      className="btn-secondary px-3"
+                    >
+                      Delete
+                    </button>
+                  )}
                   <button
                     onClick={onCloseAction}
                     className="btn-secondary px-3"
@@ -159,6 +171,17 @@ export default function EditDataObjectModal({
           </div>
         </div>
       </div>
+      <DeleteDataObjectModal
+        isOpen={isConfirmingDelete}
+        objectid={initialData.id}
+        objectName={initialData.name}
+        onCancel={() => setIsConfirmingDelete(false)}
+        onConfirm={async (id) => {
+          if (!onDeleteAction) return;
+          await onDeleteAction(id);
+          setIsConfirmingDelete(false);
+        }}
+      />
     </ModalPortal>
   );
 }

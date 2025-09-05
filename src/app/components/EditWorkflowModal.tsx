@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
 interface EditWorkflowModalProps {
   isOpen: boolean;
@@ -22,6 +23,7 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description);
   const [error, setError] = useState<string | null>(null);
+  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -67,10 +69,7 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
                 <div className="flex items-center gap-2">
                   {onDelete && (
                     <button
-                      onClick={async () => {
-                        await onDelete();
-                        onClose();
-                      }}
+                      onClick={() => setIsConfirmingDelete(true)}
                       className="btn-secondary px-3"
                     >
                       Delete
@@ -129,6 +128,18 @@ const EditWorkflowModal: React.FC<EditWorkflowModalProps> = ({
               </div>
             </div>
           </motion.div>
+          <ConfirmDeleteModal
+            isOpen={isConfirmingDelete}
+            title="Delete workflow"
+            message={`Are you sure you want to delete "${name}"? This will permanently remove the workflow, all fields, views, and checkpoints for this case.`}
+            onCancel={() => setIsConfirmingDelete(false)}
+            onConfirm={async () => {
+              if (!onDelete) return;
+              await onDelete();
+              setIsConfirmingDelete(false);
+              onClose();
+            }}
+          />
         </>
       )}
     </AnimatePresence>

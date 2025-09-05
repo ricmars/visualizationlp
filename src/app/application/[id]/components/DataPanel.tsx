@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Field } from "../../../types";
 import AddFieldModal from "@/app/components/AddFieldModal";
 import FieldsList from "@/app/components/FieldsList";
-import { FaTrash, FaPencilAlt } from "react-icons/fa";
+import ConfirmDeleteModal from "@/app/components/ConfirmDeleteModal";
 
 type DataObject = {
   id: number;
@@ -20,7 +20,6 @@ type DataPanelProps = {
   dataObjects: DataObject[];
   fields: Field[];
   selectedId?: number | null;
-  onSelectDataObjectAction?: (id: number) => void;
   workflowObjects?: Array<{ id: number; name: string }>;
   onAddNewFieldAndAttachAction: (
     dataObjectId: number,
@@ -43,38 +42,27 @@ type DataPanelProps = {
     dataObjectId: number,
     fieldIds: number[],
   ) => void;
-  onEditDataObjectAction: (id: number) => void;
-  onDeleteDataObjectAction: (id: number) => void | Promise<void>;
 };
 
 export default function DataPanel({
   dataObjects,
   fields,
   selectedId,
-  onSelectDataObjectAction,
   workflowObjects = [],
   onAddNewFieldAndAttachAction,
   onRemoveFieldFromDataObjectAction,
   onReorderFieldsInDataObjectAction,
-  onEditDataObjectAction,
-  onDeleteDataObjectAction,
 }: DataPanelProps) {
-  const [selectedDataObjectId, setSelectedDataObjectId] = useState<
-    number | null
-  >(null);
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
+  const [fieldPendingDelete, setFieldPendingDelete] = useState<Field | null>(
+    null,
+  );
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Keep internal selection in sync with external selection
-  React.useEffect(() => {
-    if (typeof selectedId === "number" || selectedId === null) {
-      setSelectedDataObjectId(selectedId ?? null);
-    }
-  }, [selectedId]);
-
   const selectedDataObject = useMemo(
-    () => dataObjects.find((d) => d.id === selectedDataObjectId) || null,
-    [dataObjects, selectedDataObjectId],
+    () =>
+      dataObjects.find((d) => d.id === (selectedId as number | null)) || null,
+    [dataObjects, selectedId],
   );
 
   const selectedFields: Field[] = useMemo(() => {
@@ -88,8 +76,7 @@ export default function DataPanel({
   }, [selectedDataObject, fields]);
 
   const handleDeleteField = (field: Field) => {
-    if (!selectedDataObject) return;
-    onRemoveFieldFromDataObjectAction(selectedDataObject.id, field);
+    setFieldPendingDelete(field);
   };
 
   const handleFieldsReorder = (startIndex: number, endIndex: number) => {
@@ -104,101 +91,49 @@ export default function DataPanel({
   };
 
   return (
-    <div className="flex h-full">
-      {/* Left list */}
-      <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
-        <div className="p-4">
-          <div className="space-y-2">
-            {dataObjects.map((d) => (
-              <div
-                key={d.id}
-                className={`w-full px-4 py-3 rounded-lg transition-colors border ${
-                  selectedDataObjectId === d.id
-                    ? "border-white bg-[rgb(20,16,60)] text-white"
-                    : "border-transparent hover:bg-[rgb(20,16,60)] hover:text-white"
-                }`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedDataObjectId(d.id);
-                      onSelectDataObjectAction &&
-                        onSelectDataObjectAction(d.id);
-                    }}
-                    className="text-left flex-1"
-                  >
-                    <div className="font-medium">{d.name}</div>
-                    <div className="text-sm opacity-80">{d.description}</div>
-                  </button>
-                  <div className="flex items-center gap-1">
-                    <button
-                      title="Edit data object"
-                      onClick={() => onEditDataObjectAction(d.id)}
-                      className="btn-secondary w-8"
-                    >
-                      <FaPencilAlt className="w-4 h-4" />
-                    </button>
-                    <button
-                      title="Delete data object"
-                      onClick={() => void onDeleteDataObjectAction(d.id)}
-                      className="btn-secondary w-8"
-                    >
-                      <FaTrash className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
-            ))}
+    <div className="h-full p-4 overflow-y-auto">
+      {selectedDataObject ? (
+        <div>
+          <div className="flex items-center justify-end mb-4">
+            <motion.button
+              ref={addFieldButtonRef}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsAddFieldOpen(true)}
+              className="interactive-button"
+              aria-label="Add Field"
+            >
+              Add Field
+            </motion.button>
           </div>
-        </div>
-      </div>
 
-      {/* Right detail: fields */}
-      <div className="flex-1 p-4 overflow-y-auto">
-        {selectedDataObject ? (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">{selectedDataObject.name}</h3>
-              <motion.button
-                ref={addFieldButtonRef}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => setIsAddFieldOpen(true)}
-                className="interactive-button"
-                aria-label="Add Field"
-              >
-                Add Field
-              </motion.button>
+          {selectedFields.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-interactive dark:text-gray-400">
+                No fields added yet. Click "Add Field" to get started.
+              </p>
             </div>
-
-            {selectedFields.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-sm text-interactive dark:text-gray-400">
-                  No fields added yet. Click "Add Field" to get started.
-                </p>
-              </div>
-            ) : (
-              <div className="relative">
-                <FieldsList
-                  fields={selectedFields}
-                  onDeleteField={handleDeleteField}
-                  onEditField={(field) => {
-                    const event = new CustomEvent("edit-field", {
-                      detail: { field },
-                    });
-                    window.dispatchEvent(event);
-                  }}
-                  onReorderFields={handleFieldsReorder}
-                />
-              </div>
-            )}
-          </div>
-        ) : (
-          <div className="text-center text-interactive dark:text-gray-400 mt-8">
-            Select a data object to see its fields
-          </div>
-        )}
-      </div>
+          ) : (
+            <div className="relative">
+              <FieldsList
+                fields={selectedFields}
+                onDeleteField={handleDeleteField}
+                onEditField={(field) => {
+                  const event = new CustomEvent("edit-field", {
+                    detail: { field },
+                  });
+                  window.dispatchEvent(event);
+                }}
+                onReorderFields={handleFieldsReorder}
+              />
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="text-center text-interactive dark:text-gray-400 mt-8">
+          Select a data object to see its fields
+        </div>
+      )}
 
       {/* Add Field Modal (new-only) */}
       <AddFieldModal
@@ -214,6 +149,27 @@ export default function DataPanel({
         allowExistingFields={false}
         workflowObjects={workflowObjects}
         dataObjects={dataObjects.map((d) => ({ id: d.id, name: d.name }))}
+      />
+      <ConfirmDeleteModal
+        isOpen={!!fieldPendingDelete}
+        title="Remove field from data object"
+        message={
+          fieldPendingDelete
+            ? `Are you sure you want to remove "${
+                fieldPendingDelete.label || fieldPendingDelete.name
+              }" from this data object?`
+            : ""
+        }
+        confirmLabel="Remove"
+        onCancel={() => setFieldPendingDelete(null)}
+        onConfirm={async () => {
+          if (!selectedDataObject || !fieldPendingDelete) return;
+          onRemoveFieldFromDataObjectAction(
+            selectedDataObject.id,
+            fieldPendingDelete,
+          );
+          setFieldPendingDelete(null);
+        }}
       />
     </div>
   );

@@ -207,8 +207,12 @@ export function useWorkflowData(objectid: string) {
         setSelectedCase(caseData.data);
       }
 
-      const composedModel = await fetchCaseData(objectid);
-      setModel(composedModel);
+      try {
+        const composedModel = await fetchCaseData(objectid);
+        setModel(composedModel);
+      } catch (_err) {
+        // Object may have been deleted; skip model refresh silently
+      }
 
       // Refresh case-level fields
       let caseFields: Field[] = [];
@@ -307,7 +311,14 @@ export function useWorkflowData(objectid: string) {
         } catch {}
       }
     } catch (err) {
-      console.error("Error refreshing workflow data:", err);
+      const message = err instanceof Error ? err.message : String(err);
+      if (/Failed to fetch case: 4\d\d/.test(message)) {
+        console.debug(
+          "[data] Case missing during refresh (likely deleted); skipping.",
+        );
+      } else {
+        console.error("Error refreshing workflow data:", err);
+      }
     }
   }, [objectid, fetchCaseData]);
 

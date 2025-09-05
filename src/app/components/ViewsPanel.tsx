@@ -9,6 +9,7 @@ import { Stage, Field, FieldReference } from "../types";
 import AddFieldModal from "./AddFieldModal";
 import StepForm from "./StepForm";
 import { motion } from "framer-motion";
+import ConfirmDeleteModal from "./ConfirmDeleteModal";
 
 interface ViewsPanelProps {
   stages: Stage[];
@@ -70,6 +71,9 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   const addFieldButtonRef = useRef<HTMLButtonElement>(
     null,
   ) as MutableRefObject<HTMLButtonElement>;
+  const [fieldPendingDelete, setFieldPendingDelete] = useState<Field | null>(
+    null,
+  );
 
   // Get all steps of type 'Collect information' that have corresponding database views
   const collectSteps = useMemo(() => {
@@ -351,27 +355,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   };
 
   const handleDeleteField = (field: Field) => {
-    if (!selectedView) return;
-
-    // Check if this is a database view or a workflow step
-    const databaseView = allViews.find(
-      (v) => v.id.toString() === selectedView && v.isDatabaseView,
-    );
-
-    if (databaseView) {
-      // It's a database view - just remove the field from the view
-      if (onRemoveFieldFromView) {
-        onRemoveFieldFromView(field);
-      } else if (onDeleteField) {
-        // Fallback to regular delete if remove from view is not provided
-        onDeleteField(field);
-      }
-    } else {
-      // It's a workflow step - this should delete the field entirely
-      if (onDeleteField) {
-        onDeleteField(field);
-      }
-    }
+    setFieldPendingDelete(field);
   };
 
   return (
@@ -566,6 +550,52 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
               }
             }
           }
+        }}
+      />
+
+      <ConfirmDeleteModal
+        isOpen={!!fieldPendingDelete}
+        title={(() => {
+          const isDb = allViews.some(
+            (v) => v.id.toString() === selectedView && v.isDatabaseView,
+          );
+          return isDb ? "Remove field from view" : "Delete field from workflow";
+        })()}
+        message={
+          fieldPendingDelete
+            ? (() => {
+                const isDb = allViews.some(
+                  (v) => v.id.toString() === selectedView && v.isDatabaseView,
+                );
+                return isDb
+                  ? `Remove "${
+                      fieldPendingDelete.label || fieldPendingDelete.name
+                    }" from this view?`
+                  : `Delete field "${
+                      fieldPendingDelete.label || fieldPendingDelete.name
+                    }" from the workflow?`;
+              })()
+            : ""
+        }
+        confirmLabel={(() => {
+          const isDb = allViews.some(
+            (v) => v.id.toString() === selectedView && v.isDatabaseView,
+          );
+          return isDb ? "Remove" : "Delete";
+        })()}
+        onCancel={() => setFieldPendingDelete(null)}
+        onConfirm={async () => {
+          if (!fieldPendingDelete) return;
+          const isDb = allViews.some(
+            (v) => v.id.toString() === selectedView && v.isDatabaseView,
+          );
+          if (isDb) {
+            if (onRemoveFieldFromView)
+              onRemoveFieldFromView(fieldPendingDelete);
+          } else {
+            if (onDeleteField) onDeleteField(fieldPendingDelete);
+          }
+          setFieldPendingDelete(null);
         }}
       />
 
