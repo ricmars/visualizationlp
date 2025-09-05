@@ -41,6 +41,10 @@ export const DB_TABLES = {
     const ruleType = ruleTypeRegistry.get("systemOfRecord");
     return ruleType?.databaseSchema.tableName || "SystemsOfRecord";
   },
+  get OBJECT_RECORDS() {
+    const ruleType = ruleTypeRegistry.get("objectRecord");
+    return ruleType?.databaseSchema.tableName || "ObjectRecords";
+  },
 } as const;
 
 // Helper function to get table name by rule type ID

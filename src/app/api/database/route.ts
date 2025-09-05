@@ -117,7 +117,14 @@ export async function POST(request: Request) {
     }
 
     const requestBody = await request.json();
-    const data = requestBody.data || requestBody;
+    // For ObjectRecords, we need to preserve the full structure including objectid
+    // For other rule types, maintain backward compatibility
+    let data;
+    if (ruleTypeId === "objectRecord") {
+      data = requestBody;
+    } else {
+      data = requestBody.data || requestBody;
+    }
 
     const result = await dynamicDatabaseService.execute({
       operation: "create",
@@ -172,7 +179,14 @@ export async function PUT(request: Request) {
     }
 
     const requestBody = await request.json();
-    const data = requestBody.data || requestBody;
+    // For ObjectRecords, we need to preserve the full structure
+    // For other rule types, maintain backward compatibility
+    let data;
+    if (ruleTypeId === "objectRecord") {
+      data = requestBody;
+    } else {
+      data = requestBody.data || requestBody;
+    }
 
     const result = await dynamicDatabaseService.execute({
       operation: "update",

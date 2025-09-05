@@ -6,6 +6,7 @@ import { Field } from "../../../types";
 import AddFieldModal from "@/app/components/AddFieldModal";
 import FieldsList from "@/app/components/FieldsList";
 import ConfirmDeleteModal from "@/app/components/ConfirmDeleteModal";
+import RecordsPanel from "./RecordsPanel";
 
 type DataObject = {
   id: number;
@@ -57,6 +58,7 @@ export default function DataPanel({
   const [fieldPendingDelete, setFieldPendingDelete] = useState<Field | null>(
     null,
   );
+  const [activeTab, setActiveTab] = useState<"fields" | "records">("fields");
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
 
   const selectedDataObject = useMemo(
@@ -91,47 +93,88 @@ export default function DataPanel({
   };
 
   return (
-    <div className="h-full p-4 overflow-y-auto">
+    <div className="h-full flex flex-col">
       {selectedDataObject ? (
-        <div>
-          <div className="flex items-center justify-end mb-4">
-            <motion.button
-              ref={addFieldButtonRef}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setIsAddFieldOpen(true)}
-              className="interactive-button"
-              aria-label="Add Field"
+        <div className="flex flex-col h-full">
+          {/* Tabs */}
+          <div className="flex border-b border-white/20">
+            <button
+              onClick={() => setActiveTab("fields")}
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === "fields"
+                  ? "text-white border-b-2 border-blue-400"
+                  : "text-white/80 hover:text-white"
+              }`}
             >
-              Add Field
-            </motion.button>
+              Fields
+            </button>
+            <button
+              onClick={() => setActiveTab("records")}
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === "records"
+                  ? "text-white border-b-2 border-blue-400"
+                  : "text-white/80 hover:text-white"
+              }`}
+            >
+              Records
+            </button>
           </div>
 
-          {selectedFields.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="text-sm text-interactive dark:text-gray-400">
-                No fields added yet. Click "Add Field" to get started.
-              </p>
-            </div>
-          ) : (
-            <div className="relative">
-              <FieldsList
+          {/* Tab Content */}
+          <div className="flex-1 overflow-hidden">
+            {activeTab === "fields" ? (
+              <div className="h-full p-4 overflow-y-auto">
+                <div className="flex items-center justify-end mb-4">
+                  <motion.button
+                    ref={addFieldButtonRef}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setIsAddFieldOpen(true)}
+                    className="interactive-button"
+                    aria-label="Add Field"
+                  >
+                    Add Field
+                  </motion.button>
+                </div>
+
+                {selectedFields.length === 0 ? (
+                  <div className="text-center py-8">
+                    <p className="text-sm text-interactive dark:text-gray-400">
+                      No fields added yet. Click "Add Field" to get started.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <FieldsList
+                      fields={selectedFields}
+                      onDeleteField={handleDeleteField}
+                      onEditField={(field) => {
+                        const event = new CustomEvent("edit-field", {
+                          detail: { field },
+                        });
+                        window.dispatchEvent(event);
+                      }}
+                      onReorderFields={handleFieldsReorder}
+                    />
+                  </div>
+                )}
+              </div>
+            ) : (
+              <RecordsPanel
+                selectedDataObject={selectedDataObject}
                 fields={selectedFields}
-                onDeleteField={handleDeleteField}
-                onEditField={(field) => {
-                  const event = new CustomEvent("edit-field", {
-                    detail: { field },
-                  });
-                  window.dispatchEvent(event);
+                onRefreshAction={() => {
+                  // Refresh logic if needed
                 }}
-                onReorderFields={handleFieldsReorder}
               />
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : (
-        <div className="text-center text-interactive dark:text-gray-400 mt-8">
-          Select a data object to see its fields
+        <div className="h-full p-4 flex items-center justify-center">
+          <div className="text-center text-interactive dark:text-gray-400">
+            Select a data object to see its fields and records
+          </div>
         </div>
       )}
 

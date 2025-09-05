@@ -617,18 +617,150 @@ export const systemOfRecordRuleType: RuleTypeDefinition = {
   },
 };
 
+// Object Record Rule Type Definition
+export const objectRecordRuleType: RuleTypeDefinition = {
+  id: "objectRecord",
+  name: "Object Record",
+  description:
+    "A record instance of an object containing field values stored as JSONB",
+  category: "data",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "ObjectRecord",
+    description: "A record instance of an object containing field values",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      {
+        name: "objectid",
+        type: "number",
+        description: "Reference to parent object",
+      },
+      {
+        name: "data",
+        type: "Record<string, any>",
+        description: "Field values stored as JSONB",
+      },
+      {
+        name: "created_at",
+        type: "string",
+        optional: true,
+        description: "Record creation timestamp",
+      },
+      {
+        name: "updated_at",
+        type: "string",
+        optional: true,
+        description: "Record last update timestamp",
+      },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "ObjectRecords",
+    columns: [
+      {
+        name: "id",
+        type: "INTEGER",
+        primaryKey: true,
+        nullable: false,
+        description: "Primary key identifier",
+      },
+      {
+        name: "objectid",
+        type: "INTEGER",
+        nullable: false,
+        description: "Reference to parent object",
+      },
+      {
+        name: "data",
+        type: "JSONB",
+        nullable: false,
+        description: "Field values stored as JSONB",
+      },
+      {
+        name: "created_at",
+        type: "TIMESTAMP",
+        nullable: false,
+        defaultValue: "NOW()",
+        description: "Record creation timestamp",
+      },
+      {
+        name: "updated_at",
+        type: "TIMESTAMP",
+        nullable: false,
+        defaultValue: "NOW()",
+        description: "Record last update timestamp",
+      },
+    ],
+    foreignKeys: [
+      {
+        name: "object_records_objectid_fkey",
+        columns: ["objectid"],
+        referenceTable: "Objects",
+        referenceColumns: ["id"],
+        onDelete: "CASCADE",
+      },
+    ],
+    indexes: [
+      { name: "object_records_objectid_idx", columns: ["objectid"] },
+      { name: "object_records_created_at_idx", columns: ["created_at"] },
+    ],
+  },
+
+  hooks: {
+    beforeCreate: async (data) => {
+      if (data.data === undefined || data.data === null) {
+        data.data = {};
+      }
+      if (typeof data.data === "string") {
+        try {
+          data.data = JSON.parse(data.data);
+        } catch {
+          throw new Error("Invalid JSON in data field");
+        }
+      }
+      return data;
+    },
+    beforeUpdate: async (data) => {
+      if (data.data === undefined || data.data === null) {
+        return data;
+      }
+      if (typeof data.data === "string") {
+        try {
+          data.data = JSON.parse(data.data);
+        } catch {
+          throw new Error("Invalid JSON in data field");
+        }
+      }
+      // Update the updated_at timestamp
+      data.updated_at = new Date().toISOString();
+      return data;
+    },
+    afterCreate: async (data, id) => {
+      console.log(`Created object record ${id} for object ${data.objectid}`);
+    },
+  },
+};
+
 // Removed Data Object Rule Type (merged into Object)
 
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
     // Register in dependency order for FK correctness
-    // Applications → SystemsOfRecord → Objects → Fields → Views
+    // Applications → SystemsOfRecord → Objects → Fields → Views → ObjectRecords
     ruleTypeRegistry.register(applicationRuleType);
     ruleTypeRegistry.register(systemOfRecordRuleType);
     ruleTypeRegistry.register(objectRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);
+    ruleTypeRegistry.register(objectRecordRuleType);
     console.log("✅ All rule types registered successfully");
   } catch (error) {
     console.error("❌ Failed to register rule types:", error);

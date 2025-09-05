@@ -1807,6 +1807,129 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         return { success: true, deletedId: params.id };
       },
     },
+    {
+      name: "saveObjectRecord",
+      description:
+        "Creates or updates a record for a data object. Set values as {key:value} using the 'data' property",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Record ID (omit for create)",
+          },
+          objectid: {
+            type: "integer",
+            description: "ID of the data object this record belongs to",
+          },
+          data: {
+            type: "object",
+            description: "List of values to update stored as key-value object",
+          },
+        },
+        required: ["objectid", "data"],
+      },
+      execute: async (params: {
+        id?: number;
+        objectid: number;
+        data: Record<string, unknown>;
+      }) => {
+        console.log("=== saveObjectRecord EXECUTION STARTED ===");
+        console.log(
+          "saveObjectRecord parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("saveObjectRecord called at:", new Date().toISOString());
+
+        const { id, objectid, data } = params;
+        const fieldValues = data;
+
+        if (!objectid) throw new Error("Object ID is required");
+        if (!fieldValues || typeof fieldValues !== "object") {
+          throw new Error(
+            "Field values must be an object. Provide 'data' with key-value pairs.",
+          );
+        }
+
+        let recordId = id;
+        if (recordId) {
+          // Update existing record
+          const updateQuery = `
+            UPDATE "${DB_TABLES.OBJECT_RECORDS}"
+            SET data = $1, updated_at = NOW()
+            WHERE id = $2 AND objectid = $3
+            RETURNING id, objectid, data, created_at, updated_at
+          `;
+          const result = await pool.query(updateQuery, [
+            JSON.stringify(fieldValues),
+            recordId,
+            objectid,
+          ]);
+          if (result.rowCount === 0) {
+            throw new Error(
+              `No record found with id ${recordId} for object ${objectid}`,
+            );
+          }
+          console.log("saveObjectRecord UPDATE successful:", result.rows[0]);
+          return result.rows[0];
+        } else {
+          // Create new record
+          const insertQuery = `
+            INSERT INTO "${DB_TABLES.OBJECT_RECORDS}" (objectid, data)
+            VALUES ($1, $2)
+            RETURNING id, objectid, data, created_at, updated_at
+          `;
+          const result = await pool.query(insertQuery, [
+            objectid,
+            JSON.stringify(fieldValues),
+          ]);
+          console.log("saveObjectRecord INSERT successful:", result.rows[0]);
+          return result.rows[0];
+        }
+      },
+    },
+    {
+      name: "deleteObjectRecord",
+      description:
+        "Permanently deletes a record from a data object. This action is NOT recoverable.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Record ID to delete",
+          },
+        },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        console.log("=== deleteObjectRecord EXECUTION STARTED ===");
+        console.log(
+          "deleteObjectRecord parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("deleteObjectRecord called at:", new Date().toISOString());
+
+        const { id } = params;
+
+        if (!id) throw new Error("Record ID is required");
+
+        const deleteQuery = `DELETE FROM "${DB_TABLES.OBJECT_RECORDS}" WHERE id = $1`;
+        console.log("deleteObjectRecord query:", deleteQuery);
+        console.log("deleteObjectRecord query values:", [id]);
+        const result = await pool.query(deleteQuery, [id]);
+
+        if (result.rowCount === 0) {
+          console.error(
+            `deleteObjectRecord ERROR: No record found with id ${id}`,
+          );
+          throw new Error(`No record found with id ${id}`);
+        }
+
+        console.log("deleteObjectRecord successful:", { id });
+        return { success: true, deletedId: id };
+      },
+    },
     // Data Object tools removed; use Objects with hasWorkflow=false and Fields referencing objectid
   ];
 

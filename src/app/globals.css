@@ -751,3 +751,17 @@ html {
   color: white;
   padding-top: 4px;
 }
+
+/* Panel Layout Classes */
+.left-panel {
+  width: 300px;
+  min-width: 300px;
+  font-size: 14px;
+  background-color: #16244e;
+}
+
+.right-panel {
+  width: 400px;
+  min-width: 400px;
+  font-size: 14px;
+}

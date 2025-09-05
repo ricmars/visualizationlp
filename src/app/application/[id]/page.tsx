@@ -168,7 +168,6 @@ export default function WorkflowPage() {
   const [activeStep, setActiveStep] = useState<string>();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
-  const FIXED_CHAT_PANEL_WIDTH = 400;
   const [selectedChannel, setSelectedChannel] = useState<channel>("WorkPortal");
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [activeTab, setActiveTab] = usePersistentTab<
@@ -1245,10 +1244,7 @@ export default function WorkflowPage() {
     <div className={`flex h-app-screen app-panels ${isMobile ? "px-2" : ""}`}>
       {/* Left Panel - Hidden on mobile, shown on tablet/desktop */}
       {!isMobile && (
-        <aside
-          className="flex flex-col h-app-screen text-sm bg-[#16244E]"
-          style={{ width: "300px", fontSize: "14px" }}
-        >
+        <aside className="flex flex-col h-app-screen text-sm left-panel">
           {/* Header with toggle */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-white">
             <div className="text-sm font-medium opacity-80">
@@ -1390,15 +1386,6 @@ export default function WorkflowPage() {
             active={activeTab as any}
             onChange={setActiveTab as any}
           />
-        )}
-        {!isPreviewVisible && selectedDataObjectId !== null && (
-          <div className="flex justify-between items-center">
-            <div className="flex">
-              <button className="px-4 py-2 text-sm font-medium text-white border-b-2 border-blue-400">
-                Fields
-              </button>
-            </div>
-          </div>
         )}
 
         {/* Main Content Area */}
@@ -1808,10 +1795,7 @@ export default function WorkflowPage() {
 
       {/* Chat Panel - fixed width - Hidden on tablet/mobile */}
       {isDesktop && (
-        <aside
-          className="flex flex-col h-app-screen text-sm"
-          style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
-        >
+        <aside className="flex flex-col h-app-screen text-sm right-panel">
           <div className="flex-1 flex flex-col min-w-0">
             <ChatPanelContent
               messages={messages}
