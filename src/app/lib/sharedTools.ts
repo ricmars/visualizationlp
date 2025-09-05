@@ -570,8 +570,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     },
     {
       name: "saveFields",
-      description:
-        "Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).",
+      description: `Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).
+                    Reference fields: To create a reference to another object, set type to one of: 'CaseReferenceSingle' | 'CaseReferenceMulti' | 'DataReferenceSingle' | 'DataReferenceMulti'. Provide 'refObjectId' with the referenced object's ID and 'refMultiplicity' as 'single' or 'multi'.`,
       parameters: {
         type: "object",
         properties: {
@@ -611,6 +611,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   items: { type: "string" },
                   description:
                     "Array of options (only include when type is 'Dropdown' or 'RadioButtons')",
+                },
+                refObjectId: {
+                  type: "integer",
+                  description:
+                    "Target object ID when this field is a reference (optional)",
+                },
+                refMultiplicity: {
+                  type: "string",
+                  enum: ["single", "multi"],
+                  description: "Reference type/multiplicity (optional)",
                 },
                 required: {
                   type: "boolean",
@@ -674,6 +684,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             required,
             primary,
             sampleValue,
+            refObjectId,
+            refMultiplicity,
           } = field as any;
           const objectid = (field as any).objectid ?? (field as any).objectid;
 
@@ -740,9 +752,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
             const updateExistingQuery = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
-              WHERE id = $11
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10, "refObjectId" = $11, "refMultiplicity" = $12
+              WHERE id = $13
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
             `;
             const updateExistingValues = [
               name,
@@ -755,6 +767,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               nextRequired,
               nextPrimary,
               normalizedSampleValue,
+              typeof refObjectId === "number" ? refObjectId : null,
+              typeof refMultiplicity === "string" ? refMultiplicity : null,
               existingFieldId,
             ];
             console.log(
@@ -809,9 +823,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             // Update existing field
             const query = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10
-              WHERE id = $11
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue"
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10, "refObjectId" = $11, "refMultiplicity" = $12
+              WHERE id = $13
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
             `;
             console.log("saveFields UPDATE query:", query);
             // Normalize options & sampleValue for DB storage
@@ -837,6 +851,12 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               required ?? false,
               primary ?? false,
               normalizedSampleValue,
+              typeof (field as any).refObjectId === "number"
+                ? (field as any).refObjectId
+                : null,
+              typeof (field as any).refMultiplicity === "string"
+                ? (field as any).refMultiplicity
+                : null,
               id,
             ]);
 
@@ -851,6 +871,12 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               required ?? false,
               primary ?? false,
               normalizedSampleValue,
+              typeof (field as any).refObjectId === "number"
+                ? (field as any).refObjectId
+                : null,
+              typeof (field as any).refType === "string"
+                ? (field as any).refType
+                : null,
               id,
             ]);
             if (result.rowCount === 0) {

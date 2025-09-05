@@ -280,6 +280,18 @@ export const fieldRuleType: RuleTypeDefinition = {
         description: "Available options for selection fields",
       },
       {
+        name: "refObjectId",
+        type: "number",
+        optional: true,
+        description: "Target object ID when this field is a reference",
+      },
+      {
+        name: "refMultiplicity",
+        type: "string",
+        optional: true,
+        description: "Reference multiplicity: 'single' or 'multi'",
+      },
+      {
         name: "required",
         type: "boolean",
         description: "Whether field is required",
@@ -354,6 +366,18 @@ export const fieldRuleType: RuleTypeDefinition = {
         nullable: false,
         defaultValue: "[]",
         description: "JSON array of options",
+      },
+      {
+        name: "refObjectId",
+        type: "INTEGER",
+        nullable: true,
+        description: "Target object ID when this field is a reference",
+      },
+      {
+        name: "refMultiplicity",
+        type: "TEXT",
+        nullable: true,
+        description: "Reference multiplicity: 'single' or 'multi'",
       },
       {
         name: "required",

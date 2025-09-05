@@ -44,6 +44,8 @@ export interface SaveFieldsParams extends ToolParams {
     description?: string;
     order?: number;
     options?: unknown[];
+    refObjectId?: number;
+    refMultiplicity?: "single" | "multi";
     sampleValue: unknown;
   }>;
 }

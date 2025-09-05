@@ -9,6 +9,10 @@ export type fieldType = FieldType;
 export type Field = FieldRecord & {
   /** if type is embeddded data, data reference or case reference, set this value to the object name */
   refType?: string;
+  /** normalized target object id for reference fields */
+  refObjectId?: number;
+  /** multiplicity for reference fields */
+  refMultiplicity?: "single" | "multi";
   /** source of the field - if not set will default to 'User input' */
   source?: "User input" | "System" | "Integration" | "Calculated";
   /** Example of value of the field - Only used when field is render as a displayField */

@@ -24,12 +24,12 @@ export default function ChatPanelContent({
   onClearChat,
 }: ChatPanelContentProps) {
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="flex-1 flex flex-col overflow-hidden">
       <ChatPanelHeader
         onQuickAction={onQuickAction}
         onClearChat={onClearChat}
       />
-      <div className="flex-1">
+      <div className="flex-1 overflow-hidden">
         <ChatInterface
           messages={messages}
           onSendMessage={onSendMessage}

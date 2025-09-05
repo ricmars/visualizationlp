@@ -584,6 +584,8 @@ export default function RulesCheckoutPanel({
             onClose={() => setEditingField(null)}
             onSubmit={handleFieldUpdate}
             field={editingField}
+            workflowObjects={[]}
+            dataObjects={[]}
           />
         )}
       </ModalPortal>

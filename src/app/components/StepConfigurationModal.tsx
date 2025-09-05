@@ -28,6 +28,8 @@ interface StepConfigurationModalProps {
   onAddExistingField: (stepId: number, fieldIds: number[]) => void;
   onUpdateField: (updates: Partial<Field>) => void;
   onDeleteField: (field: Field) => void;
+  workflowObjects?: Array<{ id: number; name: string }>;
+  dataObjects?: Array<{ id: number; name: string }>;
 }
 
 const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
@@ -40,6 +42,8 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   onAddExistingField,
   onUpdateField,
   onDeleteField,
+  workflowObjects = [],
+  dataObjects = [],
 }) => {
   const modalRef = useRef<HTMLDivElement>(null);
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
@@ -215,6 +219,8 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
           buttonRef={addFieldButtonRef}
           existingFields={fields}
           stepFieldIds={stepFieldIds.map(String)}
+          workflowObjects={workflowObjects}
+          dataObjects={dataObjects}
           onAddExistingField={(fieldIds) => {
             // Convert string field IDs back to numbers
             console.log(
@@ -237,6 +243,8 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
               setEditingField(null);
             }}
             field={editingField}
+            workflowObjects={[]}
+            dataObjects={[]}
           />
         )}
       </div>

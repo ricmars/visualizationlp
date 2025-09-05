@@ -22,6 +22,7 @@ type DataPanelProps = {
   fields: Field[];
   selectedId?: number | null;
   onSelectDataObjectAction?: (id: number) => void;
+  workflowObjects?: Array<{ id: number; name: string }>;
   onAddNewFieldAndAttachAction: (
     dataObjectId: number,
     field: {
@@ -50,6 +51,7 @@ export default function DataPanel({
   fields,
   selectedId,
   onSelectDataObjectAction,
+  workflowObjects = [],
   onAddNewFieldAndAttachAction,
   onRemoveFieldFromDataObjectAction,
   onReorderFieldsInDataObjectAction,
@@ -211,6 +213,8 @@ export default function DataPanel({
         existingFields={[]}
         stepFieldIds={[]}
         allowExistingFields={false}
+        workflowObjects={workflowObjects}
+        dataObjects={dataObjects.map((d) => ({ id: d.id, name: d.name }))}
       />
     </div>
   );

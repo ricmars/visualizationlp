@@ -37,6 +37,8 @@ type GenerateInterfaceFromTemplate<T extends string> = T extends "case"
       description: string;
       order: number;
       options: string[];
+      refObjectId?: number;
+      refMultiplicity?: "single" | "multi";
       required: boolean;
       sampleValue?: unknown;
     }

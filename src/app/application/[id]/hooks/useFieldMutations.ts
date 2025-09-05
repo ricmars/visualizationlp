@@ -41,6 +41,8 @@ export default function useFieldMutations({
       required?: boolean;
       primary?: boolean;
       sampleValue?: string;
+      refObjectId?: number;
+      refMultiplicity?: "single" | "multi";
     }): Promise<string> => {
       if (!selectedCase) return "";
 
@@ -57,6 +59,8 @@ export default function useFieldMutations({
           order: 0,
           options: field.options ?? [],
           sampleValue: field.sampleValue,
+          refObjectId: field.refObjectId,
+          refMultiplicity: field.refMultiplicity,
         };
 
         const response = await fetch(
@@ -77,6 +81,8 @@ export default function useFieldMutations({
                 options: fieldData.options,
                 required: fieldData.required,
                 sampleValue: fieldData.sampleValue,
+                refObjectId: fieldData.refObjectId,
+                refMultiplicity: fieldData.refMultiplicity,
               },
             }),
           },

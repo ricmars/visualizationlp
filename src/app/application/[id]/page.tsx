@@ -1381,8 +1381,9 @@ export default function WorkflowPage() {
                   <DataPanel
                     selectedId={selectedDataObjectId}
                     dataObjects={dataObjects || []}
-                    fields={[...fields, ...dataObjectFields]}
+                    fields={dataObjectFields}
                     onSelectDataObjectAction={handleSelectDataObject}
+                    workflowObjects={applicationWorkflows}
                     onAddNewFieldAndAttachAction={async (
                       dataObjectId,
                       field,
@@ -1514,6 +1515,11 @@ export default function WorkflowPage() {
                     stages={workflowModel.stages}
                     fields={fields}
                     views={views}
+                    workflowObjects={applicationWorkflows}
+                    dataObjects={
+                      dataObjects?.map((d) => ({ id: d.id, name: d.name })) ||
+                      []
+                    }
                     onAddField={handleAddField}
                     onUpdateField={handleUpdateField}
                     onDeleteField={handleDeleteField}
@@ -1554,6 +1560,10 @@ export default function WorkflowPage() {
             }}
             buttonRef={addFieldButtonRef as React.RefObject<HTMLButtonElement>}
             allowExistingFields={false}
+            workflowObjects={applicationWorkflows}
+            dataObjects={
+              dataObjects?.map((d) => ({ id: d.id, name: d.name })) || []
+            }
           />
         </ModalPortal>
 
@@ -1614,6 +1624,10 @@ export default function WorkflowPage() {
                 await refreshWorkflowData();
               }}
               field={editingField}
+              workflowObjects={applicationWorkflows}
+              dataObjects={
+                dataObjects?.map((d) => ({ id: d.id, name: d.name })) || []
+              }
             />
           )}
         </ModalPortal>
@@ -1723,7 +1737,7 @@ export default function WorkflowPage() {
           className="flex flex-col h-app-screen text-sm"
           style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
         >
-          <div className="flex-1 flex flex-col">
+          <div className="flex-1 flex flex-col overflow-hidden">
             <ChatPanelContent
               messages={messages}
               onSendMessage={(message) => void handleSendMessage(message)}

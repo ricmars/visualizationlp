@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { DB_TABLES } from "../types/database";
 import { motion, AnimatePresence } from "framer-motion";
 import { Field } from "../types";
 import Tooltip from "./Tooltip";
@@ -9,6 +10,8 @@ interface EditFieldModalProps {
   onClose: () => void;
   onSubmit: (updates: Partial<Field>) => void;
   field: Field;
+  workflowObjects?: Array<{ id: number; name: string }>;
+  dataObjects?: Array<{ id: number; name: string }>;
 }
 
 const EditFieldModal: React.FC<EditFieldModalProps> = ({
@@ -16,6 +19,8 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
   onClose,
   onSubmit,
   field,
+  workflowObjects = [],
+  dataObjects = [],
 }) => {
   const [label, setLabel] = useState(field.label);
   const [type, setType] = useState(field.type);
@@ -26,6 +31,26 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
   const [error, setError] = useState("");
   const modalRef = useRef<HTMLDivElement>(null);
   const labelInputRef = useRef<HTMLInputElement>(null);
+
+  const [refGroup, setRefGroup] = useState<"workflow" | "data" | null>(null);
+  const [refObjectId, setRefObjectId] = useState<number | null>(null);
+  const [resolvedWorkflowObjects, setResolvedWorkflowObjects] = useState<
+    Array<{ id: number; name: string }>
+  >(workflowObjects || []);
+  const [resolvedDataObjects, setResolvedDataObjects] = useState<
+    Array<{ id: number; name: string }>
+  >(dataObjects || []);
+
+  const workflowIdToName = useMemo(() => {
+    const map = new Map<number, string>();
+    (resolvedWorkflowObjects || []).forEach((o) => map.set(o.id, o.name));
+    return map;
+  }, [resolvedWorkflowObjects]);
+  const dataIdToName = useMemo(() => {
+    const map = new Map<number, string>();
+    (resolvedDataObjects || []).forEach((o) => map.set(o.id, o.name));
+    return map;
+  }, [resolvedDataObjects]);
 
   useEffect(() => {
     if (isOpen) {
@@ -64,6 +89,22 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
           setSampleValue(String(dv));
         }
       }
+      // Initialize reference state from options if present
+      const opts = parsedOptions;
+      const refToken = opts.find(
+        (o: any) =>
+          typeof o === "string" && (o as string).startsWith("__ref__:"),
+      );
+      if (typeof refToken === "string") {
+        const parts = refToken.split(":");
+        const grp = parts[1] as "workflow" | "data" | undefined;
+        const idNum = parseInt(parts[2] || "", 10);
+        if (grp === "workflow" || grp === "data") setRefGroup(grp);
+        setRefObjectId(Number.isNaN(idNum) ? null : idNum);
+      } else {
+        setRefGroup(null);
+        setRefObjectId(null);
+      }
     } else {
       document.body.style.overflow = "unset";
     }
@@ -71,6 +112,57 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
       document.body.style.overflow = "unset";
     };
   }, [isOpen, field]);
+
+  // Autoload reference target lists when not provided
+  useEffect(() => {
+    if (!isOpen) return;
+    const needsWorkflow =
+      !resolvedWorkflowObjects || resolvedWorkflowObjects.length === 0;
+    const needsData = !resolvedDataObjects || resolvedDataObjects.length === 0;
+    if (!needsWorkflow && !needsData) return;
+    const load = async () => {
+      try {
+        const objRes = await fetch(
+          `/api/database?table=${DB_TABLES.OBJECTS}&id=${
+            (field as any)?.objectid
+          }`,
+        );
+        const objJson = await objRes.json();
+        const appId: number | undefined = objJson?.data?.applicationid;
+        if (typeof appId === "number") {
+          if (needsWorkflow) {
+            try {
+              const wfRes = await fetch(
+                `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appId}&hasWorkflow=true`,
+              );
+              const wfJson = await wfRes.json();
+              const list =
+                (wfJson?.data as Array<{ id: number; name: string }>) || [];
+              setResolvedWorkflowObjects(
+                list.map((w) => ({ id: w.id, name: (w as any).name })),
+              );
+            } catch {}
+          }
+          if (needsData) {
+            try {
+              const doRes = await fetch(
+                `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appId}&hasWorkflow=false`,
+              );
+              const doJson = await doRes.json();
+              const list =
+                (doJson?.data as Array<{ id: number; name: string }>) || [];
+              setResolvedDataObjects(
+                list.map((d) => ({ id: d.id, name: (d as any).name })),
+              );
+            } catch {}
+          }
+        }
+      } catch {}
+    };
+    void load();
+    // Only run on open or when the lists are empty
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
 
   const handleSubmit = () => {
     if (!label.trim()) {
@@ -83,14 +175,22 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
           .map((opt) => opt.trim())
           .filter((opt) => opt.length > 0)
       : [];
+    const finalOptions = [...parsedOptions];
     onSubmit({
       name: field.name,
       label: label.trim(),
       type,
       primary: isPrimary,
       required: isRequired,
-      options: parsedOptions,
+      options: finalOptions,
       sampleValue: sampleValue,
+      refObjectId: refObjectId ?? undefined,
+      refMultiplicity:
+        refGroup && refObjectId
+          ? type === "CaseReferenceMulti" || type === "DataReferenceMulti"
+            ? "multi"
+            : "single"
+          : undefined,
     });
     setError("");
     onClose();
@@ -163,18 +263,140 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
                   <label className="block text-sm font-medium text-white mb-1">
                     Field Type
                   </label>
-                  <select
-                    value={type}
-                    onChange={(e) => setType(e.target.value as Field["type"])}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
-                  >
-                    {getAllFieldTypes().map((fieldType) => (
-                      <option key={fieldType} value={fieldType}>
-                        {getFieldTypeDisplayName(fieldType as any)}
-                      </option>
-                    ))}
-                  </select>
+                  {(() => {
+                    const referenceTypes = new Set([
+                      "DataReferenceSingle",
+                      "DataReferenceMulti",
+                      "CaseReferenceSingle",
+                      "CaseReferenceMulti",
+                    ] as const);
+                    const standardTypes = getAllFieldTypes().filter(
+                      (t) => !(referenceTypes as any).has(t as any),
+                    );
+                    const selectValue = refGroup
+                      ? `${refGroup}:${refObjectId ?? ""}`
+                      : (type as string);
+                    const handleTypeChange = (
+                      e: React.ChangeEvent<HTMLSelectElement>,
+                    ) => {
+                      const value = e.target.value;
+                      if (
+                        value.startsWith("workflow:") ||
+                        value.startsWith("data:")
+                      ) {
+                        const [grp, idStr] = value.split(":");
+                        const pickedId = parseInt(idStr || "", 10);
+                        const group = (
+                          grp === "workflow" ? "workflow" : "data"
+                        ) as "workflow" | "data";
+                        setRefGroup(group);
+                        setRefObjectId(
+                          Number.isNaN(pickedId) ? null : pickedId,
+                        );
+                        setType(
+                          group === "workflow"
+                            ? ("CaseReferenceSingle" as Field["type"])
+                            : ("DataReferenceSingle" as Field["type"]),
+                        );
+                      } else {
+                        setRefGroup(null);
+                        setRefObjectId(null);
+                        setType(value as Field["type"]);
+                      }
+                    };
+                    return (
+                      <select
+                        value={selectValue}
+                        onChange={handleTypeChange}
+                        className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
+                      >
+                        <optgroup label="Standard">
+                          {standardTypes.map((fieldType) => (
+                            <option key={fieldType} value={fieldType}>
+                              {getFieldTypeDisplayName(fieldType as any)}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {resolvedWorkflowObjects.length > 0 && (
+                          <optgroup label="Workflow">
+                            {resolvedWorkflowObjects.map((o) => (
+                              <option
+                                key={`workflow:${o.id}`}
+                                value={`workflow:${o.id}`}
+                              >
+                                {o.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                        {resolvedDataObjects.length > 0 && (
+                          <optgroup label="Data">
+                            {resolvedDataObjects.map((o) => (
+                              <option
+                                key={`data:${o.id}`}
+                                value={`data:${o.id}`}
+                              >
+                                {o.name}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
+                      </select>
+                    );
+                  })()}
                 </div>
+
+                {refGroup && (
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-1">
+                      Cardinality
+                    </label>
+                    <div className="flex items-center gap-4">
+                      <label className="inline-flex items-center gap-2 text-white">
+                        <input
+                          type="radio"
+                          name="edit-ref-cardinality"
+                          checked={
+                            (refGroup === "workflow" &&
+                              type === "CaseReferenceSingle") ||
+                            (refGroup === "data" &&
+                              type === "DataReferenceSingle")
+                          }
+                          onChange={() =>
+                            setType(
+                              refGroup === "workflow"
+                                ? ("CaseReferenceSingle" as Field["type"])
+                                : ("DataReferenceSingle" as Field["type"]),
+                            )
+                          }
+                          className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                        />
+                        Single (default)
+                      </label>
+                      <label className="inline-flex items-center gap-2 text-white">
+                        <input
+                          type="radio"
+                          name="edit-ref-cardinality"
+                          checked={
+                            (refGroup === "workflow" &&
+                              type === "CaseReferenceMulti") ||
+                            (refGroup === "data" &&
+                              type === "DataReferenceMulti")
+                          }
+                          onChange={() =>
+                            setType(
+                              refGroup === "workflow"
+                                ? ("CaseReferenceMulti" as Field["type"])
+                                : ("DataReferenceMulti" as Field["type"]),
+                            )
+                          }
+                          className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                        />
+                        Multiple
+                      </label>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex items-center gap-2">
                   <input

@@ -15,6 +15,8 @@ interface ViewsPanelProps {
   stages: Stage[];
   fields: Field[];
   views: View[];
+  workflowObjects?: Array<{ id: number; name: string }>;
+  dataObjects?: Array<{ id: number; name: string }>;
   onAddField?: (field: {
     label: string;
     type: Field["type"];
@@ -52,6 +54,8 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   stages,
   fields,
   views: _views,
+  workflowObjects = [],
+  dataObjects = [],
   onAddField,
   onUpdateField,
   onDeleteField,
@@ -508,6 +512,8 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         buttonRef={addFieldButtonRef}
         existingFields={fields}
         stepFieldIds={selectedViewFieldIds.map(String)}
+        workflowObjects={workflowObjects}
+        dataObjects={dataObjects}
         onAddExistingField={(fieldIds) => {
           if (selectedView) {
             // Check if this is a database view or a workflow step

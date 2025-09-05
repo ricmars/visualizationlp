@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Field } from "../types";
 import Tooltip from "./Tooltip";
@@ -15,12 +15,16 @@ interface AddFieldModalProps {
     required: boolean;
     primary?: boolean;
     sampleValue: string;
+    refObjectId?: number;
+    refMultiplicity?: "single" | "multi";
   }) => Promise<void>;
   buttonRef?: React.RefObject<HTMLButtonElement>;
   existingFields?: Field[];
   stepFieldIds?: string[];
   onAddExistingField?: (fieldIds: string[]) => void;
   allowExistingFields?: boolean;
+  workflowObjects?: Array<{ id: number; name: string }>;
+  dataObjects?: Array<{ id: number; name: string }>;
 }
 
 const AddFieldModal: React.FC<AddFieldModalProps> = ({
@@ -31,6 +35,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
   stepFieldIds = [],
   onAddExistingField,
   allowExistingFields = true,
+  workflowObjects = [],
+  dataObjects = [],
 }) => {
   const [mode, setMode] = useState<"new" | "existing">(
     allowExistingFields ? "existing" : "new",
@@ -44,6 +50,21 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const labelInputRef = useRef<HTMLInputElement>(null);
+
+  // Reference selection state when user chooses an object to reference via grouped picker
+  const [refGroup, setRefGroup] = useState<"workflow" | "data" | null>(null);
+  const [refObjectId, setRefObjectId] = useState<number | null>(null);
+
+  const workflowIdToName = useMemo(() => {
+    const map = new Map<number, string>();
+    workflowObjects.forEach((o) => map.set(o.id, o.name));
+    return map;
+  }, [workflowObjects]);
+  const dataIdToName = useMemo(() => {
+    const map = new Map<number, string>();
+    dataObjects.forEach((o) => map.set(o.id, o.name));
+    return map;
+  }, [dataObjects]);
 
   // Filter out fields that are already in the step
   const availableFields = existingFields.filter(
@@ -95,13 +116,30 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
             .map((opt) => opt.trim())
             .filter((opt) => opt.length > 0)
         : [];
+
+      // If user selected a reference target, attach explicit reference params and default sample value
+      const finalOptions = [...parsedOptions];
+      if (refGroup && refObjectId) {
+        const refName =
+          refGroup === "workflow"
+            ? workflowIdToName.get(refObjectId)
+            : dataIdToName.get(refObjectId);
+        if (!sampleValue) setSampleValue(refName || "");
+      }
       await onAddField({
         label,
         type,
         required,
         primary: isPrimary,
-        options: parsedOptions,
+        options: finalOptions,
         sampleValue: sampleValue,
+        refObjectId: refObjectId ?? undefined,
+        refMultiplicity:
+          refGroup && refObjectId
+            ? type === "CaseReferenceMulti" || type === "DataReferenceMulti"
+              ? "multi"
+              : "single"
+            : undefined,
       });
     }
     setLabel("");
@@ -112,6 +150,8 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
     setSampleValue("");
     setSelectedFieldIds([]);
     setError("");
+    setRefGroup(null);
+    setRefObjectId(null);
     onClose();
   };
 
@@ -295,20 +335,152 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
                           <label className="block text-sm font-medium text-white mb-1">
                             Type
                           </label>
-                          <select
-                            value={type}
-                            onChange={(e) =>
-                              setType(e.target.value as Field["type"])
-                            }
-                            className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
-                          >
-                            {getAllFieldTypes().map((fieldType) => (
-                              <option key={fieldType} value={fieldType}>
-                                {getFieldTypeDisplayName(fieldType as any)}
-                              </option>
-                            ))}
-                          </select>
+                          {(() => {
+                            const referenceTypes = new Set([
+                              "DataReferenceSingle",
+                              "DataReferenceMulti",
+                              "CaseReferenceSingle",
+                              "CaseReferenceMulti",
+                            ] as const);
+                            const standardTypes = getAllFieldTypes().filter(
+                              (t) => !(referenceTypes as any).has(t as any),
+                            );
+                            // Derive select value that reflects reference selection when present
+                            const selectValue = refGroup
+                              ? `${refGroup}:${refObjectId ?? ""}`
+                              : (type as string);
+                            const handleTypeChange = (
+                              e: React.ChangeEvent<HTMLSelectElement>,
+                            ) => {
+                              const value = e.target.value;
+                              if (
+                                value.startsWith("workflow:") ||
+                                value.startsWith("data:")
+                              ) {
+                                const [grp, idStr] = value.split(":");
+                                const pickedId = parseInt(idStr || "", 10);
+                                const group = (
+                                  grp === "workflow" ? "workflow" : "data"
+                                ) as "workflow" | "data";
+                                setRefGroup(group);
+                                setRefObjectId(
+                                  Number.isNaN(pickedId) ? null : pickedId,
+                                );
+                                // Default to Single when picking a reference target
+                                setType(
+                                  group === "workflow"
+                                    ? ("CaseReferenceSingle" as Field["type"])
+                                    : ("DataReferenceSingle" as Field["type"]),
+                                );
+                                // If no sample value set, default to target name for preview
+                                const targetName =
+                                  group === "workflow"
+                                    ? workflowIdToName.get(pickedId)
+                                    : dataIdToName.get(pickedId);
+                                if (!sampleValue && targetName)
+                                  setSampleValue(targetName);
+                              } else {
+                                // Standard field type
+                                setRefGroup(null);
+                                setRefObjectId(null);
+                                setType(value as Field["type"]);
+                              }
+                            };
+                            return (
+                              <select
+                                value={selectValue}
+                                onChange={handleTypeChange}
+                                className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
+                              >
+                                <optgroup label="Standard">
+                                  {standardTypes.map((fieldType) => (
+                                    <option key={fieldType} value={fieldType}>
+                                      {getFieldTypeDisplayName(
+                                        fieldType as any,
+                                      )}
+                                    </option>
+                                  ))}
+                                </optgroup>
+                                {workflowObjects.length > 0 && (
+                                  <optgroup label="Workflow">
+                                    {workflowObjects.map((o) => (
+                                      <option
+                                        key={`workflow:${o.id}`}
+                                        value={`workflow:${o.id}`}
+                                      >
+                                        {o.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                                {dataObjects.length > 0 && (
+                                  <optgroup label="Data">
+                                    {dataObjects.map((o) => (
+                                      <option
+                                        key={`data:${o.id}`}
+                                        value={`data:${o.id}`}
+                                      >
+                                        {o.name}
+                                      </option>
+                                    ))}
+                                  </optgroup>
+                                )}
+                              </select>
+                            );
+                          })()}
                         </div>
+
+                        {refGroup && (
+                          <div>
+                            <label className="block text-sm font-medium text-white mb-1">
+                              Cardinality
+                            </label>
+                            <div className="flex items-center gap-4">
+                              <label className="inline-flex items-center gap-2 text-white">
+                                <input
+                                  type="radio"
+                                  name="ref-cardinality"
+                                  checked={
+                                    (refGroup === "workflow" &&
+                                      type === "CaseReferenceSingle") ||
+                                    (refGroup === "data" &&
+                                      type === "DataReferenceSingle")
+                                  }
+                                  onChange={() =>
+                                    setType(
+                                      refGroup === "workflow"
+                                        ? ("CaseReferenceSingle" as Field["type"])
+                                        : ("DataReferenceSingle" as Field["type"]),
+                                    )
+                                  }
+                                  className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                                />
+                                Single (default)
+                              </label>
+                              <label className="inline-flex items-center gap-2 text-white">
+                                <input
+                                  type="radio"
+                                  name="ref-cardinality"
+                                  checked={
+                                    (refGroup === "workflow" &&
+                                      type === "CaseReferenceMulti") ||
+                                    (refGroup === "data" &&
+                                      type === "DataReferenceMulti")
+                                  }
+                                  onChange={() =>
+                                    setType(
+                                      refGroup === "workflow"
+                                        ? ("CaseReferenceMulti" as Field["type"])
+                                        : ("DataReferenceMulti" as Field["type"]),
+                                    )
+                                  }
+                                  className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                                />
+                                Multiple
+                              </label>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-2">
                           <input

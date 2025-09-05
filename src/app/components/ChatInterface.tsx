@@ -540,7 +540,7 @@ export default function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Checkpoint Status Bar */}
       {checkpointStatus?.activeSession && (
         <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2">
