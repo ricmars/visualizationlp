@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { DB_TABLES } from "../types/database";
 import { motion, AnimatePresence } from "framer-motion";
 import { Field } from "../types";
@@ -40,17 +40,6 @@ const EditFieldModal: React.FC<EditFieldModalProps> = ({
   const [resolvedDataObjects, setResolvedDataObjects] = useState<
     Array<{ id: number; name: string }>
   >(dataObjects || []);
-
-  const workflowIdToName = useMemo(() => {
-    const map = new Map<number, string>();
-    (resolvedWorkflowObjects || []).forEach((o) => map.set(o.id, o.name));
-    return map;
-  }, [resolvedWorkflowObjects]);
-  const dataIdToName = useMemo(() => {
-    const map = new Map<number, string>();
-    (resolvedDataObjects || []).forEach((o) => map.set(o.id, o.name));
-    return map;
-  }, [resolvedDataObjects]);
 
   useEffect(() => {
     if (isOpen) {
