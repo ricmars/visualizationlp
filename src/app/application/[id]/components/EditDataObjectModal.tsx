@@ -85,7 +85,7 @@ export default function EditDataObjectModal({
           onClick={onCloseAction}
         />
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50">
-          <div className="modal-surface rounded-lg shadow-xl border overflow-hidden border-gray-700 w-[560px]">
+          <div className="modal-surface rounded-lg shadow-xl border min-w-0 border-gray-700 w-[560px]">
             <div className="p-4">
               <div className="lp-modal-header">
                 <h3 className="text-lg font-semibold text-white">

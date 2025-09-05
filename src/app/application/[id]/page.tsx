@@ -1305,7 +1305,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col relative h-full min-h-0 rounded-[12px] border border-[rgb(172,117,240)] ${
+        className={`flex-1 flex flex-col relative h-full min-h-0 main-border-radius ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
@@ -1812,7 +1812,7 @@ export default function WorkflowPage() {
           className="flex flex-col h-app-screen text-sm"
           style={{ width: `${FIXED_CHAT_PANEL_WIDTH}px`, fontSize: "14px" }}
         >
-          <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0">
             <ChatPanelContent
               messages={messages}
               onSendMessage={(message) => void handleSendMessage(message)}

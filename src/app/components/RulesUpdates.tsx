@@ -138,7 +138,7 @@ export default function RulesUpdates({
 
   return (
     <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-50 modal-overlay">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] min-w-0">
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {isLoading ? (
             <div className="flex items-center justify-center py-8">

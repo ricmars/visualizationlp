@@ -533,7 +533,7 @@ export default function ChatInterface({
   );
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full min-w-0 min-h-0">
       {/* Checkpoint Status Bar */}
       {checkpointStatus?.activeSession && (
         <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2">
@@ -573,7 +573,7 @@ export default function ChatInterface({
       )}
 
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm">
+      <div className="flex-1 overflow-y-auto p-3 space-y-3 text-sm min-h-0">
         {filteredMessages.map((msg, idx) => {
           const isLast = idx === filteredMessages.length - 1;
           const isAssistant = msg.sender !== "user";
@@ -685,7 +685,7 @@ export default function ChatInterface({
       </div>
 
       {/* Message input */}
-      <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg">
+      <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg flex-shrink-0">
         <div className="flex flex-col">
           {/* Text area - full width with 3 lines */}
           <div className="w-full">

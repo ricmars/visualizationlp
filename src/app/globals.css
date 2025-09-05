@@ -35,8 +35,9 @@
 
   /* App header tokens */
   --header-height: 49px;
+  --header-radius: 12px;
   --color-header-bg: #000000;
-  --color-chat-header-bg: #283b67;
+  --color-main-header-bg: #283b67;
   --color-chat-panel-bg: rgba(40, 59, 103, 0.3);
 
   /* Input tokens */
@@ -218,9 +219,18 @@ body {
     text-align: center;
   }
 
+  .main-border-radius {
+    border-radius: var(--header-radius);
+    border-color: rgb(172, 117, 240);
+  }
+
+  .main-header-bg {
+    background-color: var(--color-main-header-bg);
+    border-radius: var(--header-radius) var(--header-radius) 0 0;
+  }
   /* Chat header background */
   .chat-header-bg {
-    background-color: var(--color-chat-header-bg);
+    background-color: var(--color-main-header-bg);
   }
 
   /* Chat panel background */
@@ -642,7 +652,6 @@ body {
 .floating-modal-enter.w-full.h-full .flex-1,
 .floating-left-modal-enter.w-full.h-full .flex-1 {
   min-height: 0;
-  overflow: auto;
 }
 
 /* Force full viewport dimensions for expanded modals */

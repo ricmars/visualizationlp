@@ -48,7 +48,7 @@ export default function WorkflowTopBar({
                     />
                   </svg>
                 </summary>
-                <div className="absolute mt-2 z-50 w-72 max-w-[80vw] bg-gray-900 text-white border border-gray-700 rounded-lg shadow-lg overflow-hidden">
+                <div className="absolute mt-2 z-50 w-72 max-w-[80vw] bg-gray-900 text-white border border-gray-700 rounded-lg shadow-lg min-w-0">
                   <div className="max-h-72 overflow-auto">
                     {workflows
                       .filter((wf) => wf.id !== activeWorkflowId)

@@ -40,7 +40,7 @@ export default function ApplicationMenuBar({
 }: ApplicationMenuBarProps) {
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   return (
-    <div className="flex items-center justify-between px-4 py-3">
+    <div className="flex items-center justify-between px-4 py-3 main-header-bg">
       <div className="flex items-center gap-6">
         <div className="text-white font-semibold truncate max-w-[240px]">
           {applicationName || "Application"}
@@ -235,7 +235,7 @@ function Menu({
         </svg>
       </button>
       {isOpen && (
-        <div className="absolute mt-2 z-50 w-72 max-w-[80vw] bg-gray-900 text-white border border-gray-700 rounded-lg shadow-lg overflow-hidden">
+        <div className="absolute mt-2 z-50 w-72 max-w-[80vw] bg-gray-900 text-white border border-gray-700 rounded-lg shadow-lg min-w-0">
           <div className="max-h-72 overflow-auto">{children}</div>
         </div>
       )}

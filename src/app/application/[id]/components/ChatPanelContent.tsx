@@ -12,6 +12,7 @@ type ChatPanelContentProps = {
   objectid: number;
   onQuickAction: () => void;
   onClearChat: () => void;
+  additionalHeaderButtons?: React.ReactNode;
 };
 
 export default function ChatPanelContent({
@@ -22,14 +23,16 @@ export default function ChatPanelContent({
   objectid,
   onQuickAction,
   onClearChat,
+  additionalHeaderButtons,
 }: ChatPanelContentProps) {
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col min-w-0 min-h-0">
       <ChatPanelHeader
         onQuickAction={onQuickAction}
         onClearChat={onClearChat}
+        additionalButtons={additionalHeaderButtons}
       />
-      <div className="flex-1 overflow-hidden chat-panel-bg">
+      <div className="flex-1 min-w-0 chat-panel-bg min-h-0">
         <ChatInterface
           messages={messages}
           onSendMessage={onSendMessage}

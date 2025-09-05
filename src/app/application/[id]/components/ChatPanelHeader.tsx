@@ -7,11 +7,13 @@ import { Icon } from "@pega/cosmos-react-core";
 type ChatPanelHeaderProps = {
   onQuickAction: () => void;
   onClearChat: () => void;
+  additionalButtons?: React.ReactNode;
 };
 
 export default function ChatPanelHeader({
   onQuickAction,
   onClearChat,
+  additionalButtons,
 }: ChatPanelHeaderProps) {
   return (
     <div className="flex items-center justify-between p-3 chat-header-bg">
@@ -34,6 +36,7 @@ export default function ChatPanelHeader({
         >
           Clear All
         </button>
+        {additionalButtons}
       </div>
     </div>
   );
