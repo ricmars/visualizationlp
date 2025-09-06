@@ -5,6 +5,8 @@ import dynamic from "next/dynamic";
 import ChangesPanel from "../../../components/ChangesPanel";
 import RulesCheckoutPanel from "./RulesCheckoutPanel";
 import { Stage, Field } from "../../../types";
+import ModalPortal from "../../../components/ModalPortal";
+import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 
 const Icon = dynamic(() =>
   import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
@@ -32,6 +34,41 @@ export default function FloatingLeftPanelModal({
   fields,
 }: FloatingLeftPanelModalProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isDeleteAllCheckpointsModalOpen, setIsDeleteAllCheckpointsModalOpen] =
+    useState(false);
+
+  const handleDeleteAllCheckpoints = async () => {
+    if (!applicationId) {
+      throw new Error("No application ID available");
+    }
+
+    try {
+      const response = await fetch(`/api/checkpoint?action=deleteAll`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ objectid: applicationId }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(
+          `Failed to delete checkpoints: ${response.status} ${errorText}`,
+        );
+      }
+
+      // Refresh the left panel data
+      if (leftPanelView === "history") {
+        // Trigger a refresh of the changes panel
+        window.dispatchEvent(new CustomEvent("refresh-changes-panel"));
+      } else {
+        // Trigger a refresh of the checkout panel
+        window.dispatchEvent(new CustomEvent("refresh-checkout-panel"));
+      }
+    } catch (error) {
+      console.error("Error deleting all checkpoints:", error);
+      throw error;
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -62,6 +99,13 @@ export default function FloatingLeftPanelModal({
                   : "Rules updates"}
               </h3>
               <div className="flex items-center gap-1">
+                <button
+                  aria-label="Delete all checkpoints"
+                  className="btn-secondary w-8"
+                  onClick={() => setIsDeleteAllCheckpointsModalOpen(true)}
+                >
+                  <Icon name="trash" aria-hidden />
+                </button>
                 <button
                   aria-label="Show rules updates"
                   className={`p-1 rounded hover:bg-white/10 transition-colors ${
@@ -158,6 +202,21 @@ export default function FloatingLeftPanelModal({
           </div>
         </div>
       </div>
+
+      {/* Delete All Checkpoints Confirmation Modal */}
+      <ModalPortal isOpen={isDeleteAllCheckpointsModalOpen}>
+        <ConfirmDeleteModal
+          isOpen={isDeleteAllCheckpointsModalOpen}
+          title="Delete All Checkpoints"
+          message="Are you sure you want to delete all checkpoints for this application? This action cannot be undone and will permanently remove all checkpoint history."
+          confirmLabel="Delete"
+          onCancel={() => setIsDeleteAllCheckpointsModalOpen(false)}
+          onConfirm={async () => {
+            await handleDeleteAllCheckpoints();
+            setIsDeleteAllCheckpointsModalOpen(false);
+          }}
+        />
+      </ModalPortal>
     </div>
   );
 }

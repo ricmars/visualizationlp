@@ -131,14 +131,23 @@ export default function RulesCheckoutPanel({
 
     // Listen for model updates to refresh checkout data
     const handler = () => fetchCheckoutData();
+    const refreshHandler = () => fetchCheckoutData();
     try {
       window.addEventListener(MODEL_UPDATED_EVENT, handler as EventListener);
+      window.addEventListener(
+        "refresh-checkout-panel",
+        refreshHandler as EventListener,
+      );
     } catch {}
     return () => {
       try {
         window.removeEventListener(
           MODEL_UPDATED_EVENT,
           handler as EventListener,
+        );
+        window.removeEventListener(
+          "refresh-checkout-panel",
+          refreshHandler as EventListener,
         );
       } catch {}
     };

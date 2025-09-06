@@ -33,14 +33,23 @@ export default function ChangesPanel({
   useEffect(() => {
     fetchHistory();
     const handler = () => fetchHistory();
+    const refreshHandler = () => fetchHistory();
     try {
       window.addEventListener(MODEL_UPDATED_EVENT, handler as EventListener);
+      window.addEventListener(
+        "refresh-changes-panel",
+        refreshHandler as EventListener,
+      );
     } catch {}
     return () => {
       try {
         window.removeEventListener(
           MODEL_UPDATED_EVENT,
           handler as EventListener,
+        );
+        window.removeEventListener(
+          "refresh-changes-panel",
+          refreshHandler as EventListener,
         );
       } catch {}
     };
