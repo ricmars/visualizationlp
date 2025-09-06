@@ -1888,6 +1888,50 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       },
     },
     {
+      name: "listObjectRecords",
+      description:
+        "Lists all records for a specific data object. Returns record IDs and data for bulk operations like update or deletion.",
+      parameters: {
+        type: "object",
+        properties: {
+          objectid: {
+            type: "integer",
+            description: "Object ID to list records for",
+          },
+        },
+        required: ["objectid"],
+      },
+      execute: async (params: { objectid: number }) => {
+        console.log("=== listObjectRecords EXECUTION STARTED ===");
+        console.log(
+          "listObjectRecords parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("listObjectRecords called at:", new Date().toISOString());
+
+        const { objectid } = params;
+
+        if (!objectid) throw new Error("Object ID is required");
+
+        const query = `SELECT id, data FROM "${DB_TABLES.OBJECT_RECORDS}" WHERE objectid = $1 ORDER BY id`;
+        console.log("listObjectRecords query:", query);
+        console.log("listObjectRecords query values:", [objectid]);
+        const result = await pool.query(query, [objectid]);
+
+        const records = result.rows.map((row) => ({
+          id: row.id,
+          data: row.data,
+        }));
+
+        console.log("listObjectRecords successful:", {
+          objectid,
+          recordCount: records.length,
+        });
+
+        return { records, count: records.length };
+      },
+    },
+    {
       name: "deleteObjectRecord",
       description:
         "Permanently deletes a record from a data object. This action is NOT recoverable.",
