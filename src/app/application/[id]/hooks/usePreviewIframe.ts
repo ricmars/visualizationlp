@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import type { channel } from "../../../types";
 
-type GenerateModel = () => any;
+type GenerateModel = () => Promise<any>;
 
 type UsePreviewIframeArgs = {
   enabled: boolean;
@@ -75,7 +75,7 @@ export default function usePreviewIframe({
       if (now - lastPostAtRef.current < 100) return;
       if (postQueuedRef.current) return; // Coalesce multiple events before next frame
       postQueuedRef.current = true;
-      const post = () => {
+      const post = async () => {
         const iframe =
           iframeRef.current || containerRef.current?.querySelector("iframe");
         if (!iframe) {
@@ -84,9 +84,10 @@ export default function usePreviewIframe({
           return;
         }
         iframeRef.current = iframe;
-        const fullModel = generateModelRef.current();
+        const fullModel = await generateModelRef.current();
         const updatePayload = {
           caseTypes: fullModel?.caseTypes,
+          dataTypes: fullModel?.dataTypes,
           channel: channelRef.current,
         };
         console.debug(
@@ -125,7 +126,7 @@ export default function usePreviewIframe({
     if (now - lastPostAtRef.current < 50) return;
     if (postQueuedRef.current) return;
     postQueuedRef.current = true;
-    const post = () => {
+    const post = async () => {
       const iframe =
         iframeRef.current ||
         (containerRef.current?.querySelector(
@@ -136,9 +137,13 @@ export default function usePreviewIframe({
         return;
       }
       iframeRef.current = iframe;
-      const model = generateModelRef.current();
+      const model = await generateModelRef.current();
       const payload = hasSentInitialRef.current
-        ? { caseTypes: model?.caseTypes, channel: channelRef.current }
+        ? {
+            caseTypes: model?.caseTypes,
+            dataTypes: model?.dataTypes,
+            channel: channelRef.current,
+          }
         : { ...model, fullUpdate: true, channel: channelRef.current };
       lastPostAtRef.current = Date.now();
       if (previewReadyRef.current && hasSentInitialRef.current) {
@@ -188,7 +193,7 @@ export default function usePreviewIframe({
 
   // Listen for messages from the preview for debugging/handshake (stable)
   useEffect(() => {
-    const onMessage = (event: MessageEvent) => {
+    const onMessage = async (event: MessageEvent) => {
       if (event.origin !== PREVIEW_ORIGIN) return;
       try {
         console.debug("[preview] Received message from iframe", event.data);
@@ -200,7 +205,7 @@ export default function usePreviewIframe({
           previewReadyRef.current = true;
           console.debug("[preview] Handshake acknowledged by iframe", data);
           if (!hasSentInitialRef.current) {
-            const initialModel = generateModelRef.current();
+            const initialModel = await generateModelRef.current();
             try {
               (initialModel as any).fullUpdate = true;
               (initialModel as any).channel = channelRef.current;
@@ -240,9 +245,9 @@ export default function usePreviewIframe({
               "iframe",
             ) as HTMLIFrameElement | null);
           if (iframe) {
-            const model = generateModelRef.current();
+            const model = await generateModelRef.current();
             const payload = hasSentInitialRef.current
-              ? { caseTypes: model?.caseTypes }
+              ? { caseTypes: model?.caseTypes, dataTypes: model?.dataTypes }
               : { ...model, fullUpdate: true };
             (payload as any).channel = channelRef.current;
             iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);

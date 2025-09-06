@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { FaTrash } from "react-icons/fa";
 
 type DataObject = {
   id: number;
@@ -51,12 +52,13 @@ export default function DataList({
                   {sor ? sor.name : `#${obj.systemOfRecordId}`}
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-1">
                 <button
                   onClick={() => void onDeleteAction(obj.id)}
-                  className="btn-secondary"
+                  className="btn-secondary w-8"
+                  title="Delete data object"
                 >
-                  Delete
+                  <FaTrash className="w-4 h-4" />
                 </button>
               </div>
             </div>

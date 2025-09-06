@@ -269,52 +269,66 @@ export default function WorkflowPage() {
 
   // Function to generate the model data structure for preview
   const generateModelData = useCallback(
-    (currentFields: Field[], currentStages: Stage[]) => {
+    async (currentFields: Field[], currentStages: Stage[]) => {
       const tmpStages = [] as any[];
       for (const stage of currentStages) {
         const tmpSteps = [] as any[];
         for (const process of stage.processes) {
           for (const step of process.steps) {
-            if (
-              step.type === "Collect information" &&
-              typeof (step as any).viewId === "number"
-            ) {
-              const view = views.find((v) => v.id === (step as any).viewId);
-              if (view) {
-                try {
-                  const viewModel =
-                    typeof view.model === "string"
-                      ? JSON.parse(view.model)
-                      : view.model;
-                  if (Array.isArray(viewModel.fields)) {
-                    const stepFields = viewModel.fields
-                      .map((ref: { fieldId: number; required?: boolean }) => {
-                        const field = currentFields.find(
-                          (cf) => cf.id === ref.fieldId,
-                        );
-                        if (!field) return null;
-                        return {
-                          name: field.name,
-                          required: Boolean(ref.required),
-                        };
-                      })
-                      .filter((f: any) => f !== null);
-                    tmpSteps.push({
-                      id: step.viewId,
-                      name: step.name,
-                      fields: stepFields as Array<{
-                        name: string;
-                        required: boolean;
-                      }>,
-                    });
-                    continue;
+            if (step.type === "Collect information") {
+              // Only "Collect information" steps can have fields
+              if (typeof (step as any).viewId === "number") {
+                const view = views.find((v) => v.id === (step as any).viewId);
+                if (view) {
+                  try {
+                    const viewModel =
+                      typeof view.model === "string"
+                        ? JSON.parse(view.model)
+                        : view.model;
+                    if (Array.isArray(viewModel.fields)) {
+                      const stepFields = viewModel.fields
+                        .map((ref: { fieldId: number; required?: boolean }) => {
+                          const field = currentFields.find(
+                            (cf) => cf.id === ref.fieldId,
+                          );
+                          if (!field) return null;
+                          return {
+                            name: field.name,
+                            required: Boolean(ref.required),
+                          };
+                        })
+                        .filter((f: any) => f !== null);
+                      tmpSteps.push({
+                        id: step.viewId,
+                        name: step.name,
+                        fields: stepFields as Array<{
+                          name: string;
+                          required: boolean;
+                        }>,
+                      });
+                      continue;
+                    }
+                  } catch {
+                    // ignore JSON errors
                   }
-                } catch {
-                  // ignore JSON errors
                 }
               }
+              // For "Collect information" steps without valid viewId, push without fields
+              tmpSteps.push({
+                id: step.id,
+                name: step.name,
+                type: step.type,
+                // No fields array for steps without valid viewId
+              });
+            } else {
+              // For non-"Collect information" steps, push without fields array
+              tmpSteps.push({
+                id: step.id,
+                name: step.name,
+                type: step.type,
+                // No fields array for non-collect steps
+              });
             }
-            tmpSteps.push(step);
           }
         }
         // For live preview, omit processes and provide flattened steps directly under the stage
@@ -367,6 +381,80 @@ export default function WorkflowPage() {
         return base;
       });
 
+      // Generate dataTypes array with data objects, their fields, and sample records
+      const dataTypes = [];
+      for (const dataObject of dataObjects) {
+        try {
+          // Fetch records for this data object
+          const recordsResponse = await fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.OBJECT_RECORDS}&objectid=${dataObject.id}`,
+          );
+
+          let records = [];
+          if (recordsResponse.ok) {
+            const recordsResult = await recordsResponse.json();
+            records = recordsResult.data || [];
+          }
+
+          // Get fields for this data object
+          const dataObjectFieldsForType = dataObjectFields.filter(
+            (field) => field.objectid === dataObject.id,
+          );
+
+          // Format fields according to the required structure
+          const formattedFields = dataObjectFieldsForType
+            .filter((field) => field.id !== undefined && field.id !== null)
+            .map((field) => ({
+              name: field.id!.toString(), // Use field ID as name
+              label: field.label,
+              type: field.type,
+              primary: field.primary,
+            }));
+
+          // Format records according to the required structure
+          const formattedData = records.map((record: any) => {
+            const recordData: Record<string, any> = {};
+
+            // Add field values using field IDs as keys
+            if (record.data && typeof record.data === "object") {
+              for (const [fieldName, value] of Object.entries(record.data)) {
+                // Find the field by name to get its ID
+                const field = dataObjectFieldsForType.find(
+                  (f) => f.name === fieldName,
+                );
+                if (field && field.id !== undefined && field.id !== null) {
+                  recordData[field.id.toString()] = value;
+                }
+              }
+            }
+
+            // Add the record ID
+            recordData.ID = record.id.toString();
+
+            return recordData;
+          });
+
+          dataTypes.push({
+            name: dataObject.name,
+            id: dataObject.id.toString(),
+            fields: formattedFields,
+            data: formattedData,
+          });
+        } catch (error) {
+          console.error(
+            `Error loading data for object ${dataObject.name}:`,
+            error,
+          );
+          // Add empty data type if there's an error
+          dataTypes.push({
+            name: dataObject.name,
+            id: dataObject.id.toString(),
+            fields: [],
+            data: [],
+          });
+        }
+      }
+
       return {
         fullUpdate: true,
         appName: selectedCase?.name || "Workflow",
@@ -375,6 +463,20 @@ export default function WorkflowPage() {
         userName: "John Smith",
         userLocale: "en-EN",
         caseName: selectedCase?.name || "Workflow",
+        portals: [
+          {
+            pages: [
+              {
+                layout: "list-data",
+                heading: "Records Manager",
+                icon: "disc-stack-solid",
+                isActive: false,
+              },
+            ],
+            name: "Work Portal",
+            channel: "WorkPortal",
+          },
+        ],
         caseTypes: [
           {
             name: selectedCase?.name || "Workflow",
@@ -383,9 +485,10 @@ export default function WorkflowPage() {
             stages: tmpStages,
           },
         ],
+        dataTypes,
       };
     },
-    [selectedCase?.name, views, selectedChannel],
+    [selectedCase?.name, views, selectedChannel, dataObjects, dataObjectFields],
   );
 
   // Quick selection summary string for QuickChat overlay
@@ -394,7 +497,7 @@ export default function WorkflowPage() {
   // 3. All useRef hooks
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
   const generatePreviewModelAction = useCallback(
-    () => generateModelData(fields, workflowModel.stages),
+    async () => await generateModelData(fields, workflowModel.stages),
     [fields, workflowModel.stages, generateModelData],
   );
 

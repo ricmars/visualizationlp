@@ -94,7 +94,7 @@ describe("saveObjectRecord", () => {
   it("throws when data missing", async () => {
     const tool = getTool();
     await expect((tool.execute as any)({ objectid: 14 })).rejects.toThrow(
-      "Field values must be an object",
+      "Values must be passed using the 'data' property as key-value object.",
     );
   });
 });

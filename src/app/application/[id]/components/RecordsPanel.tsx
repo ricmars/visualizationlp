@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Field } from "../../../types";
 import { DB_TABLES } from "../../../types/database";
-import { FaPlus, FaEdit, FaTrash } from "react-icons/fa";
+import { FaPlus, FaPencilAlt, FaTrash } from "react-icons/fa";
 import ModalPortal from "../../../components/ModalPortal";
 import AddRecordModal from "./AddRecordModal";
 import EditRecordModal from "./EditRecordModal";
@@ -222,19 +222,19 @@ export default function RecordsPanel({
           </p>
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full border-collapse bg-[rgb(14,10,42)] text-white">
+        <div className="w-full overflow-x-auto">
+          <table className="min-w-full border-collapse bg-[rgb(14,10,42)] text-white">
             <thead>
               <tr className="border-b border-white/20">
                 {sortedFields.map((field) => (
                   <th
                     key={field.id}
-                    className="px-4 py-3 text-left text-sm font-medium text-white/80 border-r border-white/10 last:border-r-0"
+                    className="px-4 py-3 text-left text-sm font-medium text-white/80 border-r border-white/10 last:border-r-0 whitespace-nowrap min-w-0"
                   >
                     {field.label || field.name}
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-sm font-medium text-white/80">
+                <th className="px-4 py-3 text-left text-sm font-medium text-white/80 whitespace-nowrap min-w-0">
                   Actions
                 </th>
               </tr>
@@ -248,24 +248,24 @@ export default function RecordsPanel({
                   {sortedFields.map((field) => (
                     <td
                       key={field.id}
-                      className="px-4 py-3 text-sm border-r border-white/10 last:border-r-0"
+                      className="px-4 py-3 text-sm border-r border-white/10 last:border-r-0 break-words min-w-0 max-w-xs"
                     >
                       {renderFieldValue(record.data[field.name], field)}
                     </td>
                   ))}
-                  <td className="px-4 py-3 text-sm">
-                    <div className="flex items-center gap-2">
+                  <td className="px-4 py-3 text-sm whitespace-nowrap min-w-0">
+                    <div className="flex items-center space-x-1">
                       <button
                         onClick={() => setEditingRecord(record)}
-                        className="p-1 text-blue-400 hover:text-blue-300 transition-colors"
-                        aria-label="Edit record"
+                        className="btn-secondary w-8"
+                        title="Edit record"
                       >
-                        <FaEdit className="w-4 h-4" />
+                        <FaPencilAlt className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setRecordPendingDelete(record)}
-                        className="p-1 text-red-400 hover:text-red-300 transition-colors"
-                        aria-label="Delete record"
+                        className="btn-secondary w-8"
+                        title="Delete record"
                       >
                         <FaTrash className="w-4 h-4" />
                       </button>
@@ -358,11 +358,11 @@ function renderFieldValue(value: any, field: Field): React.ReactNode {
     case "TextArea":
     case "Email":
     case "Phone":
-      return <span className="truncate max-w-xs block">{String(value)}</span>;
+      return <span className="break-words">{String(value)}</span>;
 
     case "Dropdown":
     case "RadioButtons":
-      return <span>{String(value)}</span>;
+      return <span className="break-words">{String(value)}</span>;
 
     case "Checkbox":
       if (Array.isArray(value)) {
@@ -385,9 +385,13 @@ function renderFieldValue(value: any, field: Field): React.ReactNode {
     case "CaseReferenceSingle":
     case "DataReferenceSingle":
       if (typeof value === "object" && value !== null) {
-        return <span>{value.name || value.id || "Unknown"}</span>;
+        return (
+          <span className="break-words">
+            {value.name || value.id || "Unknown"}
+          </span>
+        );
       }
-      return <span>{String(value)}</span>;
+      return <span className="break-words">{String(value)}</span>;
 
     case "CaseReferenceMulti":
     case "DataReferenceMulti":
@@ -410,6 +414,6 @@ function renderFieldValue(value: any, field: Field): React.ReactNode {
       return <span>{String(value)}</span>;
 
     default:
-      return <span>{String(value)}</span>;
+      return <span className="break-words">{String(value)}</span>;
   }
 }

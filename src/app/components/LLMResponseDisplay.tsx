@@ -106,7 +106,7 @@ export const LLMResponseDisplay: React.FC<LLMResponseDisplayProps> = ({
     },
     h3({ children }) {
       return (
-        <h3 className="text-lg md:text-xl font-bold text-white mb-1 mt-2">
+        <h3 className="text-m md:text-m font-bold text-white mb-1 mt-2">
           {children}
         </h3>
       );
