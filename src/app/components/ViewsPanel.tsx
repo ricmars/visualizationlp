@@ -74,6 +74,17 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   const [fieldPendingDelete, setFieldPendingDelete] = useState<Field | null>(
     null,
   );
+  const selectedViewRef = useRef<HTMLButtonElement>(null);
+
+  // Focus on the selected view when it changes
+  useEffect(() => {
+    if (selectedView && selectedViewRef.current) {
+      // Small delay to ensure the DOM has updated
+      setTimeout(() => {
+        selectedViewRef.current?.focus();
+      }, 100);
+    }
+  }, [selectedView]);
 
   // Get all steps of type 'Collect information' that have corresponding database views
   const collectSteps = useMemo(() => {
@@ -379,6 +390,9 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
             {allViews.map((view) => (
               <button
                 key={view.id}
+                ref={
+                  selectedView === view.id.toString() ? selectedViewRef : null
+                }
                 onClick={() => handleViewSelect(view.id.toString())}
                 className={`w-full text-left px-4 py-3 rounded-lg transition-colors border ${
                   selectedView === view.id.toString()

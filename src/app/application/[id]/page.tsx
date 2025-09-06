@@ -174,6 +174,21 @@ export default function WorkflowPage() {
   const [activeTab, setActiveTab] = usePersistentTab<
     "workflow" | "fields" | "data" | "views" | "chat" | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
+
+  // Custom tab change handler that auto-selects first view when switching to views tab
+  const handleTabChange = (
+    newTab: "workflow" | "fields" | "data" | "views" | "chat" | "history",
+  ) => {
+    setActiveTab(newTab);
+
+    // Auto-select first view when switching to views tab if no view is currently selected
+    if (newTab === "views" && !selectedView && views && views.length > 0) {
+      const firstView = views[0];
+      if (firstView && firstView.id) {
+        setSelectedView(`db-${firstView.id}`);
+      }
+    }
+  };
   const [isAddFieldModalOpen, setIsAddFieldModalOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
   const [checkpoints, setCheckpoints] = useState<WorkflowCheckpoint[]>([]);
@@ -1532,7 +1547,7 @@ export default function WorkflowPage() {
         {!isPreviewVisible && selectedDataObjectId === null && (
           <WorkflowTabs
             active={activeTab as any}
-            onChange={setActiveTab as any}
+            onChange={handleTabChange as any}
           />
         )}
 
