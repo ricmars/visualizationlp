@@ -16,6 +16,7 @@ type DataObject = {
   description: string;
   objectid: number;
   systemOfRecordId: number;
+  isEmbedded?: boolean;
   model?: any;
 };
 
@@ -28,7 +29,8 @@ type EditDataObjectModalProps = {
     id: number;
     name: string;
     description: string;
-    systemOfRecordId: number;
+    systemOfRecordId: number | null;
+    isEmbedded?: boolean;
   }) => Promise<void>;
   onDeleteAction?: (id: number) => Promise<void> | void;
 };
@@ -43,8 +45,11 @@ export default function EditDataObjectModal({
 }: EditDataObjectModalProps) {
   const [name, setName] = useState(initialData.name);
   const [description, setDescription] = useState(initialData.description);
-  const [systemOfRecordId, setSystemOfRecordId] = useState<number>(
+  const [systemOfRecordId, setSystemOfRecordId] = useState<number | null>(
     initialData.systemOfRecordId,
+  );
+  const [isEmbedded, setIsEmbedded] = useState<boolean>(
+    initialData.isEmbedded || false,
   );
   const nameInputRef = useRef<HTMLInputElement>(null);
   const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
@@ -54,6 +59,7 @@ export default function EditDataObjectModal({
       setName(initialData.name);
       setDescription(initialData.description);
       setSystemOfRecordId(initialData.systemOfRecordId);
+      setIsEmbedded(initialData.isEmbedded || false);
       setTimeout(() => nameInputRef.current?.focus(), 100);
     }
   }, [isOpen, initialData]);
@@ -62,9 +68,9 @@ export default function EditDataObjectModal({
     return (
       !!name.trim() &&
       !!description.trim() &&
-      Number.isFinite(systemOfRecordId || undefined)
+      (isEmbedded || Number.isFinite(systemOfRecordId || undefined))
     );
-  }, [name, description, systemOfRecordId]);
+  }, [name, description, systemOfRecordId, isEmbedded]);
 
   const handleSave = async () => {
     if (!canSave) return;
@@ -72,7 +78,8 @@ export default function EditDataObjectModal({
       id: initialData.id,
       name: name.trim(),
       description: description.trim(),
-      systemOfRecordId: systemOfRecordId as number,
+      systemOfRecordId: isEmbedded ? null : (systemOfRecordId as number),
+      isEmbedded,
     });
     onCloseAction();
   };
@@ -145,28 +152,48 @@ export default function EditDataObjectModal({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  System of Record
+                <label className="inline-flex items-center gap-2 text-white">
+                  <input
+                    type="checkbox"
+                    checked={isEmbedded}
+                    onChange={(e) => {
+                      setIsEmbedded(e.target.checked);
+                      if (e.target.checked) {
+                        setSystemOfRecordId(null as any);
+                      }
+                    }}
+                    className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium">Embedded Object</span>
                 </label>
-                <select
-                  value={systemOfRecordId ?? ""}
-                  onChange={(e) =>
-                    setSystemOfRecordId(
-                      e.target.value
-                        ? parseInt(e.target.value, 10)
-                        : ("" as any),
-                    )
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
-                >
-                  <option value="">Select...</option>
-                  {systemsOfRecord.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
+                <p className="text-xs text-white/70 mt-1">
+                  When enabled, data is stored directly rather than referenced
+                </p>
               </div>
+
+              {!isEmbedded && (
+                <div>
+                  <label className="block text-sm font-medium text-white mb-1">
+                    System of Record
+                  </label>
+                  <select
+                    value={systemOfRecordId ?? ""}
+                    onChange={(e) =>
+                      setSystemOfRecordId(
+                        e.target.value ? parseInt(e.target.value, 10) : null,
+                      )
+                    }
+                    className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
+                  >
+                    <option value="">Select...</option>
+                    {systemsOfRecord.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
           </div>
         </div>

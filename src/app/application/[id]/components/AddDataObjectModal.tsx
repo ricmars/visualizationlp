@@ -20,6 +20,7 @@ type AddDataObjectModalProps = {
     description: string;
     objectid: number;
     systemOfRecordId: number;
+    isEmbedded?: boolean;
     model?: any;
   }) => Promise<void>;
 };
@@ -38,6 +39,7 @@ export default function AddDataObjectModal({
   const [systemOfRecordId, setSystemOfRecordId] = useState<number | null>(null);
   const [newSorName, setNewSorName] = useState("");
   const [newSorIcon, setNewSorIcon] = useState("");
+  const [isEmbedded, setIsEmbedded] = useState<boolean>(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -50,9 +52,9 @@ export default function AddDataObjectModal({
     return (
       !!name.trim() &&
       !!description.trim() &&
-      Number.isFinite(systemOfRecordId || undefined)
+      (isEmbedded || Number.isFinite(systemOfRecordId || undefined))
     );
-  }, [name, description, systemOfRecordId]);
+  }, [name, description, systemOfRecordId, isEmbedded]);
 
   const handleCreate = async () => {
     if (!canSave) return;
@@ -61,10 +63,12 @@ export default function AddDataObjectModal({
       description: description.trim(),
       objectid: objectid,
       systemOfRecordId: systemOfRecordId as number,
+      isEmbedded,
     });
     setName("");
     setDescription("");
     setSystemOfRecordId(null);
+    setIsEmbedded(false);
     onCloseAction();
   };
 
@@ -137,87 +141,118 @@ export default function AddDataObjectModal({
                 />
               </div>
 
-              <div className="flex gap-2 p-1 rounded-lg bg-[rgb(20,16,60)]">
-                <button
-                  onClick={() => setMode("select")}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    mode === "select"
-                      ? "bg-modal text-white shadow-sm"
-                      : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  Select System of Record
-                </button>
-                <button
-                  onClick={() => setMode("createSor")}
-                  className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                    mode === "createSor"
-                      ? "bg-modal text-white shadow-sm"
-                      : "text-white/80 hover:text-white"
-                  }`}
-                >
-                  Create System of Record
-                </button>
+              <div>
+                <label className="inline-flex items-center gap-2 text-white">
+                  <input
+                    type="checkbox"
+                    checked={isEmbedded}
+                    onChange={(e) => {
+                      setIsEmbedded(e.target.checked);
+                      if (e.target.checked) {
+                        setSystemOfRecordId(null);
+                        setMode("select");
+                      }
+                    }}
+                    className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                  />
+                  <span className="text-sm font-medium">Embedded Object</span>
+                </label>
+                <p className="text-xs text-white/70 mt-1">
+                  When enabled, data is stored directly rather than referenced
+                </p>
               </div>
 
-              {mode === "select" ? (
-                <div>
-                  <label className="block text-sm font-medium text-white mb-1">
-                    System of Record
-                  </label>
-                  <select
-                    value={systemOfRecordId ?? ""}
-                    onChange={(e) =>
-                      setSystemOfRecordId(
-                        e.target.value ? parseInt(e.target.value, 10) : null,
-                      )
-                    }
-                    className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
-                  >
-                    <option value="">Select...</option>
-                    {systemsOfRecord.map((s) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-sm font-medium text-white mb-1">
-                      System Name
-                    </label>
-                    <input
-                      type="text"
-                      value={newSorName}
-                      onChange={(e) => setNewSorName(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
-                      placeholder="Pega, Salesforce, Custom..."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-white mb-1">
-                      Icon (optional)
-                    </label>
-                    <input
-                      type="text"
-                      value={newSorIcon}
-                      onChange={(e) => setNewSorIcon(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
-                      placeholder="icon name or URL"
-                    />
-                  </div>
-                  <div className="flex justify-end">
+              {!isEmbedded && (
+                <>
+                  <div className="flex gap-2 p-1 rounded-lg bg-[rgb(20,16,60)]">
                     <button
-                      className="interactive-button"
-                      onClick={handleCreateSor}
-                      disabled={!newSorName.trim()}
+                      onClick={() => setMode("select")}
+                      className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        mode === "select"
+                          ? "bg-modal text-white shadow-sm"
+                          : "text-white/80 hover:text-white"
+                      }`}
                     >
-                      Create System
+                      Select System of Record
+                    </button>
+                    <button
+                      onClick={() => setMode("createSor")}
+                      className={`flex-1 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                        mode === "createSor"
+                          ? "bg-modal text-white shadow-sm"
+                          : "text-white/80 hover:text-white"
+                      }`}
+                    >
+                      Create System of Record
                     </button>
                   </div>
-                </div>
+                </>
+              )}
+
+              {!isEmbedded && (
+                <>
+                  {mode === "select" ? (
+                    <div>
+                      <label className="block text-sm font-medium text-white mb-1">
+                        System of Record
+                      </label>
+                      <select
+                        value={systemOfRecordId ?? ""}
+                        onChange={(e) =>
+                          setSystemOfRecordId(
+                            e.target.value
+                              ? parseInt(e.target.value, 10)
+                              : null,
+                          )
+                        }
+                        className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
+                      >
+                        <option value="">Select...</option>
+                        {systemsOfRecord.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-1">
+                          System Name
+                        </label>
+                        <input
+                          type="text"
+                          value={newSorName}
+                          onChange={(e) => setNewSorName(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
+                          placeholder="Pega, Salesforce, Custom..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-white mb-1">
+                          Icon (optional)
+                        </label>
+                        <input
+                          type="text"
+                          value={newSorIcon}
+                          onChange={(e) => setNewSorIcon(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-gray-600 bg-[rgb(20,16,60)] text-white"
+                          placeholder="icon name or URL"
+                        />
+                      </div>
+                      <div className="flex justify-end">
+                        <button
+                          className="interactive-button"
+                          onClick={handleCreateSor}
+                          disabled={!newSorName.trim()}
+                        >
+                          Create System
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
               )}
             </div>
 

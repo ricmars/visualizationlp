@@ -205,7 +205,7 @@ export default function WorkflowPage() {
   >(null);
   const [selectedView, setSelectedView] = useState<string | null>(null);
   const [applicationWorkflows, setApplicationWorkflows] = useState<
-    Array<{ id: number; name: string }>
+    Array<{ id: number; name: string; isEmbedded?: boolean }>
   >([]);
   const [applicationId, setApplicationId] = useState<number | null>(null);
   const [applicationName, setApplicationName] = useState<string>("");
@@ -388,6 +388,14 @@ export default function WorkflowPage() {
           primary: f.primary,
           value,
         } as PreviewField;
+
+        // Add refType for embedded fields (EmbedDataSingle and EmbedDataMulti)
+        if (
+          (f.type === "EmbedDataSingle" || f.type === "EmbedDataMulti") &&
+          f.refObjectId
+        ) {
+          base.refType = f.refObjectId.toString();
+        }
         if (normalizedOptions && normalizedOptions.length > 0) {
           (base as any).options = normalizedOptions;
         }
@@ -452,6 +460,7 @@ export default function WorkflowPage() {
             id: dataObject.id.toString(),
             fields: formattedFields,
             data: formattedData,
+            isEmbedded: dataObject.isEmbedded || false,
           });
         } catch (error) {
           console.error(
@@ -464,6 +473,7 @@ export default function WorkflowPage() {
             id: dataObject.id.toString(),
             fields: [],
             data: [],
+            isEmbedded: dataObject.isEmbedded || false,
           });
         }
       }
@@ -550,7 +560,11 @@ export default function WorkflowPage() {
             const list =
               (data?.data as Array<{ id: number; name: string }>) || [];
             setApplicationWorkflows(
-              list.map((w) => ({ id: w.id, name: w.name })),
+              list.map((w) => ({
+                id: w.id,
+                name: w.name,
+                isEmbedded: (w as any).isEmbedded,
+              })),
             );
           }
           // Fetch application info for header
@@ -695,7 +709,11 @@ export default function WorkflowPage() {
             const list =
               (data?.data as Array<{ id: number; name: string }>) || [];
             setApplicationWorkflows(
-              list.map((w) => ({ id: w.id, name: w.name })),
+              list.map((w) => ({
+                id: w.id,
+                name: w.name,
+                isEmbedded: (w as any).isEmbedded,
+              })),
             );
           }
         } catch {}
@@ -1495,17 +1513,25 @@ export default function WorkflowPage() {
                     : selectedCase?.name}
                 </h2>
                 {selectedDataObjectId !== null &&
-                  selectedDataObject?.systemOfRecordId &&
                   (() => {
-                    const systemOfRecord = systemsOfRecord?.find(
-                      (sor) => sor.id === selectedDataObject.systemOfRecordId,
-                    );
-                    return systemOfRecord ? (
-                      <SystemOfRecordTag
-                        name={systemOfRecord.name}
-                        icon={systemOfRecord.icon}
-                      />
-                    ) : null;
+                    if (selectedDataObject?.isEmbedded) {
+                      return (
+                        <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-green-600/20 text-green-300 border border-green-500/30 rounded-md min-h-[1.5rem]">
+                          <span className="leading-none">Embedded</span>
+                        </span>
+                      );
+                    } else if (selectedDataObject?.systemOfRecordId) {
+                      const systemOfRecord = systemsOfRecord?.find(
+                        (sor) => sor.id === selectedDataObject.systemOfRecordId,
+                      );
+                      return systemOfRecord ? (
+                        <SystemOfRecordTag
+                          name={systemOfRecord.name}
+                          icon={systemOfRecord.icon}
+                        />
+                      ) : null;
+                    }
+                    return null;
                   })()}
                 <button
                   className="btn-secondary w-8"
@@ -1681,8 +1707,11 @@ export default function WorkflowPage() {
                     views={views}
                     workflowObjects={applicationWorkflows}
                     dataObjects={
-                      dataObjects?.map((d) => ({ id: d.id, name: d.name })) ||
-                      []
+                      dataObjects?.map((d) => ({
+                        id: d.id,
+                        name: d.name,
+                        isEmbedded: d.isEmbedded,
+                      })) || []
                     }
                     onAddField={handleAddField}
                     onUpdateField={handleUpdateField}
@@ -1726,7 +1755,11 @@ export default function WorkflowPage() {
             allowExistingFields={false}
             workflowObjects={applicationWorkflows}
             dataObjects={
-              dataObjects?.map((d) => ({ id: d.id, name: d.name })) || []
+              dataObjects?.map((d) => ({
+                id: d.id,
+                name: d.name,
+                isEmbedded: d.isEmbedded,
+              })) || []
             }
           />
         </ModalPortal>
@@ -1757,6 +1790,7 @@ export default function WorkflowPage() {
                 hasWorkflow: false,
                 applicationid: selectedCase?.applicationid ?? applicationId,
                 systemOfRecordId: data.systemOfRecordId,
+                isEmbedded: data.isEmbedded || false,
                 model: {},
               };
               const res = await fetchWithBaseUrl(
@@ -1791,7 +1825,11 @@ export default function WorkflowPage() {
               field={editingField}
               workflowObjects={applicationWorkflows}
               dataObjects={
-                dataObjects?.map((d) => ({ id: d.id, name: d.name })) || []
+                dataObjects?.map((d) => ({
+                  id: d.id,
+                  name: d.name,
+                  isEmbedded: d.isEmbedded,
+                })) || []
               }
             />
           )}
@@ -1879,6 +1917,7 @@ export default function WorkflowPage() {
                       description: updates.description,
                       systemOfRecordId: updates.systemOfRecordId,
                       hasWorkflow: false,
+                      isEmbedded: updates.isEmbedded || false,
                       model: current.model ?? {},
                     }),
                   },

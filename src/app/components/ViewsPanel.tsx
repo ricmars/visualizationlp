@@ -15,8 +15,8 @@ interface ViewsPanelProps {
   stages: Stage[];
   fields: Field[];
   views: View[];
-  workflowObjects?: Array<{ id: number; name: string }>;
-  dataObjects?: Array<{ id: number; name: string }>;
+  workflowObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
+  dataObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
   onAddField?: (field: {
     label: string;
     type: Field["type"];

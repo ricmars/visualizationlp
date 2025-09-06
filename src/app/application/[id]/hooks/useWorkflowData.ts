@@ -41,6 +41,7 @@ export function useWorkflowData(objectid: string) {
       description: string;
       objectid: number;
       systemOfRecordId: number;
+      isEmbedded?: boolean;
       model?: any;
     }>
   >([]);

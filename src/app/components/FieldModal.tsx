@@ -577,7 +577,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
                         </optgroup>
                         {(resolvedWorkflowObjects || []).length > 0 && (
                           <>
-                            <optgroup label="Workflow (Reference)">
+                            <optgroup label="Workflow Reference">
                               {(resolvedWorkflowObjects || [])
                                 .filter((o) => !o.isEmbedded)
                                 .map((o) => (
@@ -589,7 +589,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
                                   </option>
                                 ))}
                             </optgroup>
-                            <optgroup label="Workflow (Embedded)">
+                            <optgroup label="Workflow Embedded">
                               {(resolvedWorkflowObjects || [])
                                 .filter((o) => o.isEmbedded)
                                 .map((o) => (
@@ -605,7 +605,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
                         )}
                         {(resolvedDataObjects || []).length > 0 && (
                           <>
-                            <optgroup label="Data (Reference)">
+                            <optgroup label="Data Reference">
                               {(resolvedDataObjects || [])
                                 .filter((o) => !o.isEmbedded)
                                 .map((o) => (
@@ -617,7 +617,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
                                   </option>
                                 ))}
                             </optgroup>
-                            <optgroup label="Data (Embedded)">
+                            <optgroup label="Embedded Data">
                               {(resolvedDataObjects || [])
                                 .filter((o) => o.isEmbedded)
                                 .map((o) => (

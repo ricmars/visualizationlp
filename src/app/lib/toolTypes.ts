@@ -33,6 +33,7 @@ export interface SaveObjectParams extends ToolParams {
   model?: WorkflowModel;
   hasWorkflow?: boolean;
   isEmbedded?: boolean;
+  systemOfRecordId?: number;
 }
 
 export interface SaveFieldsParams extends ToolParams {

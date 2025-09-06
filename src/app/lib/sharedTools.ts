@@ -297,6 +297,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description:
               "Whether this object is embedded (data is stored directly rather than referenced) (optional, defaults to current value)",
           },
+          systemOfRecordId: {
+            type: "integer",
+            description:
+              "Optional system of record ID (optional, defaults to current value)",
+          },
           model: {
             type: "object",
             description:
@@ -372,8 +377,15 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("saveObject parameters:", JSON.stringify(params, null, 2));
         console.log("saveObject called at:", new Date().toISOString());
 
-        const { id, name, description, model, hasWorkflow, isEmbedded } =
-          params;
+        const {
+          id,
+          name,
+          description,
+          model,
+          hasWorkflow,
+          isEmbedded,
+          systemOfRecordId,
+        } = params;
 
         // Validation
         if (!id)
@@ -527,9 +539,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         // Update existing case
         const query = `
           UPDATE "${OBJECTS_TABLE}"
-          SET name = $1, description = $2, model = COALESCE($3, model), "hasWorkflow" = COALESCE($5, "hasWorkflow"), "isEmbedded" = COALESCE($6, "isEmbedded")
+          SET name = $1, description = $2, model = COALESCE($3, model), "hasWorkflow" = COALESCE($5, "hasWorkflow"), "isEmbedded" = COALESCE($6, "isEmbedded"), "systemOfRecordId" = COALESCE($7, "systemOfRecordId")
           WHERE id = $4
-          RETURNING id, name, description, model, "hasWorkflow", "isEmbedded"
+          RETURNING id, name, description, model, "hasWorkflow", "isEmbedded", "systemOfRecordId"
         `;
         console.log("saveObject UPDATE query:", query);
         const modelJson = cleanedModel ? JSON.stringify(cleanedModel) : null;
@@ -540,6 +552,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id,
           hasWorkflow,
           isEmbedded,
+          systemOfRecordId,
         ]);
 
         const result = await pool.query(query, [
@@ -549,6 +562,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           id,
           hasWorkflow,
           isEmbedded,
+          systemOfRecordId,
         ]);
         if (result.rowCount === 0) {
           console.error(`saveObject ERROR: No object found with id ${id}`);

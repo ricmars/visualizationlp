@@ -191,7 +191,11 @@ export default function DataPanel({
         stepFieldIds={[]}
         allowExistingFields={false}
         workflowObjects={workflowObjects}
-        dataObjects={dataObjects.map((d) => ({ id: d.id, name: d.name }))}
+        dataObjects={dataObjects.map((d) => ({
+          id: d.id,
+          name: d.name,
+          isEmbedded: d.isEmbedded,
+        }))}
       />
       <ConfirmDeleteModal
         isOpen={!!fieldPendingDelete}

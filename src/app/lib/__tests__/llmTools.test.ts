@@ -617,6 +617,120 @@ describe("llmTools", () => {
         model: { stages: [] },
       });
     });
+
+    it("should handle embedded to non-embedded transitions with systemOfRecordId", async () => {
+      // Mock update result for non-embedded object with systemOfRecordId
+      const mockUpdateResult = {
+        rows: [
+          {
+            id: 1,
+            name: "Test Object",
+            description: "Test Description",
+            model: JSON.stringify({ stages: [] }),
+            hasWorkflow: false,
+            isEmbedded: false,
+            systemOfRecordId: 5,
+          },
+        ],
+        rowCount: 1,
+      };
+
+      (pool.query as jest.Mock).mockResolvedValueOnce(mockUpdateResult);
+
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
+      );
+      expect(saveObjectTool).toBeDefined();
+
+      const result = await (saveObjectTool!.execute as any)({
+        id: 1,
+        name: "Test Object",
+        description: "Test Description",
+        model: { stages: [] },
+        isEmbedded: false,
+        systemOfRecordId: 5,
+      });
+
+      expect(result).toEqual({
+        id: 1,
+        name: "Test Object",
+        description: "Test Description",
+        model: { stages: [] },
+        hasWorkflow: false,
+        isEmbedded: false,
+      });
+
+      // Verify the UPDATE query was called with correct parameters
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "Cases"'),
+        [
+          "Test Object",
+          "Test Description",
+          '{"stages":[]}',
+          1,
+          undefined,
+          false,
+          5,
+        ],
+      );
+    });
+
+    it("should handle non-embedded to embedded transitions", async () => {
+      // Mock update result for embedded object
+      const mockUpdateResult = {
+        rows: [
+          {
+            id: 1,
+            name: "Test Object",
+            description: "Test Description",
+            model: JSON.stringify({ stages: [] }),
+            hasWorkflow: false,
+            isEmbedded: true,
+            systemOfRecordId: null,
+          },
+        ],
+        rowCount: 1,
+      };
+
+      (pool.query as jest.Mock).mockResolvedValueOnce(mockUpdateResult);
+
+      const saveObjectTool = databaseTools.find(
+        (tool: any) => tool.name === "saveObject",
+      );
+      expect(saveObjectTool).toBeDefined();
+
+      const result = await (saveObjectTool!.execute as any)({
+        id: 1,
+        name: "Test Object",
+        description: "Test Description",
+        model: { stages: [] },
+        isEmbedded: true,
+        systemOfRecordId: null,
+      });
+
+      expect(result).toEqual({
+        id: 1,
+        name: "Test Object",
+        description: "Test Description",
+        model: { stages: [] },
+        hasWorkflow: false,
+        isEmbedded: true,
+      });
+
+      // Verify the UPDATE query was called with correct parameters
+      expect(pool.query).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE "Cases"'),
+        [
+          "Test Object",
+          "Test Description",
+          '{"stages":[]}',
+          1,
+          undefined,
+          true,
+          null,
+        ],
+      );
+    });
   });
 
   describe("saveFields", () => {
