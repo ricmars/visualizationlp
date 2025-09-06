@@ -14,6 +14,7 @@ type DataObject = {
   description: string;
   objectid: number;
   systemOfRecordId: number;
+  isEmbedded?: boolean;
   model?: any;
 };
 
