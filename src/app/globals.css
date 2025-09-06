@@ -108,7 +108,7 @@ body {
   /* App panels horizontal gutter */
   .app-panels {
     gap: var(--panel-gutter);
-    padding: 0 0 0 16px;
+    padding: 0 16px;
   }
 
   /* Unified modal backdrop: subtle 20% opacity with slight blur */

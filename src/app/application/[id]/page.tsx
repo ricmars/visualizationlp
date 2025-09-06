@@ -1132,7 +1132,7 @@ export default function WorkflowPage() {
       const response = await fetch(`/api/checkpoint?action=deleteAll`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ objectid: applicationId }),
+        body: JSON.stringify({ applicationid: applicationId }),
       });
 
       if (!response.ok) {

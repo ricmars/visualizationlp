@@ -365,7 +365,10 @@ export interface CheckpointManager {
   >;
   applyUndoOperation(client: any, op: any): Promise<void>;
   deleteCheckpoint(checkpointId: string): Promise<void>;
-  deleteAllCheckpoints(objectid?: number): Promise<void>;
+  deleteAllCheckpoints(
+    objectid?: number,
+    applicationid?: number,
+  ): Promise<void>;
 }
 
 export const checkpointManager: CheckpointManager = {
@@ -816,8 +819,13 @@ export const checkpointManager: CheckpointManager = {
     }
   },
 
-  async deleteAllCheckpoints(objectid?: number): Promise<void> {
-    const logMessage = objectid
+  async deleteAllCheckpoints(
+    objectid?: number,
+    applicationid?: number,
+  ): Promise<void> {
+    const logMessage = applicationid
+      ? `Deleting all checkpoints for application ${applicationid}`
+      : objectid
       ? `Deleting all checkpoints for case ${objectid}`
       : "Deleting all checkpoints";
     console.log(logMessage);
@@ -826,7 +834,26 @@ export const checkpointManager: CheckpointManager = {
     try {
       await client.query("BEGIN");
 
-      if (objectid !== undefined) {
+      if (applicationid !== undefined) {
+        // Delete undo log entries for specific application (all cases within the application)
+        const undoResult = await client.query(
+          `DELETE FROM "undo_log" WHERE objectid IN (
+            SELECT id FROM "Objects" WHERE applicationid = $1
+          )`,
+          [applicationid],
+        );
+
+        // Delete checkpoints for specific application
+        const checkpointResult = await client.query(
+          `DELETE FROM "checkpoints" WHERE applicationid = $1`,
+          [applicationid],
+        );
+
+        await client.query("COMMIT");
+        console.log(
+          `Deleted ${checkpointResult.rowCount} checkpoints and ${undoResult.rowCount} undo log entries for application ${applicationid}`,
+        );
+      } else if (objectid !== undefined) {
         // Delete undo log entries for specific case
         const undoResult = await client.query(
           `DELETE FROM "undo_log" WHERE objectid = $1`,

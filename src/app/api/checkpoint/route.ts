@@ -90,21 +90,32 @@ export async function POST(request: NextRequest) {
       }
 
       case "deleteAll": {
-        const { objectid } = await request
+        const { objectid, applicationid } = await request
           .json()
-          .catch(() => ({ objectid: undefined }));
+          .catch(() => ({ objectid: undefined, applicationid: undefined }));
         const objectidNum =
           typeof objectid === "number"
             ? objectid
             : objectid
             ? parseInt(objectid)
             : undefined;
-        await checkpointSessionManager.deleteAllCheckpoints(objectidNum);
+        const applicationidNum =
+          typeof applicationid === "number"
+            ? applicationid
+            : applicationid
+            ? parseInt(applicationid)
+            : undefined;
+        await checkpointSessionManager.deleteAllCheckpoints(
+          objectidNum,
+          applicationidNum,
+        );
 
         return NextResponse.json({
           success: true,
           message:
-            objectidNum !== undefined
+            applicationidNum !== undefined
+              ? `Successfully deleted all checkpoints for application ${applicationidNum}`
+              : objectidNum !== undefined
               ? `Successfully deleted all checkpoints for case ${objectidNum}`
               : "Successfully deleted all checkpoints",
         });
