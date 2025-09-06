@@ -1841,21 +1841,24 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "saveObjectRecord",
       description:
-        "Updates or creates a record. All key-value pairs for the update must be provided as an object under the 'data' property, e.g., data: { 'name': 'John Doe', 'age': 30 }",
+        'Creates or updates a record for a data object. The values to update must be a key-value object passed to the \'data\' parameter. For example, to update a user\'s name and age, the parameters would be { "objectid": 123, "data": { "name": "Jane Doe", "age": 25 } }.',
       parameters: {
         type: "object",
         properties: {
           id: {
             type: "integer",
-            description: "Record ID (omit for create)",
+            description:
+              "The unique ID of the record to update (optional for a new record).",
           },
           objectid: {
             type: "integer",
-            description: "ID of the data object this record belongs to",
+            description:
+              "The ID of the data object the record belongs to. This is a required parameter.",
           },
           data: {
             type: "object",
-            description: "List of values to update stored as key-value pairs",
+            description:
+              "A key-value object of the field names and their new values to save or update.",
           },
         },
         required: ["objectid", "data"],
