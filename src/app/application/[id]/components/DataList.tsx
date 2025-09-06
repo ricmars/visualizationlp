@@ -9,6 +9,7 @@ type DataObject = {
   description: string;
   objectid: number;
   systemOfRecordId: number;
+  isEmbedded?: boolean;
   model?: any;
 };
 
@@ -43,7 +44,14 @@ export default function DataList({
               className="p-4 rounded-lg border border-gray-700 bg-[rgb(20,16,60)] text-white flex items-start justify-between"
             >
               <div>
-                <div className="text-base font-semibold">{obj.name}</div>
+                <div className="flex items-center gap-2">
+                  <div className="text-base font-semibold">{obj.name}</div>
+                  {obj.isEmbedded && (
+                    <span className="px-2 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
+                      Embedded
+                    </span>
+                  )}
+                </div>
                 <div className="text-sm text-white/80 mt-1">
                   {obj.description}
                 </div>

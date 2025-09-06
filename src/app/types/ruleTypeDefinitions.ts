@@ -55,6 +55,13 @@ export const objectRuleType: RuleTypeDefinition = {
         description: "Whether this object contains a workflow",
       },
       {
+        name: "isEmbedded",
+        type: "boolean",
+        optional: true,
+        description:
+          "Whether this object is embedded (data is stored directly rather than referenced)",
+      },
+      {
         name: "systemOfRecordId",
         type: "number",
         optional: true,
@@ -106,6 +113,14 @@ export const objectRuleType: RuleTypeDefinition = {
         description: "Whether this object contains a workflow",
       },
       {
+        name: "isEmbedded",
+        type: "BOOLEAN",
+        nullable: false,
+        defaultValue: false,
+        description:
+          "Whether this object is embedded (data is stored directly rather than referenced)",
+      },
+      {
         name: "systemOfRecordId",
         type: "INTEGER",
         nullable: true,
@@ -138,6 +153,7 @@ export const objectRuleType: RuleTypeDefinition = {
       { name: "objects_name_idx", columns: ["name"] },
       { name: "objects_applicationid_idx", columns: ["applicationid"] },
       { name: "objects_hasworkflow_idx", columns: ["hasWorkflow"] },
+      { name: "objects_isembedded_idx", columns: ["isEmbedded"] },
     ],
   },
 

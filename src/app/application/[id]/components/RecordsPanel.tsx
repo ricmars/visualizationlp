@@ -384,6 +384,7 @@ function renderFieldValue(value: any, field: Field): React.ReactNode {
     // Reference field types
     case "CaseReferenceSingle":
     case "DataReferenceSingle":
+    case "EmbedDataSingle":
       if (typeof value === "object" && value !== null) {
         return (
           <span className="break-words">
@@ -395,6 +396,7 @@ function renderFieldValue(value: any, field: Field): React.ReactNode {
 
     case "CaseReferenceMulti":
     case "DataReferenceMulti":
+    case "EmbedDataMulti":
       if (Array.isArray(value)) {
         return (
           <div className="flex flex-wrap gap-1">

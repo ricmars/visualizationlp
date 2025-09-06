@@ -21,6 +21,7 @@ export interface CreateObjectParams extends ToolParams {
   description: string;
   applicationid?: number;
   hasWorkflow?: boolean;
+  isEmbedded?: boolean;
   systemOfRecordId?: number;
   model?: unknown;
 }
@@ -31,6 +32,7 @@ export interface SaveObjectParams extends ToolParams {
   description: string;
   model?: WorkflowModel;
   hasWorkflow?: boolean;
+  isEmbedded?: boolean;
 }
 
 export interface SaveFieldsParams extends ToolParams {

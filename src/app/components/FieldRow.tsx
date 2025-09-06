@@ -104,6 +104,12 @@ const FieldRow: React.FC<FieldRowProps> = ({
                   {objectName || `Object ${field.refObjectId}`}
                 </a>
               )}
+              {(field.type === "EmbedDataSingle" ||
+                field.type === "EmbedDataMulti") && (
+                <span className="ml-1 px-1 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
+                  Embedded
+                </span>
+              )}
             </span>
           ) : null}
         </div>

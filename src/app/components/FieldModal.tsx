@@ -35,8 +35,8 @@ interface FieldModalProps {
   onSubmitEdit?: (updates: Partial<Field>) => void;
 
   // Reference targets
-  workflowObjects?: Array<{ id: number; name: string }>;
-  dataObjects?: Array<{ id: number; name: string }>;
+  workflowObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
+  dataObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
 }
 
 const FieldModal: React.FC<FieldModalProps> = ({
@@ -74,10 +74,10 @@ const FieldModal: React.FC<FieldModalProps> = ({
   const [refGroup, setRefGroup] = useState<"workflow" | "data" | null>(null);
   const [refObjectId, setRefObjectId] = useState<number | null>(null);
   const [resolvedWorkflowObjects, setResolvedWorkflowObjects] = useState<
-    Array<{ id: number; name: string }>
+    Array<{ id: number; name: string; isEmbedded?: boolean }>
   >(workflowObjects || []);
   const [resolvedDataObjects, setResolvedDataObjects] = useState<
-    Array<{ id: number; name: string }>
+    Array<{ id: number; name: string; isEmbedded?: boolean }>
   >(dataObjects || []);
 
   const workflowIdToName = useMemo(() => {
@@ -150,8 +150,11 @@ const FieldModal: React.FC<FieldModalProps> = ({
       const isDataRef =
         initialField.type === "DataReferenceSingle" ||
         initialField.type === "DataReferenceMulti";
-      if (isCaseRef || isDataRef) {
-        setRefGroup(isCaseRef ? "workflow" : "data");
+      const isEmbedCase =
+        initialField.type === "EmbedDataSingle" ||
+        initialField.type === "EmbedDataMulti";
+      if (isCaseRef || isDataRef || isEmbedCase) {
+        setRefGroup(isCaseRef || isEmbedCase ? "workflow" : "data");
         if (typeof initialField.refObjectId === "number") {
           setRefObjectId(initialField.refObjectId);
         } else {
@@ -251,9 +254,34 @@ const FieldModal: React.FC<FieldModalProps> = ({
           if (!sampleValue) setSampleValue(refName || "");
         }
         if (onSubmitAdd) {
+          // Determine the actual field type based on the selected object's isEmbedded property
+          let actualType = type;
+          if (refGroup && refObjectId) {
+            const selectedObject =
+              refGroup === "workflow"
+                ? resolvedWorkflowObjects.find((o) => o.id === refObjectId)
+                : resolvedDataObjects.find((o) => o.id === refObjectId);
+
+            const isEmbedded = selectedObject?.isEmbedded || false;
+
+            if (refGroup === "workflow") {
+              actualType = isEmbedded
+                ? type === "CaseReferenceMulti"
+                  ? "EmbedDataMulti"
+                  : "EmbedDataSingle"
+                : type;
+            } else {
+              actualType = isEmbedded
+                ? type === "DataReferenceMulti"
+                  ? "EmbedDataMulti"
+                  : "EmbedDataSingle"
+                : type;
+            }
+          }
+
           await onSubmitAdd({
             label,
-            type,
+            type: actualType,
             required,
             primary: isPrimary,
             options: parsedOptions,
@@ -284,10 +312,35 @@ const FieldModal: React.FC<FieldModalProps> = ({
           .filter((opt) => opt.length > 0)
       : [];
     if (onSubmitEdit && initialField) {
+      // Determine the actual field type based on the selected object's isEmbedded property
+      let actualType = type;
+      if (refGroup && refObjectId) {
+        const selectedObject =
+          refGroup === "workflow"
+            ? resolvedWorkflowObjects.find((o) => o.id === refObjectId)
+            : resolvedDataObjects.find((o) => o.id === refObjectId);
+
+        const isEmbedded = selectedObject?.isEmbedded || false;
+
+        if (refGroup === "workflow") {
+          actualType = isEmbedded
+            ? type === "CaseReferenceMulti"
+              ? "EmbedDataMulti"
+              : "EmbedDataSingle"
+            : type;
+        } else {
+          actualType = isEmbedded
+            ? type === "DataReferenceMulti"
+              ? "EmbedDataMulti"
+              : "EmbedDataSingle"
+            : type;
+        }
+      }
+
       onSubmitEdit({
         name: initialField.name,
         label: label.trim(),
-        type,
+        type: actualType,
         primary: isPrimary,
         required: required,
         options: parsedOptions,
@@ -320,8 +373,11 @@ const FieldModal: React.FC<FieldModalProps> = ({
     "CaseReferenceSingle",
     "CaseReferenceMulti",
   ] as const);
+  const embedTypes = new Set(["EmbedDataSingle", "EmbedDataMulti"] as const);
   const standardTypes = getAllFieldTypes().filter(
-    (t) => !(referenceTypes as any).has(t as any),
+    (t) =>
+      !(referenceTypes as any).has(t as any) &&
+      !(embedTypes as any).has(t as any),
   );
 
   return (
@@ -520,28 +576,60 @@ const FieldModal: React.FC<FieldModalProps> = ({
                           ))}
                         </optgroup>
                         {(resolvedWorkflowObjects || []).length > 0 && (
-                          <optgroup label="Workflow">
-                            {(resolvedWorkflowObjects || []).map((o) => (
-                              <option
-                                key={`workflow:${o.id}`}
-                                value={`workflow:${o.id}`}
-                              >
-                                {o.name}
-                              </option>
-                            ))}
-                          </optgroup>
+                          <>
+                            <optgroup label="Workflow (Reference)">
+                              {(resolvedWorkflowObjects || [])
+                                .filter((o) => !o.isEmbedded)
+                                .map((o) => (
+                                  <option
+                                    key={`workflow:${o.id}`}
+                                    value={`workflow:${o.id}`}
+                                  >
+                                    {o.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Workflow (Embedded)">
+                              {(resolvedWorkflowObjects || [])
+                                .filter((o) => o.isEmbedded)
+                                .map((o) => (
+                                  <option
+                                    key={`workflow:${o.id}`}
+                                    value={`workflow:${o.id}`}
+                                  >
+                                    {o.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          </>
                         )}
                         {(resolvedDataObjects || []).length > 0 && (
-                          <optgroup label="Data">
-                            {(resolvedDataObjects || []).map((o) => (
-                              <option
-                                key={`data:${o.id}`}
-                                value={`data:${o.id}`}
-                              >
-                                {o.name}
-                              </option>
-                            ))}
-                          </optgroup>
+                          <>
+                            <optgroup label="Data (Reference)">
+                              {(resolvedDataObjects || [])
+                                .filter((o) => !o.isEmbedded)
+                                .map((o) => (
+                                  <option
+                                    key={`data:${o.id}`}
+                                    value={`data:${o.id}`}
+                                  >
+                                    {o.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                            <optgroup label="Data (Embedded)">
+                              {(resolvedDataObjects || [])
+                                .filter((o) => o.isEmbedded)
+                                .map((o) => (
+                                  <option
+                                    key={`data:${o.id}`}
+                                    value={`data:${o.id}`}
+                                  >
+                                    {o.name}
+                                  </option>
+                                ))}
+                            </optgroup>
+                          </>
                         )}
                       </select>
                     </div>
@@ -643,8 +731,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
 
                     {(type === "Dropdown" ||
                       type === "RadioButtons" ||
-                      type === "Status" ||
-                      type === "ReferenceValues") && (
+                      type === "Status") && (
                       <div>
                         <label className="block text-sm font-medium text-white mb-1">
                           Options (comma-separated)

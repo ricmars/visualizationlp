@@ -47,5 +47,7 @@ export function isReferenceFieldType(fieldType: string): boolean {
     "DataReferenceMulti",
     "CaseReferenceSingle",
     "CaseReferenceMulti",
+    "EmbedDataSingle",
+    "EmbedDataMulti",
   ].includes(fieldType);
 }

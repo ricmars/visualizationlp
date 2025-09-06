@@ -122,7 +122,15 @@ describe("llmTools", () => {
 
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('INSERT INTO "Cases"'),
-        ["Test Case", "Test Description", expect.any(String), 10, true, null],
+        [
+          "Test Case",
+          "Test Description",
+          expect.any(String),
+          10,
+          true,
+          false,
+          null,
+        ],
       );
       expect(result).toEqual({
         id: 1,

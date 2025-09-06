@@ -74,6 +74,7 @@ export default function AddRecordModal({
             break;
           case "CaseReferenceMulti":
           case "DataReferenceMulti":
+          case "EmbedDataMulti":
             initialData[field.name] = [];
             break;
           default:
@@ -347,6 +348,7 @@ function renderFieldInput(
     // Reference field types - simplified for now
     case "CaseReferenceSingle":
     case "DataReferenceSingle":
+    case "EmbedDataSingle":
       return (
         <select
           value={typeof value === "object" ? value?.id : value}
@@ -374,6 +376,7 @@ function renderFieldInput(
 
     case "CaseReferenceMulti":
     case "DataReferenceMulti":
+    case "EmbedDataMulti":
       return (
         <div className="space-y-2">
           {referenceOptions[fieldName]?.map((option: any) => (

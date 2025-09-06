@@ -69,8 +69,6 @@ import ErrorScreen from "./components/ErrorScreen";
 import AddFieldModal from "../../components/AddFieldModal";
 import EditFieldModal from "../../components/EditFieldModal";
 import { DB_TABLES, DB_COLUMNS } from "../../types/database";
-// view model helpers used inside useViewMutations (kept for types, not used here)
-// fetchWithBaseUrl used in hooks/utilities
 import { fetchWithBaseUrl } from "../../lib/fetchWithBaseUrl";
 import AddStageModal from "../../components/AddStageModal";
 import AddProcessModal from "../../components/AddProcessModal";
@@ -78,7 +76,7 @@ import EditWorkflowModal from "../../components/EditWorkflowModal";
 import ModalPortal from "../../components/ModalPortal";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import { StepType } from "@/app/utils/stepTypes";
-import { FaPencilAlt } from "react-icons/fa";
+import { FaPencilAlt, FaTrash } from "react-icons/fa";
 import ChangesPanel from "../../components/ChangesPanel";
 import RulesCheckoutPanel from "./components/RulesCheckoutPanel";
 import FloatingChatModal from "./components/FloatingChatModal";
@@ -1410,11 +1408,11 @@ export default function WorkflowPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                aria-label="Delete all checkpoints"
-                className="btn-secondary w-8"
                 onClick={() => setIsDeleteAllCheckpointsModalOpen(true)}
+                className="btn-secondary w-8"
+                title="Delete all checkpoints"
               >
-                <Icon name="trash" aria-hidden />
+                <FaTrash className="w-4 h-4" />
               </button>
               <button
                 aria-label="Show rules updates"

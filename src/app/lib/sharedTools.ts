@@ -179,7 +179,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "createObject",
       description:
-        "Creates a new object. Set hasWorkflow=true to create a workflow-type object; otherwise it will be a data object. applicationid is optional. Returns the new object ID.",
+        "Creates a new object. Set hasWorkflow=true to create a workflow-type object; otherwise it will be a data object. Set isEmbedded=true to mark the object as embedded (data will be stored directly rather than referenced). applicationid is optional. Returns the new object ID.",
       parameters: {
         type: "object",
         properties: {
@@ -192,6 +192,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           hasWorkflow: {
             type: "boolean",
             description: "Whether this is a workflow object",
+          },
+          isEmbedded: {
+            type: "boolean",
+            description:
+              "Whether this object is embedded (data is stored directly rather than referenced)",
           },
           systemOfRecordId: {
             type: "integer",
@@ -213,6 +218,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           name,
           description,
           hasWorkflow = false,
+          isEmbedded = false,
           systemOfRecordId,
           model,
         } = params as any;
@@ -223,8 +229,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
         // Create new object with provided flags
         const query = `
-          INSERT INTO "${OBJECTS_TABLE}" (name, description, model, applicationid, "hasWorkflow", "systemOfRecordId")
-          VALUES ($1, $2, $3, $4, $5, $6)
+          INSERT INTO "${OBJECTS_TABLE}" (name, description, model, applicationid, "hasWorkflow", "isEmbedded", "systemOfRecordId")
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
           RETURNING id, name, description, model, applicationid
         `;
         const values = [
@@ -237,6 +243,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             : JSON.stringify({}),
           applicationid ?? null,
           hasWorkflow,
+          isEmbedded,
           systemOfRecordId ?? null,
         ];
         console.log("createObject INSERT query:", query);
@@ -270,7 +277,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "saveObject",
       description:
-        "Updates an object. For workflow objects, provide the complete workflow model (stages, processes, steps, viewId references). For data objects, model is optional.",
+        "Updates an object. For workflow objects, provide the complete workflow model (stages, processes, steps, viewId references). For data objects, model is optional. Set isEmbedded=true to mark the object as embedded (data will be stored directly rather than referenced).",
       parameters: {
         type: "object",
         properties: {
@@ -284,6 +291,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             type: "boolean",
             description:
               "Whether this object contains a workflow (optional, defaults to current value)",
+          },
+          isEmbedded: {
+            type: "boolean",
+            description:
+              "Whether this object is embedded (data is stored directly rather than referenced) (optional, defaults to current value)",
           },
           model: {
             type: "object",
@@ -360,7 +372,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("saveObject parameters:", JSON.stringify(params, null, 2));
         console.log("saveObject called at:", new Date().toISOString());
 
-        const { id, name, description, model, hasWorkflow } = params;
+        const { id, name, description, model, hasWorkflow, isEmbedded } =
+          params;
 
         // Validation
         if (!id)
@@ -514,9 +527,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         // Update existing case
         const query = `
           UPDATE "${OBJECTS_TABLE}"
-          SET name = $1, description = $2, model = COALESCE($3, model), "hasWorkflow" = COALESCE($5, "hasWorkflow")
+          SET name = $1, description = $2, model = COALESCE($3, model), "hasWorkflow" = COALESCE($5, "hasWorkflow"), "isEmbedded" = COALESCE($6, "isEmbedded")
           WHERE id = $4
-          RETURNING id, name, description, model, "hasWorkflow"
+          RETURNING id, name, description, model, "hasWorkflow", "isEmbedded"
         `;
         console.log("saveObject UPDATE query:", query);
         const modelJson = cleanedModel ? JSON.stringify(cleanedModel) : null;
@@ -526,6 +539,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           modelJson,
           id,
           hasWorkflow,
+          isEmbedded,
         ]);
 
         const result = await pool.query(query, [
@@ -534,6 +548,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           modelJson,
           id,
           hasWorkflow,
+          isEmbedded,
         ]);
         if (result.rowCount === 0) {
           console.error(`saveObject ERROR: No object found with id ${id}`);
@@ -563,6 +578,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           name: objectData.name ?? name,
           description: objectData.description ?? description,
           hasWorkflow: objectData.hasWorkflow ?? hasWorkflow,
+          isEmbedded: objectData.isEmbedded ?? isEmbedded,
           model:
             typeof objectData.model === "string"
               ? (() => {
@@ -579,7 +595,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "saveFields",
       description: `Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).
-                    Reference fields: To create a reference to another object, set type to one of: 'CaseReferenceSingle' | 'CaseReferenceMulti' | 'DataReferenceSingle' | 'DataReferenceMulti'. Provide 'refObjectId' with the referenced object's ID and 'refMultiplicity' as 'single' or 'multi'.`,
+                    Reference fields: To create a reference to another object, set type to one of: 'CaseReferenceSingle' | 'CaseReferenceMulti' | 'DataReferenceSingle' | 'DataReferenceMulti'. Provide 'refObjectId' with the referenced object's ID and 'refMultiplicity' as 'single' or 'multi'.
+                    Embedded fields: To embed another object's data directly, set type to one of: 'EmbedDataSingle' | 'EmbedDataMulti'. Provide 'refObjectId' with the embedded object's ID and 'refMultiplicity' as 'single' or 'multi'. Embedded fields store the actual data from the referenced object rather than just a reference. The field type is automatically determined based on whether the referenced object has isEmbedded=true.`,
       parameters: {
         type: "object",
         properties: {
