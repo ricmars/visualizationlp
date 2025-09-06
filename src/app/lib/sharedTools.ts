@@ -1842,12 +1842,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("saveObjectRecord called at:", new Date().toISOString());
 
         const { id, objectid, data } = params;
-        const fieldValues = data;
 
         if (!objectid) throw new Error("Object ID is required");
-        if (!fieldValues || typeof fieldValues !== "object") {
+        if (!data || typeof data !== "object") {
           throw new Error(
-            "Field values must be an object. Provide 'data' with key-value pairs.",
+            "Values must be passed using the 'data' property as key-value object.",
           );
         }
 
@@ -1861,7 +1860,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             RETURNING id, objectid, data, created_at, updated_at
           `;
           const result = await pool.query(updateQuery, [
-            JSON.stringify(fieldValues),
+            JSON.stringify(data),
             recordId,
             objectid,
           ]);
@@ -1881,7 +1880,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           `;
           const result = await pool.query(insertQuery, [
             objectid,
-            JSON.stringify(fieldValues),
+            JSON.stringify(data),
           ]);
           console.log("saveObjectRecord INSERT successful:", result.rows[0]);
           return result.rows[0];
