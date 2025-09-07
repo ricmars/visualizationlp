@@ -4,12 +4,14 @@ import React, {
   useRef,
   MutableRefObject,
   useEffect,
+  useCallback,
 } from "react";
 import { Stage, Field, FieldReference } from "../types/types";
 import AddFieldModal from "./AddFieldModal";
 import StepForm from "./StepForm";
 import { motion } from "framer-motion";
 import ConfirmDeleteModal from "./ConfirmDeleteModal";
+import StandardModal from "./StandardModal";
 
 interface ViewsPanelProps {
   stages: Stage[];
@@ -296,29 +298,60 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
     return [];
   }, [selectedView, collectSteps, allViews]); // Added _views to dependencies
 
-  const handleEditSubmit = (updates: {
-    label: string;
-    type: Field["type"];
-    options?: string[];
-    required?: boolean;
-    refObjectId?: number;
-    refMultiplicity?: "single" | "multi";
-  }) => {
-    if (editingField && onUpdateField) {
-      onUpdateField({
-        id: editingField.id,
-        name: editingField.name,
-        label: updates.label,
-        type: updates.type,
-        options: updates.options,
-        primary: editingField.primary,
-        required: updates.required ?? editingField.required,
-        refObjectId: updates.refObjectId,
-        refMultiplicity: updates.refMultiplicity,
-      } as Partial<Field>);
-      setEditingField(null);
+  const handleEditSubmit = useCallback(
+    (updates: {
+      label: string;
+      type: Field["type"];
+      options?: string[];
+      required?: boolean;
+      refObjectId?: number;
+      refMultiplicity?: "single" | "multi";
+    }) => {
+      if (editingField && onUpdateField) {
+        onUpdateField({
+          id: editingField.id,
+          name: editingField.name,
+          label: updates.label,
+          type: updates.type,
+          options: updates.options,
+          primary: editingField.primary,
+          required: updates.required ?? editingField.required,
+          refObjectId: updates.refObjectId,
+          refMultiplicity: updates.refMultiplicity,
+        } as Partial<Field>);
+        setEditingField(null);
+      }
+    },
+    [editingField, onUpdateField],
+  );
+
+  const handleEditFieldSave = useCallback(() => {
+    if (editingField) {
+      handleEditSubmit({
+        label: editingField.label,
+        type: editingField.type,
+      });
     }
-  };
+  }, [editingField, handleEditSubmit]);
+
+  const actions = useMemo(() => {
+    if (!editingField) return [];
+
+    return [
+      {
+        id: "cancel",
+        label: "Cancel",
+        type: "secondary" as const,
+        onClick: () => setEditingField(null),
+      },
+      {
+        id: "save",
+        label: "Save",
+        type: "primary" as const,
+        onClick: handleEditFieldSave,
+      },
+    ];
+  }, [editingField, handleEditFieldSave]);
 
   // Update the click handler to use the prop
   const handleViewSelect = (viewId: string) => {
@@ -617,60 +650,32 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         }}
       />
 
-      {editingField && (
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-50 modal-surface"
-        >
-          <div className="space-y-4 p-4">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h3>Edit Field</h3>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setEditingField(null)}
-                  className="btn-secondary px-3"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => {
-                    if (editingField) {
-                      handleEditSubmit({
-                        label: editingField.label,
-                        type: editingField.type,
-                      });
-                    }
-                  }}
-                  className="interactive-button px-3"
-                >
-                  Save
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-white mb-1">
-                  Label
-                </label>
-                <input
-                  type="text"
-                  value={editingField.label}
-                  onChange={(e) =>
-                    setEditingField({
-                      ...editingField,
-                      label: e.target.value,
-                    })
-                  }
-                  className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
-                />
-              </div>
-            </div>
+      <StandardModal
+        isOpen={!!editingField}
+        onCloseAction={() => setEditingField(null)}
+        title="Edit Field"
+        actions={actions}
+        width="w-full max-w-md"
+      >
+        {editingField && (
+          <div>
+            <label className="block text-sm font-medium text-white mb-1">
+              Label
+            </label>
+            <input
+              type="text"
+              value={editingField.label}
+              onChange={(e) =>
+                setEditingField({
+                  ...editingField,
+                  label: e.target.value,
+                })
+              }
+              className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
+            />
           </div>
-        </motion.div>
-      )}
+        )}
+      </StandardModal>
     </div>
   );
 };

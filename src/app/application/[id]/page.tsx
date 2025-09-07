@@ -73,7 +73,6 @@ import { fetchWithBaseUrl } from "../../lib/fetchWithBaseUrl";
 import AddStageModal from "../../components/AddStageModal";
 import AddProcessModal from "../../components/AddProcessModal";
 import EditWorkflowModal from "../../components/EditWorkflowModal";
-import ModalPortal from "../../components/ModalPortal";
 import ConfirmDeleteModal from "../../components/ConfirmDeleteModal";
 import { StepType } from "@/app/utils/stepTypes";
 import { FaPencilAlt, FaTrash } from "react-icons/fa";
@@ -1740,15 +1739,80 @@ export default function WorkflowPage() {
         </main>
 
         {/* Modals - rendered in portal to isolate from main content */}
-        <ModalPortal isOpen={isAddFieldModalOpen}>
-          <AddFieldModal
-            isOpen={isAddFieldModalOpen}
-            onClose={() => setIsAddFieldModalOpen(false)}
-            onAddField={async (field) => {
-              await handleAddField(field);
+        <AddFieldModal
+          isOpen={isAddFieldModalOpen}
+          onClose={() => setIsAddFieldModalOpen(false)}
+          onAddField={async (field) => {
+            await handleAddField(field);
+          }}
+          buttonRef={addFieldButtonRef as React.RefObject<HTMLButtonElement>}
+          allowExistingFields={false}
+          workflowObjects={applicationWorkflows}
+          dataObjects={
+            dataObjects?.map((d) => ({
+              id: d.id,
+              name: d.name,
+              isEmbedded: d.isEmbedded,
+            })) || []
+          }
+        />
+
+        <AddDataObjectModal
+          isOpen={isAddDataObjectModalOpen}
+          onCloseAction={() => setIsAddDataObjectModalOpen(false)}
+          objectid={parseInt(id)}
+          systemsOfRecord={systemsOfRecord || []}
+          onCreateSorAction={async (name: string, icon?: string) => {
+            const res = await fetchWithBaseUrl(
+              `/api/database?table=${DB_TABLES.SYSTEMS_OF_RECORD}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, icon }),
+              },
+            );
+            const data = await res.json();
+            await refreshWorkflowData();
+            return data.data;
+          }}
+          onSaveAction={async (data) => {
+            const payload = {
+              name: data.name,
+              description: data.description,
+              hasWorkflow: false,
+              applicationid: selectedCase?.applicationid ?? applicationId,
+              systemOfRecordId: data.systemOfRecordId,
+              isEmbedded: data.isEmbedded || false,
+              model: {},
+            };
+            const res = await fetchWithBaseUrl(
+              `/api/database?table=${DB_TABLES.OBJECTS}`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+              },
+            );
+            if (!res.ok) {
+              const t = await res.text();
+              throw new Error(
+                `Failed to create data object: ${res.status} ${t}`,
+              );
+            }
+            await refreshWorkflowData();
+            showToast("Data object created.");
+          }}
+        />
+
+        {editingField && (
+          <EditFieldModal
+            isOpen={!!editingField}
+            onClose={() => setEditingField(null)}
+            onSubmit={async (updates) => {
+              await handleUpdateField({ ...updates, id: editingField.id });
+              await refreshWorkflowData();
             }}
-            buttonRef={addFieldButtonRef as React.RefObject<HTMLButtonElement>}
-            allowExistingFields={false}
+            field={editingField}
             workflowObjects={applicationWorkflows}
             dataObjects={
               dataObjects?.map((d) => ({
@@ -1758,250 +1822,166 @@ export default function WorkflowPage() {
               })) || []
             }
           />
-        </ModalPortal>
+        )}
 
-        <ModalPortal isOpen={isAddDataObjectModalOpen}>
-          <AddDataObjectModal
-            isOpen={isAddDataObjectModalOpen}
-            onCloseAction={() => setIsAddDataObjectModalOpen(false)}
-            objectid={parseInt(id)}
-            systemsOfRecord={systemsOfRecord || []}
-            onCreateSorAction={async (name: string, icon?: string) => {
-              const res = await fetchWithBaseUrl(
-                `/api/database?table=${DB_TABLES.SYSTEMS_OF_RECORD}`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({ name, icon }),
-                },
+        <AddStageModal
+          isOpen={isAddStageModalOpen}
+          onClose={() => setIsAddStageModalOpen(false)}
+          onAddStage={handleAddStage}
+        />
+
+        <AddProcessModal
+          isOpen={isAddProcessModalOpen}
+          onClose={() => {
+            setIsAddProcessModalOpen(false);
+            setSelectedStageForProcess(null);
+          }}
+          onAddProcess={(processData: { name: string }) => {
+            if (selectedStageForProcess) {
+              handleAddProcess(
+                Number(selectedStageForProcess),
+                processData.name,
               );
-              const data = await res.json();
-              await refreshWorkflowData();
-              return data.data;
-            }}
-            onSaveAction={async (data) => {
-              const payload = {
-                name: data.name,
-                description: data.description,
-                hasWorkflow: false,
-                applicationid: selectedCase?.applicationid ?? applicationId,
-                systemOfRecordId: data.systemOfRecordId,
-                isEmbedded: data.isEmbedded || false,
-                model: {},
-              };
+            }
+          }}
+        >
+          <input
+            type="text"
+            value={newProcessName}
+            onChange={(e) => setNewProcessName(e.target.value)}
+            placeholder="Enter process name"
+            className="w-full px-3 py-2 border rounded-lg"
+            data-testid="process-name-input"
+          />
+        </AddProcessModal>
+
+        <EditWorkflowModal
+          isOpen={isEditWorkflowModalOpen}
+          onClose={() => setIsEditWorkflowModalOpen(false)}
+          onSubmit={handleEditWorkflow}
+          onDelete={handleDeleteWorkflow}
+          initialData={{
+            name: selectedCase?.name || "",
+            description: selectedCase?.description || "",
+          }}
+        />
+        <EditWorkflowModal
+          isOpen={isCreateWorkflowModalOpen}
+          onClose={() => setIsCreateWorkflowModalOpen(false)}
+          onSubmit={async (data) => {
+            await handleCreateWorkflow(data);
+            setIsCreateWorkflowModalOpen(false);
+          }}
+          initialData={{ name: "", description: "" }}
+        />
+        {editingDataObjectId && (
+          <EditDataObjectModal
+            isOpen={!!editingDataObjectId}
+            onCloseAction={() => setEditingDataObjectId(null)}
+            systemsOfRecord={systemsOfRecord || []}
+            initialData={
+              (dataObjects || []).find((d) => d.id === editingDataObjectId)!
+            }
+            onSaveAction={async (updates) => {
+              const current = (dataObjects || []).find(
+                (d) => d.id === updates.id,
+              );
+              if (!current) return;
               const res = await fetchWithBaseUrl(
-                `/api/database?table=${DB_TABLES.OBJECTS}`,
+                `/api/database?table=${DB_TABLES.OBJECTS}&id=${updates.id}`,
                 {
-                  method: "POST",
+                  method: "PUT",
                   headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
+                  body: JSON.stringify({
+                    name: updates.name,
+                    description: updates.description,
+                    systemOfRecordId: updates.systemOfRecordId,
+                    hasWorkflow: false,
+                    isEmbedded: updates.isEmbedded || false,
+                    model: current.model ?? {},
+                  }),
                 },
               );
               if (!res.ok) {
                 const t = await res.text();
                 throw new Error(
-                  `Failed to create data object: ${res.status} ${t}`,
+                  `Failed to update data object: ${res.status} ${t}`,
                 );
               }
               await refreshWorkflowData();
-              showToast("Data object created.");
             }}
-          />
-        </ModalPortal>
-
-        <ModalPortal isOpen={!!editingField}>
-          {editingField && (
-            <EditFieldModal
-              isOpen={!!editingField}
-              onClose={() => setEditingField(null)}
-              onSubmit={async (updates) => {
-                await handleUpdateField({ ...updates, id: editingField.id });
-                await refreshWorkflowData();
-              }}
-              field={editingField}
-              workflowObjects={applicationWorkflows}
-              dataObjects={
-                dataObjects?.map((d) => ({
-                  id: d.id,
-                  name: d.name,
-                  isEmbedded: d.isEmbedded,
-                })) || []
-              }
-            />
-          )}
-        </ModalPortal>
-
-        <ModalPortal isOpen={isAddStageModalOpen}>
-          <AddStageModal
-            isOpen={isAddStageModalOpen}
-            onClose={() => setIsAddStageModalOpen(false)}
-            onAddStage={handleAddStage}
-          />
-        </ModalPortal>
-
-        <ModalPortal isOpen={isAddProcessModalOpen}>
-          <AddProcessModal
-            isOpen={isAddProcessModalOpen}
-            onClose={() => {
-              setIsAddProcessModalOpen(false);
-              setSelectedStageForProcess(null);
-            }}
-            onAddProcess={(processData: { name: string }) => {
-              if (selectedStageForProcess) {
-                handleAddProcess(
-                  Number(selectedStageForProcess),
-                  processData.name,
-                );
-              }
-            }}
-          >
-            <input
-              type="text"
-              value={newProcessName}
-              onChange={(e) => setNewProcessName(e.target.value)}
-              placeholder="Enter process name"
-              className="w-full px-3 py-2 border rounded-lg"
-              data-testid="process-name-input"
-            />
-          </AddProcessModal>
-        </ModalPortal>
-
-        <ModalPortal isOpen={isEditWorkflowModalOpen}>
-          <EditWorkflowModal
-            isOpen={isEditWorkflowModalOpen}
-            onClose={() => setIsEditWorkflowModalOpen(false)}
-            onSubmit={handleEditWorkflow}
-            onDelete={handleDeleteWorkflow}
-            initialData={{
-              name: selectedCase?.name || "",
-              description: selectedCase?.description || "",
-            }}
-          />
-        </ModalPortal>
-        <ModalPortal isOpen={isCreateWorkflowModalOpen}>
-          <EditWorkflowModal
-            isOpen={isCreateWorkflowModalOpen}
-            onClose={() => setIsCreateWorkflowModalOpen(false)}
-            onSubmit={async (data) => {
-              await handleCreateWorkflow(data);
-              setIsCreateWorkflowModalOpen(false);
-            }}
-            initialData={{ name: "", description: "" }}
-          />
-        </ModalPortal>
-        <ModalPortal isOpen={!!editingDataObjectId}>
-          {editingDataObjectId && (
-            <EditDataObjectModal
-              isOpen={!!editingDataObjectId}
-              onCloseAction={() => setEditingDataObjectId(null)}
-              systemsOfRecord={systemsOfRecord || []}
-              initialData={
-                (dataObjects || []).find((d) => d.id === editingDataObjectId)!
-              }
-              onSaveAction={async (updates) => {
-                const current = (dataObjects || []).find(
-                  (d) => d.id === updates.id,
-                );
-                if (!current) return;
+            onDeleteAction={async (did: number) => {
+              try {
                 const res = await fetchWithBaseUrl(
-                  `/api/database?table=${DB_TABLES.OBJECTS}&id=${updates.id}`,
-                  {
-                    method: "PUT",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      name: updates.name,
-                      description: updates.description,
-                      systemOfRecordId: updates.systemOfRecordId,
-                      hasWorkflow: false,
-                      isEmbedded: updates.isEmbedded || false,
-                      model: current.model ?? {},
-                    }),
-                  },
+                  `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
+                  { method: "DELETE" },
                 );
                 if (!res.ok) {
                   const t = await res.text();
                   throw new Error(
-                    `Failed to update data object: ${res.status} ${t}`,
+                    `Failed to delete data object: ${res.status} ${t}`,
                   );
                 }
-                await refreshWorkflowData();
-              }}
-              onDeleteAction={async (did: number) => {
+              } catch (e) {
+                console.error("Error deleting data object:", e);
+              } finally {
                 try {
-                  const res = await fetchWithBaseUrl(
-                    `/api/database?table=${DB_TABLES.OBJECTS}&id=${did}`,
-                    { method: "DELETE" },
-                  );
-                  if (!res.ok) {
-                    const t = await res.text();
-                    throw new Error(
-                      `Failed to delete data object: ${res.status} ${t}`,
+                  // Find first remaining data object in this application
+                  const appId = applicationId || selectedCase?.applicationid;
+                  if (appId) {
+                    const listRes = await fetchWithBaseUrl(
+                      `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appId}&hasWorkflow=false`,
                     );
-                  }
-                } catch (e) {
-                  console.error("Error deleting data object:", e);
-                } finally {
-                  try {
-                    // Find first remaining data object in this application
-                    const appId = applicationId || selectedCase?.applicationid;
-                    if (appId) {
-                      const listRes = await fetchWithBaseUrl(
-                        `/api/database?table=${DB_TABLES.OBJECTS}&applicationid=${appId}&hasWorkflow=false`,
-                      );
-                      if (listRes.ok) {
-                        const data = await listRes.json();
-                        const list =
-                          (data?.data as Array<{ id: number }> | undefined) ||
-                          [];
-                        // Update header immediately
-                        setDataObjects(list as any);
-                        const nextDataObjectId = list[0]?.id ?? null;
-                        if (nextDataObjectId) {
-                          // Navigate to the first remaining data object
-                          handleSelectDataObject(nextDataObjectId);
-                          showToast(
-                            "Data object deleted. Navigated to next data object.",
-                          );
-                        } else {
-                          // No data objects left; return to workflow view (if exists)
-                          setSelectedDataObjectId(null);
-                          const params = new URLSearchParams();
-                          if (selectedCase?.id) {
-                            params.set("object", String(selectedCase.id));
-                            router.push(
-                              `/application/${appId}?${params.toString()}`,
-                            );
-                            showToast("Data object deleted.");
-                          }
-                        }
+                    if (listRes.ok) {
+                      const data = await listRes.json();
+                      const list =
+                        (data?.data as Array<{ id: number }> | undefined) || [];
+                      // Update header immediately
+                      setDataObjects(list as any);
+                      const nextDataObjectId = list[0]?.id ?? null;
+                      if (nextDataObjectId) {
+                        // Navigate to the first remaining data object
+                        handleSelectDataObject(nextDataObjectId);
+                        showToast(
+                          "Data object deleted. Navigated to next data object.",
+                        );
                       } else {
+                        // No data objects left; return to workflow view (if exists)
                         setSelectedDataObjectId(null);
+                        const params = new URLSearchParams();
+                        if (selectedCase?.id) {
+                          params.set("object", String(selectedCase.id));
+                          router.push(
+                            `/application/${appId}?${params.toString()}`,
+                          );
+                          showToast("Data object deleted.");
+                        }
                       }
                     } else {
                       setSelectedDataObjectId(null);
                     }
-                  } catch {}
-                  setEditingDataObjectId(null);
-                }
-              }}
-            />
-          )}
-        </ModalPortal>
-
-        {/* Delete All Checkpoints Confirmation Modal */}
-        <ModalPortal isOpen={isDeleteAllCheckpointsModalOpen}>
-          <ConfirmDeleteModal
-            isOpen={isDeleteAllCheckpointsModalOpen}
-            title="Delete Checkpoints"
-            message="Are you sure you want to delete all checkpoints for this application? This action cannot be undone and will permanently remove all checkpoint history."
-            confirmLabel="Delete"
-            onCancel={() => setIsDeleteAllCheckpointsModalOpen(false)}
-            onConfirm={async () => {
-              await handleDeleteAllCheckpoints();
-              setIsDeleteAllCheckpointsModalOpen(false);
+                  } else {
+                    setSelectedDataObjectId(null);
+                  }
+                } catch {}
+                setEditingDataObjectId(null);
+              }
             }}
           />
-        </ModalPortal>
+        )}
+
+        {/* Delete All Checkpoints Confirmation Modal */}
+        <ConfirmDeleteModal
+          isOpen={isDeleteAllCheckpointsModalOpen}
+          title="Delete Checkpoints"
+          message="Are you sure you want to delete all checkpoints for this application? This action cannot be undone and will permanently remove all checkpoint history."
+          confirmLabel="Delete"
+          onCancel={() => setIsDeleteAllCheckpointsModalOpen(false)}
+          onConfirm={async () => {
+            await handleDeleteAllCheckpoints();
+            setIsDeleteAllCheckpointsModalOpen(false);
+          }}
+        />
       </div>
 
       {/* Chat Panel - fixed width - Hidden on tablet/mobile */}

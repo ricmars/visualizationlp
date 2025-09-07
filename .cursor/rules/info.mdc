@@ -13,7 +13,7 @@ alwaysApply: true
 - Use npm and port 3100; do not use pnpm; do not use port 3000
 - All DB writes go through checkpointed endpoints; do not bypass
 - System prompt single source: import from `src/app/lib/databasePrompt.ts`
-- Modals: render via `ModalPortal`, absolute positioning, overlay has `modal-overlay`, content has `role="dialog"`, respect z-index hierarchy
+- Modals: use `StandardModal` component for all modal UI; provides accessibility, consistency, and portal rendering
 - Styling: no inline visual styles; use semantic classes in `src/app/globals.css` (dark modal surface uses `bg-[rgb(14,10,42)] text-white`)
 - Quote SQL reserved words; use parameterized queries
 - Streaming UI wiring lives in `src/app/api/openai/route.ts` using SSE
@@ -58,14 +58,12 @@ alwaysApply: true
 
 ## Modals — required pattern
 
-- Always render via `ModalPortal` into `#main-content-area` (not `document.body`)
-- Use absolute positioning (never `fixed`) so modals are contained within the main content area
-- Overlay: `absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay`
-- Content: `absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90]` with `role="dialog"`
-- Z-index order: base `z-0..10` < overlay `z-[80]` < content `z-[90]` < selection overlay `z-[100]` < quick chat `z-[110]`
+- **Use `StandardModal` component for all modal UI** - provides accessibility, consistency, and portal rendering
+- StandardModal handles: focus management, keyboard navigation (Tab, Escape), ARIA attributes, z-index management
+- Actions array pattern: `[{ label: 'Cancel', onClick: closeHandler }, { label: 'Save', onClick: saveHandler, variant: 'primary' }]`
 - Dark theme: use semantic classes from `globals.css` (no inline styles)
-- Scrolling: for tall content, make the inner body scrollable, not the overlay
-- See `docs/modals.md` for the minimal snippet and checklist
+- Do not use `ModalPortal` directly - it's only used internally by `StandardModal`
+- See `docs/modals.md` for implementation details
 
 ## Performance
 
@@ -105,13 +103,13 @@ alwaysApply: true
 - Do not bypass checkpointing for DB modifications
 - Quote reserved SQL keywords consistently
 - Use integer IDs only for DB relations (`viewId` is a number)
-- Modals must use portal + absolute + overlay class + role + z-index order
+- Modals must use `StandardModal` component for consistency and accessibility
 
 ## References
 
 - System prompt: `src/app/lib/databasePrompt.ts`
 - Streaming route: `src/app/api/openai/route.ts`
-- Modal portal: `src/app/components/ModalPortal.tsx`
+- Standard modal: `src/app/components/StandardModal.tsx`
 - Context filter: `src/app/application/[id]/hooks/useFreeFormSelection.ts`
 - Dynamic API and registry: `src/app/api/dynamic/route.ts`, `src/app/types/ruleTypeRegistry.ts`, `src/app/types/ruleTypeDefinitions.ts`
 - Docs: `docs/modals.md`, `docs/checkpoints.md`, `docs/rule-types.md`, `docs/testing.md`, `docs/llm-streaming.md`

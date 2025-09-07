@@ -13,7 +13,6 @@ import { Stage, Field } from "../types/types";
 import type { StepType } from "../utils/stepTypes";
 import { getStepTypeData } from "../utils/stepTypes";
 import StepConfigurationModal from "./StepConfigurationModal";
-import ModalPortal from "./ModalPortal";
 
 // Dynamic imports for Pega components to avoid SSR issues
 import dynamic from "next/dynamic";
@@ -855,287 +854,273 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
       <div ref={containerRef} style={containerStyle}></div>
 
       {/* Modal is rendered in the main document */}
-      <ModalPortal isOpen={!!editingStep}>
-        {editingStep &&
-          (() => {
-            console.log("🔍 Rendering modal with editingStep:", editingStep);
-            console.log("🔍 Available fields:", fields);
-            const modalStep = {
-              ...editingStep,
-              fields: editingStep.fields.map((field: any) => ({
-                fieldId: field.fieldId || field.id,
-                required: field.required || false,
-              })),
-            };
-            console.log("🔍 Modal step:", modalStep);
-            return (
-              <StepConfigurationModal
-                isOpen={!!editingStep}
-                onClose={() => setEditingStep(null)}
-                step={modalStep}
-                fields={fields}
-                onFieldChange={onFieldChange || (() => {})}
-                onAddField={async (field) => {
-                  if (!onAddField) return "";
-                  console.log("🟦 AddField start", { field });
-                  const createdFieldName = await onAddField(field);
-                  console.log("🟩 AddField created", { createdFieldName });
-                  // If step has a linked viewId, add the created field to the view
-                  const stepViewId = (editingStep as any)?.viewId as
-                    | number
-                    | undefined;
-                  if (onAddFieldsToView && typeof stepViewId === "number") {
-                    console.log("🟪 Attaching to view", { stepViewId });
-                    await onAddFieldsToView(stepViewId, [createdFieldName]);
-                    console.log("🟪 Attached to view done");
+      {editingStep &&
+        (() => {
+          console.log("🔍 Rendering modal with editingStep:", editingStep);
+          console.log("🔍 Available fields:", fields);
+          const modalStep = {
+            ...editingStep,
+            fields: editingStep.fields.map((field: any) => ({
+              fieldId: field.fieldId || field.id,
+              required: field.required || false,
+            })),
+          };
+          console.log("🔍 Modal step:", modalStep);
+          return (
+            <StepConfigurationModal
+              isOpen={!!editingStep}
+              onClose={() => setEditingStep(null)}
+              step={modalStep}
+              fields={fields}
+              onFieldChange={onFieldChange || (() => {})}
+              onAddField={async (field) => {
+                if (!onAddField) return "";
+                console.log("🟦 AddField start", { field });
+                const createdFieldName = await onAddField(field);
+                console.log("🟩 AddField created", { createdFieldName });
+                // If step has a linked viewId, add the created field to the view
+                const stepViewId = (editingStep as any)?.viewId as
+                  | number
+                  | undefined;
+                if (onAddFieldsToView && typeof stepViewId === "number") {
+                  console.log("🟪 Attaching to view", { stepViewId });
+                  await onAddFieldsToView(stepViewId, [createdFieldName]);
+                  console.log("🟪 Attached to view done");
+                }
+                // Optimistically add to the modal's local state with retries while fields refresh
+                const tryUpdateEditingStep = () => {
+                  const createdField = fieldsRef.current.find(
+                    (f) => f.name === createdFieldName,
+                  );
+                  if (!createdField || typeof createdField.id !== "number") {
+                    console.log("🟨 Created field not yet in fields list");
+                    return false;
                   }
-                  // Optimistically add to the modal's local state with retries while fields refresh
-                  const tryUpdateEditingStep = () => {
-                    const createdField = fieldsRef.current.find(
-                      (f) => f.name === createdFieldName,
+                  setEditingStep((prev) => {
+                    if (!prev) return prev;
+                    const alreadyPresent = (prev.fields || []).some(
+                      (fr: any) =>
+                        (fr.fieldId ?? fr.id) === (createdField as any).id,
                     );
-                    if (!createdField || typeof createdField.id !== "number") {
-                      console.log("🟨 Created field not yet in fields list");
-                      return false;
-                    }
-                    setEditingStep((prev) => {
-                      if (!prev) return prev;
-                      const alreadyPresent = (prev.fields || []).some(
-                        (fr: any) =>
-                          (fr.fieldId ?? fr.id) === (createdField as any).id,
-                      );
-                      if (alreadyPresent) return prev;
-                      const nextFields = [
-                        ...((prev.fields as any[]) || []),
-                        { fieldId: createdField.id, required: false },
-                      ];
-                      console.log("🟢 Optimistically appended field to modal", {
-                        id: createdField.id,
-                      });
-                      return { ...prev, fields: nextFields } as any;
+                    if (alreadyPresent) return prev;
+                    const nextFields = [
+                      ...((prev.fields as any[]) || []),
+                      { fieldId: createdField.id, required: false },
+                    ];
+                    console.log("🟢 Optimistically appended field to modal", {
+                      id: createdField.id,
                     });
-                    return true;
-                  };
-                  let attempts = 0;
-                  const maxAttempts = 25;
-                  const intervalMs = 150;
-                  if (!tryUpdateEditingStep()) {
-                    const timer = setInterval(() => {
-                      attempts += 1;
-                      if (tryUpdateEditingStep() || attempts >= maxAttempts) {
-                        console.log("🟥 Stopping retry loop", { attempts });
-                        clearInterval(timer);
-                        // If no view to attach to, attach to step directly when field becomes available
-                        if (
-                          !(typeof stepViewId === "number") &&
-                          onAddExistingField
-                        ) {
-                          const created = fieldsRef.current.find(
-                            (f) => f.name === createdFieldName,
-                          );
-                          if (created && typeof created.id === "number") {
-                            console.log("🟧 Attaching to step as fallback", {
-                              stepId: (editingStep as any).stepId,
-                              id: created.id,
-                            });
-                            onAddExistingField((editingStep as any).stepId, [
-                              created.id,
-                            ]);
-                          }
+                    return { ...prev, fields: nextFields } as any;
+                  });
+                  return true;
+                };
+                let attempts = 0;
+                const maxAttempts = 25;
+                const intervalMs = 150;
+                if (!tryUpdateEditingStep()) {
+                  const timer = setInterval(() => {
+                    attempts += 1;
+                    if (tryUpdateEditingStep() || attempts >= maxAttempts) {
+                      console.log("🟥 Stopping retry loop", { attempts });
+                      clearInterval(timer);
+                      // If no view to attach to, attach to step directly when field becomes available
+                      if (
+                        !(typeof stepViewId === "number") &&
+                        onAddExistingField
+                      ) {
+                        const created = fieldsRef.current.find(
+                          (f) => f.name === createdFieldName,
+                        );
+                        if (created && typeof created.id === "number") {
+                          console.log("🟧 Attaching to step as fallback", {
+                            stepId: (editingStep as any).stepId,
+                            id: created.id,
+                          });
+                          onAddExistingField((editingStep as any).stepId, [
+                            created.id,
+                          ]);
                         }
                       }
-                    }, intervalMs);
-                  }
-                  return createdFieldName;
-                }}
-                onAddExistingField={(
-                  stepId: number,
-                  numericFieldIds: number[],
-                ) => {
-                  const stepViewId = (editingStep as any)?.viewId as
-                    | number
-                    | undefined;
-                  const addMissingLocally = (ids: number[]) => {
-                    setEditingStep((prev) => {
-                      if (!prev) return prev as any;
-                      const existing = new Set(
-                        (prev.fields || []).map(
-                          (fr: any) => fr.fieldId ?? fr.id,
-                        ),
-                      );
-                      const additions = ids
-                        .filter((id) => !existing.has(id))
-                        .map((id) => ({ fieldId: id, required: false }));
-                      if (additions.length === 0) return prev as any;
-                      return {
-                        ...(prev as any),
-                        fields: [...(prev.fields as any[]), ...additions],
-                      } as any;
-                    });
-                  };
+                    }
+                  }, intervalMs);
+                }
+                return createdFieldName;
+              }}
+              onAddExistingField={(
+                stepId: number,
+                numericFieldIds: number[],
+              ) => {
+                const stepViewId = (editingStep as any)?.viewId as
+                  | number
+                  | undefined;
+                const addMissingLocally = (ids: number[]) => {
+                  setEditingStep((prev) => {
+                    if (!prev) return prev as any;
+                    const existing = new Set(
+                      (prev.fields || []).map((fr: any) => fr.fieldId ?? fr.id),
+                    );
+                    const additions = ids
+                      .filter((id) => !existing.has(id))
+                      .map((id) => ({ fieldId: id, required: false }));
+                    if (additions.length === 0) return prev as any;
+                    return {
+                      ...(prev as any),
+                      fields: [...(prev.fields as any[]), ...additions],
+                    } as any;
+                  });
+                };
 
-                  if (typeof stepViewId === "number" && onAddFieldsToView) {
-                    const fieldNames = numericFieldIds
-                      .map(
-                        (id) =>
-                          fieldsRef.current.find((f) => f.id === id)?.name ||
-                          null,
-                      )
-                      .filter((n): n is string => !!n);
-                    try {
-                      onAddFieldsToView(stepViewId, fieldNames);
-                    } finally {
-                      addMissingLocally(numericFieldIds);
-                    }
-                  } else if (onAddExistingField) {
-                    try {
-                      onAddExistingField(stepId, numericFieldIds);
-                    } finally {
-                      addMissingLocally(numericFieldIds);
-                    }
+                if (typeof stepViewId === "number" && onAddFieldsToView) {
+                  const fieldNames = numericFieldIds
+                    .map(
+                      (id) =>
+                        fieldsRef.current.find((f) => f.id === id)?.name ||
+                        null,
+                    )
+                    .filter((n): n is string => !!n);
+                  try {
+                    onAddFieldsToView(stepViewId, fieldNames);
+                  } finally {
+                    addMissingLocally(numericFieldIds);
                   }
-                }}
-                onUpdateField={onUpdateField || (() => {})}
-                onDeleteField={onDeleteField || (() => {})}
-              />
-            );
-          })()}
-      </ModalPortal>
+                } else if (onAddExistingField) {
+                  try {
+                    onAddExistingField(stepId, numericFieldIds);
+                  } finally {
+                    addMissingLocally(numericFieldIds);
+                  }
+                }
+              }}
+              onUpdateField={onUpdateField || (() => {})}
+              onDeleteField={onDeleteField || (() => {})}
+            />
+          );
+        })()}
 
       {/* Edit Stage Modal */}
-      <ModalPortal isOpen={!!stageEdit}>
-        {stageEdit && (
-          <EditModal
-            isOpen={!!stageEdit}
-            onClose={() => setStageEdit(null)}
-            type="stage"
-            name={stageEdit.name}
-            onSubmit={(data: { name: string }) => {
-              if (!onStepsUpdate) return;
-              const updatedStages = stages.map((s) =>
-                s.id === stageEdit.id ? { ...s, name: data.name } : s,
-              );
-              onStepsUpdate(updatedStages);
-            }}
-          />
-        )}
-      </ModalPortal>
+      {stageEdit && (
+        <EditModal
+          isOpen={!!stageEdit}
+          onClose={() => setStageEdit(null)}
+          type="stage"
+          name={stageEdit.name}
+          onSubmit={(data: { name: string }) => {
+            if (!onStepsUpdate) return;
+            const updatedStages = stages.map((s) =>
+              s.id === stageEdit.id ? { ...s, name: data.name } : s,
+            );
+            onStepsUpdate(updatedStages);
+          }}
+        />
+      )}
 
       {/* Add Process Modal */}
-      <ModalPortal isOpen={processModal.isOpen}>
-        {processModal.isOpen && processModal.stageId !== null && (
-          <AddProcessModal
-            isOpen={processModal.isOpen}
-            onClose={() => setProcessModal({ stageId: null, isOpen: false })}
-            onAddProcess={({ name }) => {
-              if (onAddProcess && processModal.stageId !== null) {
-                onAddProcess(processModal.stageId, name);
-              }
-              setProcessModal({ stageId: null, isOpen: false });
-            }}
-          />
-        )}
-      </ModalPortal>
+      {processModal.isOpen && processModal.stageId !== null && (
+        <AddProcessModal
+          isOpen={processModal.isOpen}
+          onClose={() => setProcessModal({ stageId: null, isOpen: false })}
+          onAddProcess={({ name }) => {
+            if (onAddProcess && processModal.stageId !== null) {
+              onAddProcess(processModal.stageId, name);
+            }
+            setProcessModal({ stageId: null, isOpen: false });
+          }}
+        />
+      )}
 
       {/* Edit Process Modal */}
-      <ModalPortal isOpen={!!processEdit}>
-        {processEdit && (
-          <EditModal
-            isOpen={!!processEdit}
-            onClose={() => setProcessEdit(null)}
-            type="process"
-            name={processEdit.name}
-            onSubmit={(data: { name: string }) => {
-              if (!onStepsUpdate) return;
-              const updatedStages = stages.map((s) =>
-                s.id === processEdit.stageId
-                  ? {
-                      ...s,
-                      processes: s.processes.map((p) =>
-                        p.id === processEdit.id ? { ...p, name: data.name } : p,
-                      ),
-                    }
-                  : s,
-              );
-              onStepsUpdate(updatedStages);
-            }}
-          />
-        )}
-      </ModalPortal>
+      {processEdit && (
+        <EditModal
+          isOpen={!!processEdit}
+          onClose={() => setProcessEdit(null)}
+          type="process"
+          name={processEdit.name}
+          onSubmit={(data: { name: string }) => {
+            if (!onStepsUpdate) return;
+            const updatedStages = stages.map((s) =>
+              s.id === processEdit.stageId
+                ? {
+                    ...s,
+                    processes: s.processes.map((p) =>
+                      p.id === processEdit.id ? { ...p, name: data.name } : p,
+                    ),
+                  }
+                : s,
+            );
+            onStepsUpdate(updatedStages);
+          }}
+        />
+      )}
 
-      <ModalPortal isOpen={!!stepEdit}>
-        {stepEdit && (
-          <EditModal
-            isOpen={!!stepEdit}
-            onClose={() => setStepEdit(null)}
-            type="step"
-            name={stepEdit.name}
-            stepType={stepEdit.stepType}
-            onSubmit={(data: {
-              name: string;
-              type?: StepType;
-              fields?: never[];
-            }) => {
-              if (!onStepsUpdate) return;
-              const updatedStages = stages.map((s) =>
-                s.id === stepEdit.stageId
-                  ? {
-                      ...s,
-                      processes: s.processes.map((p) =>
-                        p.id === stepEdit.processId
-                          ? {
-                              ...p,
-                              steps: p.steps.map((st) =>
-                                st.id === stepEdit.id
-                                  ? {
-                                      ...st,
-                                      name: data.name,
-                                      type: (data.type || st.type) as StepType,
-                                      ...(data.fields ? { fields: [] } : {}),
-                                    }
-                                  : st,
-                              ),
-                            }
-                          : p,
-                      ),
-                    }
-                  : s,
-              );
-              onStepsUpdate(updatedStages);
-            }}
-          />
-        )}
-      </ModalPortal>
+      {stepEdit && (
+        <EditModal
+          isOpen={!!stepEdit}
+          onClose={() => setStepEdit(null)}
+          type="step"
+          name={stepEdit.name}
+          stepType={stepEdit.stepType}
+          onSubmit={(data: {
+            name: string;
+            type?: StepType;
+            fields?: never[];
+          }) => {
+            if (!onStepsUpdate) return;
+            const updatedStages = stages.map((s) =>
+              s.id === stepEdit.stageId
+                ? {
+                    ...s,
+                    processes: s.processes.map((p) =>
+                      p.id === stepEdit.processId
+                        ? {
+                            ...p,
+                            steps: p.steps.map((st) =>
+                              st.id === stepEdit.id
+                                ? {
+                                    ...st,
+                                    name: data.name,
+                                    type: (data.type || st.type) as StepType,
+                                    ...(data.fields ? { fields: [] } : {}),
+                                  }
+                                : st,
+                            ),
+                          }
+                        : p,
+                    ),
+                  }
+                : s,
+            );
+            onStepsUpdate(updatedStages);
+          }}
+        />
+      )}
 
       {/* Add Step Modal */}
-      <ModalPortal isOpen={addStepModal.isOpen}>
-        {addStepModal.isOpen &&
-          addStepModal.stageId !== null &&
-          addStepModal.processId !== null && (
-            <AddStepModal
-              isOpen={addStepModal.isOpen}
-              onClose={() =>
-                setAddStepModal({
-                  stageId: null,
-                  processId: null,
-                  isOpen: false,
-                })
+      {addStepModal.isOpen &&
+        addStepModal.stageId !== null &&
+        addStepModal.processId !== null && (
+          <AddStepModal
+            isOpen={addStepModal.isOpen}
+            onClose={() =>
+              setAddStepModal({
+                stageId: null,
+                processId: null,
+                isOpen: false,
+              })
+            }
+            onAddStep={(stageId, processId, stepName, stepType) => {
+              if (onAddStep) {
+                onAddStep(stageId, processId, stepName, stepType);
               }
-              onAddStep={(stageId, processId, stepName, stepType) => {
-                if (onAddStep) {
-                  onAddStep(stageId, processId, stepName, stepType);
-                }
-                setAddStepModal({
-                  stageId: null,
-                  processId: null,
-                  isOpen: false,
-                });
-              }}
-              stageId={addStepModal.stageId}
-              processId={addStepModal.processId}
-            />
-          )}
-      </ModalPortal>
+              setAddStepModal({
+                stageId: null,
+                processId: null,
+                isOpen: false,
+              });
+            }}
+            stageId={addStepModal.stageId}
+            processId={addStepModal.processId}
+          />
+        )}
     </>
   );
 };

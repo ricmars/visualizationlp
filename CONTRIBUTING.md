@@ -202,6 +202,53 @@ AZURE_CLIENT_SECRET=your-client-secret
 3. Copy connection string to `.env.local`
 4. Reset database: `curl -X POST http://localhost:3100/api/reset-db`
 
+## Modal System
+
+The application uses a standardized modal system for consistent UI and accessibility:
+
+### StandardModal Component
+
+**Use `StandardModal` for all modal UI** - it provides:
+
+- Consistent styling and behavior across the application
+- Built-in accessibility features (focus management, keyboard navigation, screen reader support)
+- Automatic portal rendering to avoid z-index conflicts
+- Standardized button actions and layout
+
+### Implementation Pattern
+
+```tsx
+import { StandardModal } from "@/app/components/StandardModal";
+
+// Basic usage
+<StandardModal
+  isOpen={isModalOpen}
+  onCloseAction={() => setIsModalOpen(false)}
+  title="Modal Title"
+  actions={[
+    { label: "Cancel", onClick: () => setIsModalOpen(false) },
+    { label: "Save", onClick: handleSave, variant: "primary" },
+  ]}
+>
+  {/* Modal content goes here */}
+</StandardModal>;
+```
+
+### Key Benefits
+
+- **Accessibility**: Automatic focus management, keyboard navigation (Tab, Escape), ARIA attributes
+- **Consistency**: Uniform styling and behavior across all modals
+- **Maintainability**: Single source of truth for modal behavior
+- **Portal Rendering**: Automatically handles z-index and overlay positioning
+
+### Migration from ModalPortal
+
+Components should **not** use `ModalPortal` directly. Instead:
+
+1. Use `StandardModal` for all new modals
+2. Migrate existing `ModalPortal` usage to `StandardModal`
+3. `ModalPortal` is now only used internally by `StandardModal`
+
 ## Need Help?
 
 - Check the troubleshooting guide above

@@ -5,7 +5,6 @@ import { motion } from "framer-motion";
 import { Field } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 import { FaPlus, FaPencilAlt, FaTrash } from "react-icons/fa";
-import ModalPortal from "../../../components/ModalPortal";
 import AddRecordModal from "./AddRecordModal";
 import EditRecordModal from "./EditRecordModal";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
@@ -277,49 +276,43 @@ export default function RecordsPanel({
       )}
 
       {/* Add Record Modal */}
-      <ModalPortal isOpen={isAddRecordOpen}>
-        <AddRecordModal
-          isOpen={isAddRecordOpen}
-          onCloseAction={() => setIsAddRecordOpen(false)}
-          fields={sortedFields}
-          onSaveAction={handleAddRecord}
-        />
-      </ModalPortal>
+      <AddRecordModal
+        isOpen={isAddRecordOpen}
+        onCloseAction={() => setIsAddRecordOpen(false)}
+        fields={sortedFields}
+        onSaveAction={handleAddRecord}
+      />
 
       {/* Edit Record Modal */}
-      <ModalPortal isOpen={!!editingRecord}>
-        {editingRecord && (
-          <EditRecordModal
-            isOpen={!!editingRecord}
-            onCloseAction={() => setEditingRecord(null)}
-            fields={sortedFields}
-            record={editingRecord}
-            onSaveAction={(data: Record<string, any>) =>
-              handleEditRecord(editingRecord.id, data)
-            }
-          />
-        )}
-      </ModalPortal>
+      {editingRecord && (
+        <EditRecordModal
+          isOpen={!!editingRecord}
+          onCloseAction={() => setEditingRecord(null)}
+          fields={sortedFields}
+          record={editingRecord}
+          onSaveAction={(data: Record<string, any>) =>
+            handleEditRecord(editingRecord.id, data)
+          }
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
-      <ModalPortal isOpen={!!recordPendingDelete}>
-        <ConfirmDeleteModal
-          isOpen={!!recordPendingDelete}
-          title="Delete Record"
-          message={
-            recordPendingDelete
-              ? "Are you sure you want to delete this record? This action cannot be undone."
-              : ""
+      <ConfirmDeleteModal
+        isOpen={!!recordPendingDelete}
+        title="Delete Record"
+        message={
+          recordPendingDelete
+            ? "Are you sure you want to delete this record? This action cannot be undone."
+            : ""
+        }
+        confirmLabel="Delete"
+        onCancel={() => setRecordPendingDelete(null)}
+        onConfirm={() => {
+          if (recordPendingDelete) {
+            handleDeleteRecord(recordPendingDelete);
           }
-          confirmLabel="Delete"
-          onCancel={() => setRecordPendingDelete(null)}
-          onConfirm={() => {
-            if (recordPendingDelete) {
-              handleDeleteRecord(recordPendingDelete);
-            }
-          }}
-        />
-      </ModalPortal>
+        }}
+      />
     </div>
   );
 }

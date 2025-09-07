@@ -15,7 +15,6 @@ import {
   MdTableView,
   MdTextFields,
 } from "react-icons/md";
-import ModalPortal from "../../../components/ModalPortal";
 import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
 import StepConfigurationModal from "../../../components/StepConfigurationModal";
@@ -721,61 +720,53 @@ export default function RulesCheckoutPanel({
       </div>
 
       {/* Modals */}
-      <ModalPortal isOpen={!!editingField}>
-        {editingField && (
-          <EditFieldModal
-            isOpen={!!editingField}
-            onClose={() => setEditingField(null)}
-            onSubmit={handleFieldUpdate}
-            field={editingField}
-            workflowObjects={[]}
-            dataObjects={[]}
-          />
-        )}
-      </ModalPortal>
+      {editingField && (
+        <EditFieldModal
+          isOpen={!!editingField}
+          onClose={() => setEditingField(null)}
+          onSubmit={handleFieldUpdate}
+          field={editingField}
+          workflowObjects={[]}
+          dataObjects={[]}
+        />
+      )}
 
-      <ModalPortal isOpen={!!editingWorkflow}>
-        {editingWorkflow && (
-          <EditWorkflowModal
-            isOpen={!!editingWorkflow}
-            onClose={() => setEditingWorkflow(null)}
-            onSubmit={handleWorkflowUpdate}
-            initialData={editingWorkflow}
-          />
-        )}
-      </ModalPortal>
+      {editingWorkflow && (
+        <EditWorkflowModal
+          isOpen={!!editingWorkflow}
+          onClose={() => setEditingWorkflow(null)}
+          onSubmit={handleWorkflowUpdate}
+          initialData={editingWorkflow}
+        />
+      )}
 
       {/* View Edit uses StepConfigurationModal for consistent styles */}
-      <ModalPortal isOpen={!!editingView}>
-        {editingView && (
-          <StepConfigurationModal
-            isOpen={!!editingView}
-            onClose={() => setEditingView(null)}
-            step={makePseudoStepFromView(editingView)}
-            fields={fields}
-            onFieldChange={onViewFieldChange}
-            onAddField={onViewAddField}
-            onAddExistingField={onViewAddExistingField}
-            onUpdateField={onViewUpdateField}
-            onDeleteField={onViewDeleteField}
-          />
-        )}
-      </ModalPortal>
+      {editingView && (
+        <StepConfigurationModal
+          isOpen={!!editingView}
+          onClose={() => setEditingView(null)}
+          step={makePseudoStepFromView(editingView)}
+          fields={fields}
+          onFieldChange={onViewFieldChange}
+          onAddField={onViewAddField}
+          onAddExistingField={onViewAddExistingField}
+          onUpdateField={onViewUpdateField}
+          onDeleteField={onViewDeleteField}
+        />
+      )}
 
       {/* Application Edit Modal */}
-      <ModalPortal isOpen={!!editingApplication}>
-        {editingApplication && (
-          <EditWorkflowModal
-            isOpen={!!editingApplication}
-            onClose={() => setEditingApplication(null)}
-            onSubmit={handleApplicationUpdate}
-            initialData={{
-              name: editingApplication.name,
-              description: editingApplication.description,
-            }}
-          />
-        )}
-      </ModalPortal>
+      {editingApplication && (
+        <EditWorkflowModal
+          isOpen={!!editingApplication}
+          onClose={() => setEditingApplication(null)}
+          onSubmit={handleApplicationUpdate}
+          initialData={{
+            name: editingApplication.name,
+            description: editingApplication.description,
+          }}
+        />
+      )}
     </div>
   );
 }

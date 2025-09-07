@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import ChangesPanel from "../../../components/ChangesPanel";
 import RulesCheckoutPanel from "./RulesCheckoutPanel";
 import { Stage, Field } from "../../../types/types";
-import ModalPortal from "../../../components/ModalPortal";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 
 const Icon = dynamic(() =>
@@ -204,19 +203,17 @@ export default function FloatingLeftPanelModal({
       </div>
 
       {/* Delete All Checkpoints Confirmation Modal */}
-      <ModalPortal isOpen={isDeleteAllCheckpointsModalOpen}>
-        <ConfirmDeleteModal
-          isOpen={isDeleteAllCheckpointsModalOpen}
-          title="Delete All Checkpoints"
-          message="Are you sure you want to delete all checkpoints for this application? This action cannot be undone and will permanently remove all checkpoint history."
-          confirmLabel="Delete"
-          onCancel={() => setIsDeleteAllCheckpointsModalOpen(false)}
-          onConfirm={async () => {
-            await handleDeleteAllCheckpoints();
-            setIsDeleteAllCheckpointsModalOpen(false);
-          }}
-        />
-      </ModalPortal>
+      <ConfirmDeleteModal
+        isOpen={isDeleteAllCheckpointsModalOpen}
+        title="Delete All Checkpoints"
+        message="Are you sure you want to delete all checkpoints for this application? This action cannot be undone and will permanently remove all checkpoint history."
+        confirmLabel="Delete"
+        onCancel={() => setIsDeleteAllCheckpointsModalOpen(false)}
+        onConfirm={async () => {
+          await handleDeleteAllCheckpoints();
+          setIsDeleteAllCheckpointsModalOpen(false);
+        }}
+      />
     </div>
   );
 }
