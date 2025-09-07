@@ -99,6 +99,46 @@ body {
   padding-top: var(--header-height);
 }
 
+/* Global link styles using interactive tokens */
+a {
+  color: var(--color-interactive);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1.25px;
+  transition: color 120ms ease, text-decoration-color 120ms ease,
+    box-shadow 120ms ease, outline-color 120ms ease;
+  outline: none;
+}
+
+a:hover {
+  color: var(--color-interactive-hover);
+  text-decoration-color: var(--color-interactive-hover);
+}
+
+a:focus-visible {
+  outline: 2px solid rgba(117, 215, 205, 0.6);
+  outline-offset: 2px;
+  text-decoration-thickness: 2px;
+}
+
+a:active {
+  color: var(--color-interactive-active);
+  text-decoration-color: var(--color-interactive-active);
+}
+
+/* Keep visited links aligned with brand color */
+a:visited {
+  color: var(--color-interactive);
+}
+
+/* Graceful disabled state for anchor-like controls */
+a[aria-disabled="true"],
+a[disabled] {
+  opacity: 0.6;
+  pointer-events: none;
+  text-decoration: none;
+}
+
 @layer components {
   /* Semantic utility for modal surfaces */
   .modal-surface {
@@ -197,6 +237,20 @@ body {
     cursor: not-allowed;
   }
 
+  /* Tag style mimicking secondary button colors/border */
+  .tag-secondary {
+    border-radius: 6px;
+    border: 1px solid #75d7cd;
+    background: rgba(21, 17, 44, 0.5);
+    color: #75d7cd;
+    padding: 2px 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    line-height: 1.2;
+  }
+
   /* Consistent modal/overlay header with bottom border */
   .lp-modal-header {
     @apply flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700;
@@ -274,6 +328,24 @@ body {
     + .lp-toggle-track
     + .lp-toggle-dot {
     transform: translateX(24px);
+  }
+
+  /* Inline ordered list with dot separators (dots are CSS-only, not announced by SRs) */
+  .dot-separated {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .dot-separated > li {
+    display: inline-flex;
+    align-items: center;
+  }
+  .dot-separated > li + li::before {
+    content: "·";
+    opacity: 0.6;
+    margin: 0 4px;
   }
 }
 

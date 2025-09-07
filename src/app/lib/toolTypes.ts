@@ -64,6 +64,14 @@ export interface SaveViewParams extends ToolParams {
   };
 }
 
+export interface SaveObjectRecordsParams extends ToolParams {
+  objectid: number;
+  records: Array<{
+    id?: number;
+    data: Record<string, unknown>;
+  }>;
+}
+
 export interface DeleteParams extends ToolParams {
   id: number;
 }

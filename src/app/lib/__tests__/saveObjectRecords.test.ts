@@ -23,7 +23,7 @@ jest.mock("../../types/ruleTypeRegistry", () => ({
 
 const mockQuery = pool.query as unknown as jest.Mock<any, any>;
 
-describe("saveObjectRecord", () => {
+describe("saveObjectRecords", () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockQuery.mockReset();
@@ -31,36 +31,53 @@ describe("saveObjectRecord", () => {
 
   function getTool() {
     const tools = createSharedTools(pool);
-    const tool = tools.find((t) => t.name === "saveObjectRecord");
-    if (!tool) throw new Error("saveObjectRecord tool not found");
+    const tool = tools.find((t) => t.name === "saveObjectRecords");
+    if (!tool) throw new Error("saveObjectRecords tool not found");
     return tool;
   }
 
-  it("creates with data", async () => {
-    mockQuery.mockResolvedValueOnce({
-      rows: [
-        {
-          id: 102,
-          objectid: 14,
-          data: { a: 1 },
-          created_at: "2025-01-01T00:00:00Z",
-          updated_at: "2025-01-01T00:00:00Z",
-        },
-      ],
-      rowCount: 1,
-    });
+  it("creates multiple records with data", async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 102,
+            objectid: 14,
+            data: { name: "Y" },
+            created_at: "2025-01-01T00:00:00Z",
+            updated_at: "2025-01-01T00:00:00Z",
+          },
+        ],
+        rowCount: 1,
+      })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            id: 103,
+            objectid: 14,
+            data: { name: "Z" },
+            created_at: "2025-01-01T00:00:00Z",
+            updated_at: "2025-01-01T00:00:00Z",
+          },
+        ],
+        rowCount: 1,
+      });
 
     const tool = getTool();
     const result = await (tool.execute as any)({
       objectid: 14,
-      data: { name: "Y" },
+      records: [{ data: { name: "Y" } }, { data: { name: "Z" } }],
     });
 
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('INSERT INTO "ObjectRecords"'),
       [14, JSON.stringify({ name: "Y" })],
     );
-    expect(result.id).toBe(102);
+    expect(mockQuery).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO "ObjectRecords"'),
+      [14, JSON.stringify({ name: "Z" })],
+    );
+    expect(result.ids).toEqual([102, 103]);
   });
 
   it("updates record when id is provided", async () => {
@@ -69,7 +86,7 @@ describe("saveObjectRecord", () => {
         {
           id: 200,
           objectid: 14,
-          data: { name: "Z" },
+          data: { name: "ZZ" },
           created_at: "2025-01-01T00:00:00Z",
           updated_at: "2025-01-02T00:00:00Z",
         },
@@ -79,22 +96,23 @@ describe("saveObjectRecord", () => {
 
     const tool = getTool();
     const result = await (tool.execute as any)({
-      id: 200,
       objectid: 14,
-      data: { name: "Z" },
+      records: [{ id: 200, data: { name: "ZZ" } }],
     });
 
     expect(mockQuery).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE "ObjectRecords"'),
-      [JSON.stringify({ name: "Z" }), 200, 14],
+      [JSON.stringify({ name: "ZZ" }), 200, 14],
     );
-    expect(result.id).toBe(200);
+    expect(result.ids).toEqual([200]);
   });
 
-  it("throws when data missing", async () => {
+  it("throws when records array is missing or empty", async () => {
     const tool = getTool();
-    await expect((tool.execute as any)({ objectid: 14 })).rejects.toThrow(
-      "Values must be passed using the 'data' property as key-value object.",
+    await expect(
+      (tool.execute as any)({ objectid: 14, records: [] }),
+    ).rejects.toThrow(
+      "records array is required and must not be empty for saveObjectRecords",
     );
   });
 });

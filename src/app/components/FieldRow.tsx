@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { FaGripVertical, FaTrash, FaPencilAlt } from "react-icons/fa";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 import { Field } from "../types";
@@ -24,7 +25,6 @@ const FieldRow: React.FC<FieldRowProps> = ({
   hideDragHandle,
   disableRefNavigation,
 }) => {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [objectName, setObjectName] = useState<string | null>(null);
@@ -55,15 +55,6 @@ const FieldRow: React.FC<FieldRowProps> = ({
     return `${pathname}?${params.toString()}`;
   };
 
-  const handleRefClick = (
-    e: React.MouseEvent<HTMLAnchorElement, MouseEvent>,
-    objectId: number,
-  ) => {
-    e.preventDefault();
-    const href = buildHrefForObject(objectId);
-    router.push(href);
-  };
-
   return (
     <>
       {!hideDragHandle && (
@@ -80,39 +71,44 @@ const FieldRow: React.FC<FieldRowProps> = ({
             {field.label || field.name}
           </div>
           {field.primary ? (
-            <span className="px-1.5 py-0.5 text-xs font-medium bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 rounded">
-              Primary
-            </span>
+            <span className="tag-secondary">Primary</span>
           ) : null}
         </div>
-        <div className="text-sm text-white/70">
-          Type: {getFieldTypeDisplayName(field.type as unknown as any)}
+        <ol
+          className="text-sm text-white/70 dot-separated"
+          aria-label="Field details"
+        >
+          <li>
+            <span className="sr-only">Type: </span>
+            <span aria-hidden="true">Type: </span>
+            {getFieldTypeDisplayName(field.type as unknown as any)}
+          </li>
           {isReferenceFieldType(field.type) && field.refObjectId ? (
-            <span className="ml-2">
-              {"Object: "}
+            <li>
+              <span className="sr-only">Object: </span>
+              <span aria-hidden="true">Object: </span>
               {disableRefNavigation ? (
                 <span className="text-blue-300">
                   {objectName || `Object ${field.refObjectId}`}
                 </span>
               ) : (
-                <a
+                <Link
                   href={buildHrefForObject(field.refObjectId)}
-                  onClick={(e) => handleRefClick(e, field.refObjectId!)}
-                  className="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1 transition-colors"
+                  className="inline-flex items-center gap-1"
                   title={`Open ${objectName || `Object ${field.refObjectId}`}`}
                 >
                   {objectName || `Object ${field.refObjectId}`}
-                </a>
+                </Link>
               )}
-              {(field.type === "EmbedDataSingle" ||
-                field.type === "EmbedDataMulti") && (
-                <span className="ml-1 px-1 py-0.5 text-xs font-medium bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 rounded">
-                  Embedded
-                </span>
-              )}
-            </span>
+            </li>
           ) : null}
-        </div>
+          {(field.type === "EmbedDataSingle" ||
+            field.type === "EmbedDataMulti") && (
+            <li>
+              <span className="tag-secondary">Embedded</span>
+            </li>
+          )}
+        </ol>
       </div>
       {(onEdit || onDelete) && (
         <div className="flex items-center space-x-1">

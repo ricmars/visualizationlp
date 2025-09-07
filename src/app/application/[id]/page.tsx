@@ -1515,11 +1515,7 @@ export default function WorkflowPage() {
                 {selectedDataObjectId !== null &&
                   (() => {
                     if (selectedDataObject?.isEmbedded) {
-                      return (
-                        <span className="inline-flex items-center gap-1.5 px-2 py-1 text-xs font-medium bg-green-600/20 text-green-300 border border-green-500/30 rounded-md min-h-[1.5rem]">
-                          <span className="leading-none">Embedded</span>
-                        </span>
-                      );
+                      return <span className="tag-secondary">Embedded</span>;
                     } else if (selectedDataObject?.systemOfRecordId) {
                       const systemOfRecord = systemsOfRecord?.find(
                         (sor) => sor.id === selectedDataObject.systemOfRecordId,

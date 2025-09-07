@@ -12,6 +12,7 @@ import {
   ToolParams,
   ToolResult,
   CreateObjectParams,
+  SaveObjectRecordsParams,
 } from "./toolTypes";
 
 // Shared tool interface that works for both LLM and MCP
@@ -1839,86 +1840,116 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
       },
     },
     {
-      name: "saveObjectRecord",
+      name: "saveObjectRecords",
       description:
-        'Creates or updates a record for a data object. The values to update must be a key-value object passed to the \'data\' parameter. For example, to update a user\'s name and age, the parameters would be { "objectid": 123, "data": { "name": "Jane Doe", "age": 25 } }.',
+        "Creates or updates one or more records for a data object in a single, batched call. PERFORMANCE: Batch creates/updates together (25–100 records per call is ideal). REQUIRED: Provide the parent objectid once and pass records as an array. Each record item must include a data object; include id only when updating an existing record. Example: { objectid: 123, records: [{ data: { name: 'Jane', age: 25 } }, { id: 42, data: { name: 'Mike', age: 30 } }] }.",
       parameters: {
         type: "object",
         properties: {
-          id: {
-            type: "integer",
-            description:
-              "The unique ID of the record to update (optional for a new record).",
-          },
           objectid: {
             type: "integer",
             description:
-              "The ID of the data object the record belongs to. This is a required parameter.",
+              "The ID of the data object the records belong to (REQUIRED).",
           },
-          data: {
-            type: "object",
-            description:
-              "A key-value object of the field names and their new values to save or update.",
+          records: {
+            type: "array",
+            description: "Array of records to create or update.",
+            items: {
+              type: "object",
+              properties: {
+                id: {
+                  type: "integer",
+                  description: "Record ID (include to update; omit to create)",
+                },
+                data: {
+                  type: "object",
+                  description:
+                    "Key-value object of field names and values to store for this record (REQUIRED).",
+                },
+              },
+              required: ["data"],
+            },
           },
         },
-        required: ["objectid", "data"],
+        required: ["objectid", "records"],
       },
-      execute: async (params: {
-        id?: number;
-        objectid: number;
-        data: Record<string, unknown>;
-      }) => {
-        console.log("=== saveObjectRecord EXECUTION STARTED ===");
+      execute: async (params: SaveObjectRecordsParams) => {
+        console.log("=== saveObjectRecords EXECUTION STARTED ===");
         console.log(
-          "saveObjectRecord parameters:",
+          "saveObjectRecords parameters:",
           JSON.stringify(params, null, 2),
         );
-        console.log("saveObjectRecord called at:", new Date().toISOString());
+        console.log("saveObjectRecords called at:", new Date().toISOString());
 
-        const { id, objectid, data } = params;
-
-        if (!objectid) throw new Error("Object ID is required");
-        if (!data || typeof data !== "object") {
+        const { objectid, records } = params;
+        if (!objectid)
+          throw new Error("Object ID is required for saveObjectRecords");
+        if (!Array.isArray(records) || records.length === 0) {
           throw new Error(
-            "Values must be passed using the 'data' property as key-value object.",
+            "records array is required and must not be empty for saveObjectRecords",
           );
         }
 
-        let recordId = id;
-        if (recordId) {
-          // Update existing record
-          const updateQuery = `
-            UPDATE "${DB_TABLES.OBJECT_RECORDS}"
-            SET data = $1, updated_at = NOW()
-            WHERE id = $2 AND objectid = $3
-            RETURNING id, objectid, data, created_at, updated_at
-          `;
-          const result = await pool.query(updateQuery, [
-            JSON.stringify(data),
-            recordId,
-            objectid,
-          ]);
-          if (result.rowCount === 0) {
+        const results: Array<{
+          id: number;
+          objectid: number;
+          data: unknown;
+          created_at?: string;
+          updated_at?: string;
+        }> = [];
+
+        for (const item of records) {
+          const { id, data } = item as {
+            id?: number;
+            data: Record<string, unknown>;
+          };
+          if (!data || typeof data !== "object") {
             throw new Error(
-              `No record found with id ${recordId} for object ${objectid}`,
+              "Each record must include a 'data' object with key-value pairs.",
             );
           }
-          console.log("saveObjectRecord UPDATE successful:", result.rows[0]);
-          return result.rows[0];
-        } else {
-          // Create new record
-          const insertQuery = `
-            INSERT INTO "${DB_TABLES.OBJECT_RECORDS}" (objectid, data)
-            VALUES ($1, $2)
-            RETURNING id, objectid, data, created_at, updated_at
-          `;
-          const result = await pool.query(insertQuery, [
-            objectid,
-            JSON.stringify(data),
-          ]);
-          console.log("saveObjectRecord INSERT successful:", result.rows[0]);
-          return result.rows[0];
+
+          if (typeof id === "number") {
+            const updateQuery = `
+              UPDATE "${DB_TABLES.OBJECT_RECORDS}"
+              SET data = $1, updated_at = NOW()
+              WHERE id = $2 AND objectid = $3
+              RETURNING id, objectid, data, created_at, updated_at
+            `;
+            const updated = await pool.query(updateQuery, [
+              JSON.stringify(data),
+              id,
+              objectid,
+            ]);
+            if ((updated.rowCount ?? 0) === 0) {
+              throw new Error(
+                `No record found with id ${id} for object ${objectid}`,
+              );
+            }
+            results.push(updated.rows[0]);
+          } else {
+            const insertQuery = `
+              INSERT INTO "${DB_TABLES.OBJECT_RECORDS}" (objectid, data)
+              VALUES ($1, $2)
+              RETURNING id, objectid, data, created_at, updated_at
+            `;
+            const inserted = await pool.query(insertQuery, [
+              objectid,
+              JSON.stringify(data),
+            ]);
+            results.push(inserted.rows[0]);
+          }
         }
+
+        console.log("saveObjectRecords completed successfully:", {
+          total: results.length,
+          ids: results.map((r) => r.id),
+        });
+
+        return {
+          ids: results.map((r) => r.id),
+          records: results,
+        };
       },
     },
     {
