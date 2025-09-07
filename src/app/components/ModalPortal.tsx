@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 
 interface ModalPortalProps {
   children: React.ReactNode;
-  isOpen: boolean;
+  isOpen?: boolean;
   containerId?: string;
 }
 
@@ -35,7 +35,7 @@ export default function ModalPortal({
     return () => setMounted(false);
   }, [containerId]);
 
-  if (!mounted || !isOpen || !container) return null;
+  if (!mounted || (isOpen !== undefined && !isOpen) || !container) return null;
 
   // Create portal to main content area to keep modals within the correct bounds
   return createPortal(

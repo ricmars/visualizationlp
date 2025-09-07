@@ -13,6 +13,7 @@ type ChatPanelContentProps = {
   onQuickAction: () => void;
   onClearChat: () => void;
   additionalHeaderButtons?: React.ReactNode;
+  applicationId?: number;
 };
 
 export default function ChatPanelContent({
@@ -24,6 +25,7 @@ export default function ChatPanelContent({
   onQuickAction,
   onClearChat,
   additionalHeaderButtons,
+  applicationId,
 }: ChatPanelContentProps) {
   return (
     <div className="flex-1 flex flex-col min-w-0 min-h-0">
@@ -40,6 +42,7 @@ export default function ChatPanelContent({
           isProcessing={isProcessing}
           isLoading={false}
           objectid={objectid}
+          applicationId={applicationId}
         />
       </div>
     </div>

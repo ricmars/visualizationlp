@@ -4,6 +4,207 @@ import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
+import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickChatMessage";
+
+// Global cache for objects to avoid refetching
+const objectsCache = new Map<
+  string,
+  Array<{
+    id: number;
+    name: string;
+    description: string;
+    hasWorkflow: boolean;
+    isEmbedded: boolean;
+  }>
+>();
+
+// Inline Object Selector Popup Component
+interface ObjectSelectorPopupProps {
+  onClose: () => void;
+  onSelect: (object: {
+    id: number;
+    name: string;
+    description: string;
+    hasWorkflow: boolean;
+    isEmbedded: boolean;
+  }) => void;
+  applicationId?: number;
+  filterText?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}
+
+const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
+  onClose,
+  onSelect,
+  applicationId,
+  filterText = "",
+  onKeyDown,
+}) => {
+  const [objects, setObjects] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      hasWorkflow: boolean;
+      isEmbedded: boolean;
+    }>
+  >([]);
+  const [filteredObjects, setFilteredObjects] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      hasWorkflow: boolean;
+      isEmbedded: boolean;
+    }>
+  >([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchObjects = async () => {
+      const cacheKey = `objects_${applicationId || "default"}`;
+
+      // Check cache first
+      if (objectsCache.has(cacheKey)) {
+        const cachedObjects = objectsCache.get(cacheKey)!;
+        setObjects(cachedObjects);
+        setFilteredObjects(cachedObjects.slice(0, 5));
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Use the standard query
+        let url = "/api/database?table=Objects";
+        if (applicationId) {
+          url += `&applicationid=${applicationId}`;
+        }
+
+        const response = await fetch(url);
+
+        if (response.ok) {
+          const result = await response.json();
+          const fetchedObjects = result.data || [];
+
+          // Cache the results
+          objectsCache.set(cacheKey, fetchedObjects);
+
+          setObjects(fetchedObjects);
+          setFilteredObjects(fetchedObjects.slice(0, 5)); // Limit to 5 items for compact display
+        }
+      } catch (error) {
+        console.error("Error fetching objects:", error);
+        setObjects([]);
+        setFilteredObjects([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchObjects();
+  }, [applicationId]);
+
+  // Filter objects based on filterText
+  useEffect(() => {
+    if (!filterText.trim()) {
+      setFilteredObjects(objects.slice(0, 5));
+    } else {
+      const filtered = objects.filter((obj) =>
+        obj.name.toLowerCase().includes(filterText.toLowerCase()),
+      );
+      setFilteredObjects(filtered.slice(0, 5));
+    }
+    setSelectedIndex(0);
+  }, [filterText, objects]);
+
+  const handleSelect = (object: {
+    id: number;
+    name: string;
+    description: string;
+    hasWorkflow: boolean;
+    isEmbedded: boolean;
+  }) => {
+    onSelect(object);
+    onClose();
+  };
+
+  const handleKeyDown = (e: { key: string; preventDefault: () => void }) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < filteredObjects.length - 1 ? prev + 1 : 0,
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredObjects.length - 1,
+        );
+        break;
+      case "Enter":
+      case "Tab":
+        e.preventDefault();
+        if (filteredObjects[selectedIndex]) {
+          handleSelect(filteredObjects[selectedIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        onClose();
+        break;
+    }
+  };
+
+  // Global key handling so the popup works while focus stays in the textarea
+  useEffect(() => {
+    const keyListener = (ev: KeyboardEvent) => {
+      if (
+        ev.key === "ArrowDown" ||
+        ev.key === "ArrowUp" ||
+        ev.key === "Enter" ||
+        ev.key === "Tab" ||
+        ev.key === "Escape"
+      ) {
+        handleKeyDown({
+          key: ev.key,
+          preventDefault: () => ev.preventDefault(),
+        });
+      }
+    };
+    window.addEventListener("keydown", keyListener);
+    return () => window.removeEventListener("keydown", keyListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredObjects, selectedIndex]);
+
+  if (loading) {
+    return (
+      <div className="p-2 text-[10px] text-white text-center">Loading...</div>
+    );
+  }
+
+  return (
+    <div onKeyDown={onKeyDown ?? ((e) => handleKeyDown(e as any))} tabIndex={0}>
+      {filteredObjects.map((object, index) => (
+        <button
+          key={object.id}
+          onClick={() => handleSelect(object)}
+          className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
+            index === selectedIndex ? "bg-gray-700" : "hover:bg-gray-700"
+          }`}
+        >
+          <div className="text-white truncate">{object.name}</div>
+        </button>
+      ))}
+      {filteredObjects.length === 0 && (
+        <div className="p-2 text-[10px] text-white text-center">
+          No objects found
+        </div>
+      )}
+    </div>
+  );
+};
 
 // Blinking cursor component
 const BlinkingCursor = () => (
@@ -52,6 +253,7 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   isProcessing: boolean;
   objectid?: number;
+  applicationId?: number;
 }
 
 // Function to format content based on its type
@@ -169,6 +371,7 @@ export default function ChatInterface({
   isLoading,
   isProcessing,
   objectid,
+  applicationId,
 }: ChatInterfaceProps) {
   const [message, setMessage] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -196,6 +399,11 @@ export default function ChatInterface({
   const [hasVoiceConfig, setHasVoiceConfig] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isObjectSelectorOpen, setIsObjectSelectorOpen] = useState(false);
+  const [cursorPosition, setCursorPosition] = useState(0);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const [filterText, setFilterText] = useState("");
+  const popupRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -221,6 +429,26 @@ export default function ChatInterface({
     fetchCheckpointStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Handle click outside popup to close it
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        popupRef.current &&
+        !popupRef.current.contains(event.target as Node)
+      ) {
+        setIsObjectSelectorOpen(false);
+      }
+    };
+
+    if (isObjectSelectorOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isObjectSelectorOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -427,8 +655,36 @@ export default function ChatInterface({
   };
 
   const handleSendMessage = () => {
-    if (message.trim()) {
-      onSendMessage(message.trim());
+    const raw = message.trim();
+    if (raw) {
+      let outgoing = raw;
+      try {
+        const cacheKey = `objects_${applicationId || "default"}`;
+        const candidates = objectsCache.get(cacheKey) || [];
+        const matched = candidates.find((obj) =>
+          outgoing.includes(`@${obj.name}`),
+        );
+        if (matched) {
+          const cleanedInstruction = outgoing
+            .replaceAll(`@${matched.name}`, "")
+            .replace(/\s+/g, " ")
+            .trim();
+          outgoing = composeQuickChatMessage({
+            quickChatText: cleanedInstruction,
+            selectedFieldIds: [],
+            selectedViewIds: [],
+            selectedStageIds: [],
+            selectedProcessIds: [],
+            selectedStepIds: [],
+            fields: [],
+            views: [],
+            stages: [],
+            selectedObjectId: matched.id,
+            isDataObjectView: !matched.hasWorkflow,
+          });
+        }
+      } catch {}
+      onSendMessage(outgoing);
       setMessage("");
       // Reset textarea height after sending
       if (textareaRef.current) {
@@ -438,10 +694,158 @@ export default function ChatInterface({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (isObjectSelectorOpen) {
+      // Handle popup navigation
+      switch (e.key) {
+        case "ArrowDown":
+        case "ArrowUp":
+        case "Enter":
+        case "Tab":
+        case "Escape":
+          e.preventDefault();
+          // Let the popup handle these keys
+          break;
+        default:
+          // Allow normal typing
+          break;
+      }
+    } else if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
+  };
+
+  const getCursorPosition = (
+    textarea: HTMLTextAreaElement,
+    cursorPos: number,
+    textValue: string,
+  ) => {
+    // Caret-based positioning using a hidden mirror element
+    const style = window.getComputedStyle(textarea);
+    const mirror = document.createElement("div");
+    mirror.style.position = "absolute";
+    mirror.style.visibility = "hidden";
+    mirror.style.whiteSpace = "pre-wrap";
+    mirror.style.wordWrap = "break-word";
+    // Copy relevant styles for accurate measurement
+    const props = [
+      "boxSizing",
+      "width",
+      "fontSize",
+      "fontFamily",
+      "fontWeight",
+      "fontStyle",
+      "letterSpacing",
+      "textTransform",
+      "borderLeftWidth",
+      "borderRightWidth",
+      "borderTopWidth",
+      "borderBottomWidth",
+      "paddingLeft",
+      "paddingRight",
+      "paddingTop",
+      "paddingBottom",
+      "lineHeight",
+    ];
+    props.forEach((p) => {
+      // @ts-expect-error dynamic style index
+      mirror.style[p] = style[p as any];
+    });
+    mirror.style.width = style.width;
+
+    const before = textValue.substring(0, cursorPos);
+    const after = textValue.substring(cursorPos);
+    mirror.textContent = before;
+    const caret = document.createElement("span");
+    caret.textContent = after.length > 0 ? after[0] : "\u200b";
+    mirror.appendChild(caret);
+    document.body.appendChild(mirror);
+
+    const textRect = textarea.getBoundingClientRect();
+    const mirrorRect = mirror.getBoundingClientRect();
+    const caretRect = caret.getBoundingClientRect();
+    document.body.removeChild(mirror);
+
+    let x = textRect.left + (caretRect.left - mirrorRect.left);
+    let y = textRect.top + (caretRect.top - mirrorRect.top) + 22; // below line
+
+    // Clamp to viewport
+    const pad = 8;
+    x = Math.max(pad, Math.min(x, window.innerWidth - pad));
+    y = Math.max(pad, Math.min(y, window.innerHeight - pad));
+
+    return { x, y };
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newValue = e.target.value;
+    const cursorPos = e.target.selectionStart;
+
+    setMessage(newValue);
+
+    // Check if @ was just typed at the cursor position
+    if (newValue[cursorPos - 1] === "@") {
+      setCursorPosition(cursorPos);
+      setFilterText("");
+
+      // Calculate popup position
+      const position = getCursorPosition(e.target, cursorPos, newValue);
+      setPopupPosition(position);
+
+      // Open object selector modal after a short delay
+      setTimeout(() => {
+        setIsObjectSelectorOpen(true);
+      }, 10);
+    } else if (isObjectSelectorOpen) {
+      // Update filter text if popup is open
+      const textAfterAt = newValue.substring(cursorPosition);
+      const spaceIndex = textAfterAt.indexOf(" ");
+      const filter =
+        spaceIndex === -1 ? textAfterAt : textAfterAt.substring(0, spaceIndex);
+      setFilterText(filter);
+      // Reposition popup as caret moves
+      const position = getCursorPosition(e.target, cursorPos, newValue);
+      setPopupPosition(position);
+    }
+  };
+
+  const handleObjectSelect = (object: {
+    id: number;
+    name: string;
+    description: string;
+    hasWorkflow: boolean;
+    isEmbedded: boolean;
+  }) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    // Slice message into: text before '@', the filter after '@', and the rest
+    const atStartIndex = Math.max(0, cursorPosition - 1);
+    const beforeAt = message.substring(0, atStartIndex);
+    const textAfterAt = message.substring(cursorPosition);
+    // Determine end of typed filter (until first space or delimiter)
+    const delimiterMatch = textAfterAt.match(/[\s.,:;!?/\\()\[\]{}]/);
+    const endOfFilterIndex = delimiterMatch
+      ? delimiterMatch.index || 0
+      : textAfterAt.length;
+    const afterFilterRemainder = textAfterAt.substring(endOfFilterIndex);
+
+    // Insert the selected object mention, replacing the filter
+    const objectReference = `@${object.name}`;
+    const newMessage = beforeAt + objectReference + afterFilterRemainder;
+
+    setMessage(newMessage);
+    setIsObjectSelectorOpen(false);
+    setFilterText("");
+
+    // Set cursor position after the inserted object reference
+    const newCursorPosition = beforeAt.length + objectReference.length;
+
+    // Focus and set cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
   };
 
   const markdownComponents: Components = {
@@ -692,7 +1096,7 @@ export default function ChatInterface({
             <textarea
               ref={textareaRef}
               value={message}
-              onChange={(e) => setMessage(e.target.value)}
+              onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder="Type a message..."
               rows={3}
@@ -945,6 +1349,25 @@ export default function ChatInterface({
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Inline Object Selector Popup */}
+      {isObjectSelectorOpen && (
+        <div
+          ref={popupRef}
+          className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-32 overflow-y-auto min-w-40"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`,
+          }}
+        >
+          <ObjectSelectorPopup
+            onClose={() => setIsObjectSelectorOpen(false)}
+            onSelect={handleObjectSelect}
+            applicationId={applicationId}
+            filterText={filterText}
+          />
         </div>
       )}
     </div>

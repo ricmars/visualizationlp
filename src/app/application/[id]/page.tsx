@@ -2020,6 +2020,7 @@ export default function WorkflowPage() {
               objectid={parseInt(id)}
               onQuickAction={beginFreeFormSelection}
               onClearChat={handleClearChat}
+              applicationId={applicationId || undefined}
             />
           </div>
         </aside>
@@ -2076,6 +2077,7 @@ export default function WorkflowPage() {
         objectid={parseInt(id)}
         onQuickAction={beginFreeFormSelection}
         onClearChat={handleClearChat}
+        applicationId={applicationId || undefined}
       />
 
       {/* Floating Left Panel Modal */}

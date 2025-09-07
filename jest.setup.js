@@ -113,6 +113,9 @@ global.console = {
   debug: jest.fn(),
 };
 
+// Mock scrollIntoView for DOM elements
+Element.prototype.scrollIntoView = jest.fn();
+
 // Import and set up expect globally
 const { expect } = require("@jest/globals");
 global.expect = expect;

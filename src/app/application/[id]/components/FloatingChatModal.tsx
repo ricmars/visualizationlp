@@ -14,6 +14,7 @@ interface FloatingChatModalProps {
   objectid: number;
   onQuickAction: () => void;
   onClearChat: () => void;
+  applicationId?: number;
 }
 
 export default function FloatingChatModal({
@@ -26,6 +27,7 @@ export default function FloatingChatModal({
   objectid,
   onQuickAction,
   onClearChat,
+  applicationId,
 }: FloatingChatModalProps) {
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -59,6 +61,7 @@ export default function FloatingChatModal({
               objectid={objectid}
               onQuickAction={onQuickAction}
               onClearChat={onClearChat}
+              applicationId={applicationId}
               additionalHeaderButtons={
                 <div className="flex items-center gap-2">
                   <button
