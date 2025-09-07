@@ -77,9 +77,7 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
       >
         <form onSubmit={handleSubmit} className="p-6">
           <div className="lp-modal-header mb-2">
-            <h2 className="text-lg font-semibold text-white">
-              {title || "Create new application"}
-            </h2>
+            <h2>{title || "Create new application"}</h2>
             <div className="flex items-center gap-2">
               <button
                 type="button"

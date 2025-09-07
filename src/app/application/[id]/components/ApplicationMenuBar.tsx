@@ -42,9 +42,7 @@ export default function ApplicationMenuBar({
   return (
     <div className="flex items-center justify-between px-4 py-3 main-header-bg">
       <div className="flex items-center gap-6">
-        <div className="text-white font-semibold truncate max-w-[240px]">
-          {applicationName || "Application"}
-        </div>
+        <h1>{applicationName || "Application"}</h1>
 
         <nav className="flex items-center gap-2 text-white/90">
           <Menu

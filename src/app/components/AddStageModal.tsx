@@ -95,9 +95,7 @@ const AddStageModal: React.FC<AddStageModalProps> = ({
           >
             <div className="space-y-4 p-6">
               <div className="lp-modal-header">
-                <h3 className="text-lg font-semibold text-white">
-                  Add New Stage
-                </h3>
+                <h3>Add New Stage</h3>
                 <div className="flex items-center gap-2">
                   <button onClick={onClose} className="btn-secondary px-3">
                     Cancel

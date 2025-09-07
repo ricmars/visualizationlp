@@ -27,7 +27,7 @@ export default function ChatPanelHeader({
         <div className="ai-icon">
           <Icon name="polaris-solid" size="s" color="#FFF" />
         </div>
-        <h3 className="text-lg font-lg text-white">AI Assistant</h3>
+        <h2>AI Assistant</h2>
       </div>
       <div className="flex items-center gap-2">
         <button

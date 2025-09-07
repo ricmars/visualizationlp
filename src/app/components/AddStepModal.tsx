@@ -61,9 +61,7 @@ const AddStepModal: React.FC<AddStepModalProps> = ({
           >
             <div className="space-y-4 p-6">
               <div className="lp-modal-header">
-                <h3 className="text-lg font-semibold text-white">
-                  Add New Step
-                </h3>
+                <h3>Add New Step</h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onClose}

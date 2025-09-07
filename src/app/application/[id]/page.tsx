@@ -1419,11 +1419,11 @@ export default function WorkflowPage() {
         <aside className="flex flex-col h-app-screen text-sm left-panel">
           {/* Header with toggle */}
           <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 text-white">
-            <div className="text-sm font-medium opacity-80">
+            <h2>
               {leftPanelView === "checkout"
                 ? "Rules checkout"
                 : "Rules updates"}
-            </div>
+            </h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setIsDeleteAllCheckpointsModalOpen(true)}
@@ -1507,7 +1507,7 @@ export default function WorkflowPage() {
           <div className="px-4 py-3 border-b border-white/10">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-xl font-semibold text-white">
+                <h2>
                   {selectedDataObjectId !== null
                     ? selectedDataObject?.name
                     : selectedCase?.name}

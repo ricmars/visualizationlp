@@ -120,9 +120,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
         }
       >
         <div className="lp-modal-header p-6">
-          <h2 className="text-xl font-semibold text-white">
-            {`Edit View: ${step.name}`}
-          </h2>
+          <h2>{`Edit View: ${step.name}`}</h2>
           <button
             onClick={onClose}
             className="text-white/70 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
@@ -148,7 +146,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             <div className="flex justify-between items-center">
               {step.type === "Collect information" ? (
                 <>
-                  <h3 className="text-lg font-medium">
+                  <h3>
                     Fields
                     <span className="ml-2 text-sm font-normal">
                       ({stepFields.length})

@@ -379,7 +379,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
       <div className="w-1/3 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
         <div className="p-4">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-white flex items-center">
+            <h2 className="flex items-center">
               Views {""}
               <span className="ml-2 font-normal text-white">
                 ({_views.length})
@@ -418,7 +418,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         {selectedView ? (
           <div>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium">
+              <h3>
                 {allViews.find((v) => v.id.toString() === selectedView)?.name ||
                   selectedView}
               </h3>
@@ -626,7 +626,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         >
           <div className="space-y-4 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
-              <h3 className="text-lg font-semibold text-white">Edit Field</h3>
+              <h3>Edit Field</h3>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setEditingField(null)}

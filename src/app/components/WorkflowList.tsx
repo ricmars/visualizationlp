@@ -42,9 +42,7 @@ export default function WorkflowList({
           className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow"
         >
           <div className="flex justify-between items-start mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              {workflow.name}
-            </h3>
+            <h3>{workflow.name}</h3>
             <button
               onClick={() => onDelete(workflow.name)}
               className="text-gray-400 hover:text-red-500 transition-colors"

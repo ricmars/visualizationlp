@@ -93,9 +93,7 @@ export default function AddDataObjectModal({
           <div className="modal-surface rounded-lg shadow-xl border min-w-0 border-gray-700 w-[560px]">
             <div className="p-4">
               <div className="lp-modal-header">
-                <h3 className="text-lg font-semibold text-white">
-                  Add Data Object
-                </h3>
+                <h3>Add Data Object</h3>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={onCloseAction}

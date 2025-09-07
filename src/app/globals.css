@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  --brand-color: #75d7cd;
   --background: #ffffff;
   --foreground: #171717;
   --foreground-rgb: 0, 0, 0;
@@ -349,6 +350,26 @@ a[disabled] {
   /* Interactive text utility */
   .text-interactive {
     color: var(--color-interactive);
+  }
+
+  /* Global heading styles using brand color */
+  h1 {
+    color: var(--brand-color);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+  }
+
+  h2 {
+    color: var(--brand-color);
+    font-size: 1.2rem;
+    margin: 0;
+  }
+
+  h3 {
+    color: var(--brand-color);
+    font-size: 1rem;
+    margin: 0;
   }
 
   /* AI icon styling */

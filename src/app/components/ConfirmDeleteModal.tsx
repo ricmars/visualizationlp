@@ -55,7 +55,7 @@ export default function ConfirmDeleteModal({
       >
         <div className="p-6">
           <div className="lp-modal-header">
-            <h2 className="text-lg font-semibold text-white">{title}</h2>
+            <h2>{title}</h2>
             <div className="flex items-center gap-2">
               <button
                 onClick={onCancel}

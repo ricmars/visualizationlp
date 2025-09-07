@@ -93,11 +93,11 @@ export default function FloatingLeftPanelModal({
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-white/10">
             <div className="flex items-center gap-2">
-              <h3 className="text-sm font-medium opacity-80">
+              <h2>
                 {leftPanelView === "checkout"
                   ? "Rules checkout"
                   : "Rules updates"}
-              </h3>
+              </h2>
               <div className="flex items-center gap-1">
                 <button
                   aria-label="Delete all checkpoints"

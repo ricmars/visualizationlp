@@ -162,9 +162,7 @@ export default function ObjectSelectorModal({
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-600">
-              <h3 id="object-selector-title" className="text-lg font-semibold">
-                Select Object
-              </h3>
+              <h3 id="object-selector-title">Select Object</h3>
               <button
                 onClick={onClose}
                 className="text-gray-400 hover:text-white transition-colors"

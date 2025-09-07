@@ -395,7 +395,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
           <div className="p-4">
             <div className="space-y-4">
               <div className="lp-modal-header">
-                <h3 className="text-lg font-semibold text-white">
+                <h3>
                   {title || (mode === "edit" ? "Edit Field" : "Add Field")}
                 </h3>
                 <div className="flex items-center gap-2">

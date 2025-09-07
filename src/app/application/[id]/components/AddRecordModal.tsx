@@ -132,9 +132,7 @@ export default function AddRecordModal({
       >
         <div className="bg-[rgb(14,10,42)] text-white rounded-lg shadow-xl border border-white/20">
           <div className="flex items-center justify-between p-6 border-b border-white/20">
-            <h2 id="add-record-title" className="text-xl font-semibold">
-              Add New Record
-            </h2>
+            <h2 id="add-record-title">Add New Record</h2>
             <button
               onClick={onClose}
               className="text-white/60 hover:text-white transition-colors"

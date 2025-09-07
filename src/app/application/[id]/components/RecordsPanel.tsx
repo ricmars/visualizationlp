@@ -200,9 +200,7 @@ export default function RecordsPanel({
   return (
     <div className="h-full p-4 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-white">
-          Records for {selectedDataObject.name}
-        </h3>
+        <h3>Records for {selectedDataObject.name}</h3>
         <motion.button
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}

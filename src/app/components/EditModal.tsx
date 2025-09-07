@@ -85,7 +85,7 @@ const EditModal: React.FC<EditModalProps> = ({
       <div className="rounded-lg shadow-xl max-w-md w-full modal-surface">
         <div className="p-6">
           <div className="lp-modal-header">
-            <h3 className="text-lg font-semibold text-white">
+            <h3>
               Edit{" "}
               {type === "stage"
                 ? "Stage"

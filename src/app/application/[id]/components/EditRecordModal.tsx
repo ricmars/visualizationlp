@@ -121,9 +121,7 @@ export default function EditRecordModal({
       >
         <div className="bg-[rgb(14,10,42)] text-white rounded-lg shadow-xl border border-white/20">
           <div className="flex items-center justify-between p-6 border-b border-white/20">
-            <h2 id="edit-record-title" className="text-xl font-semibold">
-              Edit Record
-            </h2>
+            <h2 id="edit-record-title">Edit Record</h2>
             <button
               onClick={onClose}
               className="text-white/60 hover:text-white transition-colors"

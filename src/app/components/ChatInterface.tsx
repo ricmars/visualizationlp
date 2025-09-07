@@ -880,11 +880,7 @@ export default function ChatInterface({
       );
     },
     h3({ children }) {
-      return (
-        <h3 className="text-m md:text-m font-bold text-white mb-1 mt-2">
-          {children}
-        </h3>
-      );
+      return <h3 className="mb-1 mt-2">{children}</h3>;
     },
     code({ className, children }) {
       const match = /language-(\w+)/.exec(className || "");

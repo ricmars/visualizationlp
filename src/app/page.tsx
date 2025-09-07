@@ -340,9 +340,7 @@ export default function Home() {
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <h2 className="text-xl font-semibold mb-1 text-white">
-                    {app.name}
-                  </h2>
+                  <h2 className="mb-1">{app.name}</h2>
                   <p className="text-white mb-2 line-clamp-2">
                     {app.description}
                   </p>

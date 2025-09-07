@@ -13,7 +13,7 @@ export default function DataHeader({
 }: DataHeaderProps) {
   return (
     <div className="flex items-center justify-between">
-      <h2 className="text-xl font-semibold text-white flex items-center">
+      <h2 className="flex items-center">
         Data <span className="ml-2 font-normal text-white">({count})</span>
       </h2>
       <button onClick={onAddDataObjectAction} className="interactive-button">
