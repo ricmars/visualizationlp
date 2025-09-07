@@ -5,7 +5,7 @@ import { CreateApplicationModal } from "./components/CreateApplicationModal";
 import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
 import EditApplicationModal from "./components/EditApplicationModal";
 import { useRouter } from "next/navigation";
-import { FaTrash, FaPencilAlt } from "react-icons/fa";
+import { FaTrash, FaPencilAlt, FaTimes } from "react-icons/fa";
 import { fetchWithBaseUrl } from "./lib/fetchWithBaseUrl";
 import { Service } from "./services/service";
 import { buildDatabaseSystemPrompt } from "./lib/databasePrompt";
@@ -299,8 +299,16 @@ export default function Home() {
   return (
     <div className="container mx-auto p-4">
       {successMessage && (
-        <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded mb-4">
-          {successMessage}
+        <div className="success-banner">
+          <span>{successMessage}</span>
+          <button
+            onClick={() => setSuccessMessage(null)}
+            className="success-banner-close"
+            aria-label="Dismiss success message"
+            title="Dismiss"
+          >
+            <FaTimes className="w-4 h-4" />
+          </button>
         </div>
       )}
       <div className="flex justify-between items-center mb-4">

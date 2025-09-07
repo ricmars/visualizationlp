@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { LLMResponseDisplay } from "./LLMResponseDisplay";
+import StandardModal from "./StandardModal";
 
 interface CreateApplicationModalProps {
   isOpen: boolean;
@@ -26,8 +27,7 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
     if (!name.trim() || !description.trim()) {
@@ -62,117 +62,106 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
     }
   }, [isCreating, creationProgress]);
 
-  if (!isOpen) return null;
-
   const remainingChars = 2000 - description.length;
 
+  const actions = [
+    {
+      id: "cancel",
+      label: "Cancel",
+      type: "secondary" as const,
+      onClick: onClose,
+      disabled: isSubmitting || isCreating,
+    },
+    {
+      id: "create",
+      label: "Create",
+      type: "primary" as const,
+      onClick: handleSubmit,
+      disabled:
+        isSubmitting || isCreating || !name.trim() || !description.trim(),
+      loading: isSubmitting || isCreating,
+    },
+  ];
+
   return (
-    <div
-      className="fixed inset-0 modal-backdrop flex items-center justify-center p-4 z-50 modal-overlay"
-      onClick={isCreating ? undefined : onClose}
+    <StandardModal
+      isOpen={isOpen}
+      onCloseAction={onClose}
+      title={title || "Create new application"}
+      actions={actions}
+      width="w-full max-w-md"
+      closeOnOverlayClick={!isCreating}
+      closeOnEscape={!isCreating}
     >
-      <div
-        className="w-full modal-surface"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <form onSubmit={handleSubmit} className="p-6">
-          <div className="lp-modal-header mb-2">
-            <h2>{title || "Create new application"}</h2>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                disabled={isSubmitting || isCreating}
-                className="btn-secondary px-3"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={
-                  isSubmitting ||
-                  isCreating ||
-                  !name.trim() ||
-                  !description.trim()
-                }
-                className="interactive-button px-3"
-              >
-                Create
-              </button>
+      <div className="space-y-4">
+        {creationError && (
+          <div className="bg-red-50 border border-red-200 rounded-md p-4">
+            <div className="flex items-center mb-2">
+              <span className="text-sm font-medium text-red-800">
+                Error creating application
+              </span>
+            </div>
+            <div className="text-sm text-red-700">{creationError}</div>
+          </div>
+        )}
+        {isCreating && creationProgress && (
+          <div className="bg-[rgb(14,10,42)] border border-blue-200 rounded-md p-4">
+            <div className="flex items-center mb-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
+              <span className="text-sm font-medium text-white">
+                Creating application...
+              </span>
+            </div>
+            <div
+              ref={progressRef}
+              className="text-sm text-white max-h-32 overflow-y-auto"
+            >
+              <LLMResponseDisplay content={creationProgress} />
             </div>
           </div>
-          <div className="space-y-4">
-            {creationError && (
-              <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                <div className="flex items-center mb-2">
-                  <span className="text-sm font-medium text-red-800">
-                    Error creating application
-                  </span>
-                </div>
-                <div className="text-sm text-red-700">{creationError}</div>
-              </div>
-            )}
-            {isCreating && creationProgress && (
-              <div className="bg-[rgb(14,10,42)] border border-blue-200 rounded-md p-4">
-                <div className="flex items-center mb-2">
-                  <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
-                  <span className="text-sm font-medium text-white">
-                    Creating application...
-                  </span>
-                </div>
-                <div
-                  ref={progressRef}
-                  className="text-sm text-white max-h-32 overflow-y-auto"
-                >
-                  <LLMResponseDisplay content={creationProgress} />
-                </div>
-              </div>
-            )}
-            <div>
-              <label
-                htmlFor="name"
-                className="block text-sm font-medium text-white"
-              >
-                Name
-              </label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="mt-1 block w-full lp-input"
-                required
-                disabled={isSubmitting || isCreating}
-              />
-            </div>
-            <div>
-              <label
-                htmlFor="description"
-                className="block text-sm font-medium text-white"
-              >
-                Description
-              </label>
-              <div className="mt-1 relative">
-                <textarea
-                  id="description"
-                  value={description}
-                  onChange={handleDescriptionChange}
-                  rows={5}
-                  maxLength={2000}
-                  className="block w-full lp-input"
-                  required
-                  disabled={isSubmitting || isCreating}
-                />
-                <div className="absolute right-2 text-sm text-interactive">
-                  {remainingChars} characters remaining
-                </div>
-              </div>
+        )}
+        <div>
+          <label
+            htmlFor="name"
+            className="block text-sm font-medium text-white"
+          >
+            Name
+          </label>
+          <input
+            type="text"
+            id="name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="mt-1 block w-full lp-input"
+            required
+            disabled={isSubmitting || isCreating}
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="description"
+            className="block text-sm font-medium text-white"
+          >
+            Description
+          </label>
+          <div className="mt-1 relative">
+            <textarea
+              id="description"
+              value={description}
+              onChange={handleDescriptionChange}
+              rows={5}
+              maxLength={2000}
+              className="block w-full lp-input"
+              required
+              disabled={isSubmitting || isCreating}
+            />
+            <div className="absolute right-2 text-sm text-interactive">
+              {remainingChars} characters remaining
             </div>
           </div>
-          <div className="mt-6" />
-          {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
-        </form>
+        </div>
+        {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
       </div>
-    </div>
+    </StandardModal>
   );
 };
