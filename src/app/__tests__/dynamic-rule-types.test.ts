@@ -122,14 +122,6 @@ describe("Dynamic Rule Type System", () => {
       expect(result.data.name).toBe("Test Case");
     });
 
-    it.skip("should create a field using the dynamic system", async () => {
-      // Skipped due to complex mock setup issues
-    });
-
-    it.skip("should create a view using the dynamic system", async () => {
-      // Skipped due to complex mock setup issues
-    });
-
     it("should validate data using rule type schemas", async () => {
       const invalidCaseData = {
         name: "", // Invalid: empty name
@@ -147,18 +139,6 @@ describe("Dynamic Rule Type System", () => {
       expect(result.error).toMatch(
         /Validation failed|Name is required|Model is required|Invalid JSON in model field/,
       );
-    });
-
-    it.skip("should read data using the dynamic system", async () => {
-      // Skipped due to complex mock setup issues
-    });
-
-    it.skip("should update data using the dynamic system", async () => {
-      // Skipped due to complex mock setup issues
-    });
-
-    it.skip("should delete data using the dynamic system", async () => {
-      // Skipped due to complex mock setup issues
     });
 
     it("should list data using the dynamic system", async () => {

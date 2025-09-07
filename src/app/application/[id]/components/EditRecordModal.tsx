@@ -99,25 +99,29 @@ export default function EditRecordModal({
     }
   };
 
-  const modalActions = (
-    <>
-      <button
-        type="button"
-        onClick={onCloseAction}
-        className="btn-secondary px-3"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={loading}
-        className="interactive-button px-3"
-        form="edit-record-form"
-      >
-        {loading ? "Saving..." : "Save Changes"}
-      </button>
-    </>
-  );
+  const modalActions = [
+    {
+      id: "cancel",
+      label: "Cancel",
+      type: "secondary" as const,
+      onClick: onCloseAction,
+    },
+    {
+      id: "save",
+      label: "Save Changes",
+      type: "primary" as const,
+      onClick: () => {
+        const form = document.getElementById(
+          "edit-record-form",
+        ) as HTMLFormElement;
+        form?.requestSubmit();
+      },
+      disabled: loading,
+      loading: loading,
+      form: "edit-record-form",
+      buttonType: "submit" as const,
+    },
+  ];
 
   return (
     <StandardModal

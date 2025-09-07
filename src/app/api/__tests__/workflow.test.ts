@@ -470,10 +470,6 @@ describe("Workflow Operations with Dynamic System", () => {
       expect(updateResponse.ok).toBe(true);
     });
 
-    it.skip("should handle validation errors from dynamic system", async () => {
-      // Skipped due to validation not working as expected in test environment
-    });
-
     it("should support filtering and pagination", async () => {
       // Test list operation with filters
       const response = await fetch(

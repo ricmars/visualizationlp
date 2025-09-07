@@ -110,25 +110,29 @@ export default function AddRecordModal({
     }
   };
 
-  const modalActions = (
-    <>
-      <button
-        type="button"
-        onClick={onCloseAction}
-        className="btn-secondary px-3"
-      >
-        Cancel
-      </button>
-      <button
-        type="submit"
-        disabled={loading}
-        className="interactive-button px-3"
-        form="add-record-form"
-      >
-        {loading ? "Saving..." : "Save Record"}
-      </button>
-    </>
-  );
+  const modalActions = [
+    {
+      id: "cancel",
+      label: "Cancel",
+      type: "secondary" as const,
+      onClick: onCloseAction,
+    },
+    {
+      id: "save",
+      label: "Save Record",
+      type: "primary" as const,
+      onClick: () => {
+        const form = document.getElementById(
+          "add-record-form",
+        ) as HTMLFormElement;
+        form?.requestSubmit();
+      },
+      disabled: loading,
+      loading: loading,
+      form: "add-record-form",
+      buttonType: "submit" as const,
+    },
+  ];
 
   return (
     <StandardModal
