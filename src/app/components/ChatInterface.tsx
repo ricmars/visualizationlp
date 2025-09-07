@@ -248,17 +248,20 @@ interface CheckpointStatus {
   };
 }
 
+interface AttachedFile {
+  id: string;
+  file: File;
+  name: string;
+  content: string;
+  type: "text" | "image" | "pdf";
+  base64?: string;
+}
+
 interface ChatInterfaceProps {
   onSendMessage: (
     message: string,
     mode?: ChatMode,
-    attachedFile?: {
-      file: File;
-      name: string;
-      content: string;
-      type: "text" | "image" | "pdf";
-      base64?: string;
-    },
+    attachedFiles?: AttachedFile[],
   ) => void;
   onAbort?: () => void;
   messages: ChatMessage[];
@@ -419,13 +422,7 @@ export default function ChatInterface({
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
-  const [attachedFile, setAttachedFile] = useState<{
-    file: File;
-    name: string;
-    content: string;
-    type: "text" | "image" | "pdf";
-    base64?: string;
-  } | null>(null);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
@@ -706,52 +703,65 @@ export default function ChatInterface({
   };
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
 
-    const fileType = getFileType(file.name, file.type);
+    Array.from(files).forEach((file) => {
+      const fileType = getFileType(file.name, file.type);
+      const fileId = `${file.name}-${Date.now()}-${Math.random()}`;
 
-    if (fileType === "image") {
-      // Handle images - convert to base64 for now
-      // TODO: Consider implementing image URL upload for better efficiency
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const base64 = e.target?.result as string;
-        setAttachedFile({
+      if (fileType === "image") {
+        // Handle images - convert to base64 for now
+        // TODO: Consider implementing image URL upload for better efficiency
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const base64 = e.target?.result as string;
+          const newFile: AttachedFile = {
+            id: fileId,
+            file,
+            name: file.name,
+            content: `[Image: ${file.name}]`,
+            type: "image",
+            base64,
+          };
+          setAttachedFiles((prev) => [...prev, newFile]);
+        };
+        reader.readAsDataURL(file);
+      } else if (fileType === "pdf") {
+        // For PDFs, we'll upload directly to OpenAI Files API
+        const newFile: AttachedFile = {
+          id: fileId,
           file,
           name: file.name,
-          content: `[Image: ${file.name}]`,
-          type: "image",
-          base64,
-        });
-      };
-      reader.readAsDataURL(file);
-    } else if (fileType === "pdf") {
-      // For PDFs, we'll upload directly to OpenAI Files API
-      setAttachedFile({
-        file,
-        name: file.name,
-        content: `[PDF: ${file.name}]`,
-        type: "pdf",
-      });
-    } else {
-      // Handle text files
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const content = e.target?.result as string;
-        setAttachedFile({
-          file,
-          name: file.name,
-          content,
-          type: "text",
-        });
-      };
-      reader.readAsText(file);
-    }
+          content: `[PDF: ${file.name}]`,
+          type: "pdf",
+        };
+        setAttachedFiles((prev) => [...prev, newFile]);
+      } else {
+        // Handle text files
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const content = e.target?.result as string;
+          const newFile: AttachedFile = {
+            id: fileId,
+            file,
+            name: file.name,
+            content,
+            type: "text",
+          };
+          setAttachedFiles((prev) => [...prev, newFile]);
+        };
+        reader.readAsText(file);
+      }
+    });
   };
 
-  const handleRemoveFile = () => {
-    setAttachedFile(null);
+  const handleRemoveFile = (fileId: string) => {
+    setAttachedFiles((prev) => prev.filter((file) => file.id !== fileId));
+  };
+
+  const handleRemoveAllFiles = () => {
+    setAttachedFiles([]);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -779,7 +789,7 @@ export default function ChatInterface({
 
   const handleSendMessage = () => {
     const raw = message.trim();
-    if (raw || attachedFile) {
+    if (raw || attachedFiles.length > 0) {
       let outgoing = raw;
       try {
         const cacheKey = `objects_${applicationId || "default"}`;
@@ -809,30 +819,30 @@ export default function ChatInterface({
       } catch {}
 
       // Include file content if attached
-      if (attachedFile) {
-        if (attachedFile.type === "image") {
-          // For images, we'll send the base64 data separately
-          // The content will be handled by the LLM API route
-          outgoing = outgoing
-            ? `${outgoing}\n\n[Image attached: ${attachedFile.name}]`
-            : `[Image attached: ${attachedFile.name}]`;
-        } else if (attachedFile.type === "pdf") {
-          // For PDFs, we'll upload directly to OpenAI Files API
-          outgoing = outgoing
-            ? `${outgoing}\n\n[PDF attached: ${attachedFile.name}]`
-            : `[PDF attached: ${attachedFile.name}]`;
-        } else {
-          // For text files, include the content
-          outgoing = outgoing
-            ? `${outgoing}\n\n--- File: ${attachedFile.name} ---\n${attachedFile.content}`
-            : `--- File: ${attachedFile.name} ---\n${attachedFile.content}`;
-        }
+      if (attachedFiles.length > 0) {
+        const fileDescriptions = attachedFiles.map((file) => {
+          if (file.type === "image") {
+            return `[Image attached: ${file.name}]`;
+          } else if (file.type === "pdf") {
+            return `[PDF attached: ${file.name}]`;
+          } else {
+            return `--- File: ${file.name} ---\n${file.content}`;
+          }
+        });
+
+        outgoing = outgoing
+          ? `${outgoing}\n\n${fileDescriptions.join("\n\n")}`
+          : fileDescriptions.join("\n\n");
       }
 
-      // Pass the chat mode and attached file along with the message
-      onSendMessage(outgoing, chatMode, attachedFile || undefined);
+      // Pass the chat mode and attached files along with the message
+      onSendMessage(
+        outgoing,
+        chatMode,
+        attachedFiles.length > 0 ? attachedFiles : undefined,
+      );
       setMessage("");
-      setAttachedFile(null);
+      setAttachedFiles([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
       }
@@ -1235,79 +1245,95 @@ export default function ChatInterface({
       </div>
 
       {/* File attachment toolbar */}
-      {attachedFile && (
-        <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] px-4 py-2 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              {attachedFile.type === "image" ? (
-                <svg
-                  className="w-4 h-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-              ) : attachedFile.type === "pdf" ? (
-                <svg
-                  className="w-4 h-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                  />
-                </svg>
-              ) : (
-                <svg
-                  className="w-4 h-4 text-gray-400"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                  />
-                </svg>
-              )}
-              <span
-                className="text-sm text-white truncate max-w-[200px]"
-                title={attachedFile.name}
-              >
-                {truncateFileName(attachedFile.name)}
-              </span>
-            </div>
+      {attachedFiles.length > 0 && (
+        <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] px-3 py-1.5 flex-shrink-0">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-gray-300">
+              Attached files ({attachedFiles.length})
+            </span>
             <button
-              onClick={handleRemoveFile}
-              className="btn-secondary w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-600 transition-colors"
-              title="Remove file"
+              onClick={handleRemoveAllFiles}
+              className="text-xs text-gray-400 hover:text-white transition-colors"
+              title="Remove all files"
             >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
+              Clear all
             </button>
+          </div>
+          <div className="space-y-1">
+            {attachedFiles.map((file) => (
+              <div key={file.id} className="flex items-center justify-between">
+                <div className="flex items-center gap-1.5">
+                  {file.type === "image" ? (
+                    <svg
+                      className="w-3 h-3 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  ) : file.type === "pdf" ? (
+                    <svg
+                      className="w-3 h-3 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg
+                      className="w-3 h-3 text-gray-400"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
+                      />
+                    </svg>
+                  )}
+                  <span
+                    className="text-xs text-white truncate max-w-[180px]"
+                    title={file.name}
+                  >
+                    {truncateFileName(file.name, 15)}
+                  </span>
+                </div>
+                <button
+                  onClick={() => handleRemoveFile(file.id)}
+                  className="btn-secondary w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-600 transition-colors"
+                  title="Remove file"
+                >
+                  <svg
+                    className="w-3 h-3"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -1333,6 +1359,7 @@ export default function ChatInterface({
               type="file"
               onChange={handleFileSelect}
               className="hidden"
+              multiple
               accept=".txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.java,.cpp,.c,.h,.hpp,.cs,.php,.rb,.go,.rs,.swift,.kt,.scala,.r,.sql,.xml,.yaml,.yml,.html,.css,.scss,.sass,.less,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.svg"
             />
           </div>
@@ -1468,7 +1495,9 @@ export default function ChatInterface({
             ) : (
               <button
                 onClick={handleSendMessage}
-                disabled={isLoading || (!message.trim() && !attachedFile)}
+                disabled={
+                  isLoading || (!message.trim() && attachedFiles.length === 0)
+                }
                 className="chat-toolbar-btn"
                 title="Send message"
               >

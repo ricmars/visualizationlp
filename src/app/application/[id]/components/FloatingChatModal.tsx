@@ -12,13 +12,14 @@ interface FloatingChatModalProps {
   onSendMessage: (
     message: string,
     mode?: ChatMode,
-    attachedFile?: {
+    attachedFiles?: Array<{
+      id: string;
       file: File;
       name: string;
       content: string;
       type: "text" | "image" | "pdf";
       base64?: string;
-    },
+    }>,
   ) => void;
   onAbort: () => void;
   isProcessing: boolean;

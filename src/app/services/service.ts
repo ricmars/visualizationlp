@@ -30,13 +30,14 @@ export class Service {
     history?: ChatMessage[],
     signal?: AbortSignal,
     mode?: ChatMode,
-    attachedFile?: {
+    attachedFiles?: Array<{
+      id: string;
       file: File;
       name: string;
       content: string;
       type: "text" | "image" | "pdf";
       base64?: string;
-    },
+    }>,
   ) {
     console.log(`Generating response with provider: ${this.currentProvider}`);
     return await this.generateOpenAIResponse(
@@ -45,7 +46,7 @@ export class Service {
       history,
       signal,
       mode,
-      attachedFile,
+      attachedFiles,
     );
   }
 
@@ -87,13 +88,14 @@ export class Service {
     history?: ChatMessage[],
     signal?: AbortSignal,
     mode?: ChatMode,
-    attachedFile?: {
+    attachedFiles?: Array<{
+      id: string;
       file: File;
       name: string;
       content: string;
       type: "text" | "image" | "pdf";
       base64?: string;
-    },
+    }>,
   ) {
     console.log("Calling OpenAI API...");
     const response = await fetch("/api/openai", {
@@ -106,7 +108,7 @@ export class Service {
         systemContext,
         history,
         mode,
-        attachedFile,
+        attachedFiles,
       }),
       signal,
     });

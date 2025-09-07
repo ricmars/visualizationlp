@@ -50,13 +50,14 @@ export default function useChatMessaging({
     async (
       message: string,
       mode: ChatMode = "agent",
-      attachedFile?: {
+      attachedFiles?: Array<{
+        id: string;
         file: File;
         name: string;
         content: string;
         type: "text" | "image" | "pdf";
         base64?: string;
-      },
+      }>,
     ) => {
       let aiMessageId: string;
 
@@ -115,7 +116,7 @@ export default function useChatMessaging({
           history,
           abortRef.current.signal,
           mode,
-          attachedFile,
+          attachedFiles,
         );
 
         if (!response.ok) {

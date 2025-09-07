@@ -10,13 +10,14 @@ type ChatPanelContentProps = {
   onSendMessage: (
     message: string,
     mode?: ChatMode,
-    attachedFile?: {
+    attachedFiles?: Array<{
+      id: string;
       file: File;
       name: string;
       content: string;
       type: "text" | "image" | "pdf";
       base64?: string;
-    },
+    }>,
   ) => Promise<void> | void;
   onAbort: () => void;
   isProcessing: boolean;

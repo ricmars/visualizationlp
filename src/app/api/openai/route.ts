@@ -143,7 +143,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, systemContext, history, mode, attachedFile } =
+    const { prompt, systemContext, history, mode, attachedFiles } =
       await request.json();
     console.log("Received request with prompt length:", prompt.length);
     console.log("Prompt preview:", prompt.substring(0, 100) + "...");
@@ -324,68 +324,70 @@ Bulk operations policy:
         const lastContent =
           typeof last?.content === "string" ? last.content : undefined;
         if (!(last && last.role === "user" && lastContent === enhancedPrompt)) {
-          // Handle multimodal content if attached file is present
-          if (
-            attachedFile &&
-            attachedFile.type === "image" &&
-            attachedFile.base64
-          ) {
-            messages.push({
-              role: "user",
-              content: [
-                { type: "text", text: enhancedPrompt },
-                {
+          // Handle multimodal content if attached files are present
+          if (attachedFiles && attachedFiles.length > 0) {
+            const content: any[] = [{ type: "text", text: enhancedPrompt }];
+            let hasErrors = false;
+
+            // Process each attached file
+            for (const attachedFile of attachedFiles) {
+              if (attachedFile.type === "image" && attachedFile.base64) {
+                content.push({
                   type: "image_url",
                   image_url: {
                     url: attachedFile.base64,
                     detail: "auto",
                   },
-                },
-              ],
-            });
-          } else if (attachedFile && attachedFile.type === "pdf") {
-            // For PDFs, we need to upload to Files API first
-            try {
-              const formData = new FormData();
-              formData.append("file", attachedFile.file);
-              formData.append("purpose", "assistants");
+                });
+              } else if (attachedFile.type === "pdf") {
+                // For PDFs, we need to upload to Files API first
+                try {
+                  const formData = new FormData();
+                  formData.append("file", attachedFile.file);
+                  formData.append("purpose", "assistants");
 
-              const fileUploadResponse = await fetch(
-                `${process.env.AZURE_OPENAI_ENDPOINT}/openai/files?api-version=2024-12-01-preview`,
-                {
-                  method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${await getAzureAccessToken()}`,
-                  },
-                  body: formData,
-                },
-              );
-
-              if (fileUploadResponse.ok) {
-                const fileData = await fileUploadResponse.json();
-                messages.push({
-                  role: "user",
-                  content: [
-                    { type: "text", text: enhancedPrompt },
+                  const fileUploadResponse = await fetch(
+                    `${process.env.AZURE_OPENAI_ENDPOINT}/openai/files?api-version=2024-12-01-preview`,
                     {
+                      method: "POST",
+                      headers: {
+                        Authorization: `Bearer ${await getAzureAccessToken()}`,
+                      },
+                      body: formData,
+                    },
+                  );
+
+                  if (fileUploadResponse.ok) {
+                    const fileData = await fileUploadResponse.json();
+                    content.push({
                       type: "file",
                       file: {
                         file_id: fileData.id,
                         filename: attachedFile.name,
                       },
-                    },
-                  ],
-                });
-              } else {
-                console.error(
-                  "Failed to upload PDF file:",
-                  await fileUploadResponse.text(),
-                );
-                messages.push({ role: "user", content: enhancedPrompt });
+                    });
+                  } else {
+                    console.error(
+                      "Failed to upload PDF file:",
+                      await fileUploadResponse.text(),
+                    );
+                    hasErrors = true;
+                  }
+                } catch (error) {
+                  console.error("Error uploading PDF file:", error);
+                  hasErrors = true;
+                }
               }
-            } catch (error) {
-              console.error("Error uploading PDF file:", error);
+            }
+
+            if (hasErrors) {
+              // If there were errors with file uploads, fall back to text-only
               messages.push({ role: "user", content: enhancedPrompt });
+            } else {
+              messages.push({
+                role: "user",
+                content: content,
+              });
             }
           } else {
             messages.push({ role: "user", content: enhancedPrompt });

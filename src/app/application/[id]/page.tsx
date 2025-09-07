@@ -2062,8 +2062,8 @@ export default function WorkflowPage() {
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
         messages={messages}
-        onSendMessage={(message, mode, attachedFile) =>
-          void handleSendMessage(message, mode, attachedFile)
+        onSendMessage={(message, mode, attachedFiles) =>
+          void handleSendMessage(message, mode, attachedFiles)
         }
         onAbort={() => handleAbort()}
         isProcessing={isProcessing}
