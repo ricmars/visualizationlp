@@ -1610,67 +1610,80 @@ export default function WorkflowPage() {
                 </div>
               </div>
             ) : !isPreviewVisible && activeTab === "workflow" ? (
-              <>
-                <WorkflowLifecycleView
-                  stages={workflowModel.stages}
-                  onStepSelect={(stageId, processId, stepId) =>
-                    handleStepSelect(stageId, processId, stepId)
-                  }
-                  activeStage={activeStage}
-                  activeProcess={activeProcess}
-                  activeStep={activeStep}
-                  onEditStep={(stageId, processId, stepId) => {
-                    // For lifecycle view editing, just select the step to show configuration
-                    handleStepSelect(
-                      stageId.toString(),
-                      processId.toString(),
-                      stepId.toString(),
-                    );
-                  }}
-                  onDeleteStep={handleDeleteStep}
-                  fields={fields}
-                  readOnly={false}
-                  onAddField={handleAddField}
-                  onUpdateField={handleUpdateField}
-                  onDeleteField={handleDeleteField}
-                  onAddExistingField={(stepId, fieldIds) => {
-                    // Convert field IDs to field names for the existing handler
-                    const fieldNames = fieldIds
-                      .map((id) => fields.find((f) => f.id === id)?.name)
-                      .filter((name): name is string => !!name);
-                    void handleAddFieldsToStep(
-                      stepId,
-                      fieldNames,
-                      workflowModel.stages,
-                    );
-                  }}
-                  onFieldChange={(fieldId, value) => {
-                    // For now, this is read-only in lifecycle view
-                    console.log(
-                      "Field change in lifecycle view:",
-                      fieldId,
-                      value,
-                    );
-                  }}
-                  views={views}
-                  onAddFieldsToView={handleAddFieldsToView}
-                  onStepsUpdate={handleStepsUpdate}
-                  onAddProcess={(stageId, processName) =>
-                    handleAddProcess(Number(stageId), processName)
-                  }
-                  onAddStep={(stageId, processId, stepName, stepType) =>
-                    handleAddStep(
-                      Number(stageId),
-                      Number(processId),
-                      stepName,
-                      stepType as StepType,
-                    )
-                  }
-                  onDeleteProcess={(stageId, processId) =>
-                    handleDeleteProcess(Number(stageId), Number(processId))
-                  }
-                />
-              </>
+              <div className="flex flex-col h-full">
+                <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                  <h2 className="text-lg font-semibold text-white">
+                    Lifecycle
+                  </h2>
+                  <button
+                    onClick={() => setIsAddStageModalOpen(true)}
+                    className="interactive-button px-4 py-2"
+                  >
+                    Add Stage
+                  </button>
+                </div>
+                <div className="flex-1 overflow-hidden">
+                  <WorkflowLifecycleView
+                    stages={workflowModel.stages}
+                    onStepSelect={(stageId, processId, stepId) =>
+                      handleStepSelect(stageId, processId, stepId)
+                    }
+                    activeStage={activeStage}
+                    activeProcess={activeProcess}
+                    activeStep={activeStep}
+                    onEditStep={(stageId, processId, stepId) => {
+                      // For lifecycle view editing, just select the step to show configuration
+                      handleStepSelect(
+                        stageId.toString(),
+                        processId.toString(),
+                        stepId.toString(),
+                      );
+                    }}
+                    onDeleteStep={handleDeleteStep}
+                    fields={fields}
+                    readOnly={false}
+                    onAddField={handleAddField}
+                    onUpdateField={handleUpdateField}
+                    onDeleteField={handleDeleteField}
+                    onAddExistingField={(stepId, fieldIds) => {
+                      // Convert field IDs to field names for the existing handler
+                      const fieldNames = fieldIds
+                        .map((id) => fields.find((f) => f.id === id)?.name)
+                        .filter((name): name is string => !!name);
+                      void handleAddFieldsToStep(
+                        stepId,
+                        fieldNames,
+                        workflowModel.stages,
+                      );
+                    }}
+                    onFieldChange={(fieldId, value) => {
+                      // For now, this is read-only in lifecycle view
+                      console.log(
+                        "Field change in lifecycle view:",
+                        fieldId,
+                        value,
+                      );
+                    }}
+                    views={views}
+                    onAddFieldsToView={handleAddFieldsToView}
+                    onStepsUpdate={handleStepsUpdate}
+                    onAddProcess={(stageId, processName) =>
+                      handleAddProcess(Number(stageId), processName)
+                    }
+                    onAddStep={(stageId, processId, stepName, stepType) =>
+                      handleAddStep(
+                        Number(stageId),
+                        Number(processId),
+                        stepName,
+                        stepType as StepType,
+                      )
+                    }
+                    onDeleteProcess={(stageId, processId) =>
+                      handleDeleteProcess(Number(stageId), Number(processId))
+                    }
+                  />
+                </div>
+              </div>
             ) : null}
             {!isPreviewVisible &&
               selectedDataObjectId === null &&
