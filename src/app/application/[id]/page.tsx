@@ -2003,8 +2003,8 @@ export default function WorkflowPage() {
           <div className="flex-1 flex flex-col min-w-0">
             <ChatPanelContent
               messages={messages}
-              onSendMessage={(message, mode) =>
-                void handleSendMessage(message, mode)
+              onSendMessage={(message, mode, attachedFile) =>
+                void handleSendMessage(message, mode, attachedFile)
               }
               onAbort={() => handleAbort()}
               isProcessing={isProcessing}
@@ -2062,7 +2062,9 @@ export default function WorkflowPage() {
         isOpen={isChatModalOpen}
         onClose={() => setIsChatModalOpen(false)}
         messages={messages}
-        onSendMessage={(message, mode) => void handleSendMessage(message, mode)}
+        onSendMessage={(message, mode, attachedFile) =>
+          void handleSendMessage(message, mode, attachedFile)
+        }
         onAbort={() => handleAbort()}
         isProcessing={isProcessing}
         objectid={parseInt(id)}

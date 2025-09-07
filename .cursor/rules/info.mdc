@@ -79,6 +79,14 @@ alwaysApply: true
 - Tool usage is source of truth; confirm destructive actions explicitly when ambiguous
 - See `docs/llm-streaming.md` for the SSE details and UX cues
 
+## File attachments (multimodal)
+
+- **File types**: Text files (content in prompt), Images, PDFs (binary upload to Files API)
+- **Images require base64**: OpenAI API limitation
+- **Multimodal support**: OpenAI model needs to support handling both text and images in the same model
+- **File type detection**: Based on extension and MIME type
+- **UI components**: File attachment toolbar with type-specific icons and truncation
+
 ## State management and data fetching
 
 - Prefer TanStack Query for server state; clear loading/error states; proper caching
@@ -110,6 +118,7 @@ alwaysApply: true
 - System prompt: `src/app/lib/databasePrompt.ts`
 - Streaming route: `src/app/api/openai/route.ts`
 - Standard modal: `src/app/components/StandardModal.tsx`
+- Chat interface: `src/app/components/ChatInterface.tsx` (file attachments)
 - Context filter: `src/app/application/[id]/hooks/useFreeFormSelection.ts`
 - Dynamic API and registry: `src/app/api/dynamic/route.ts`, `src/app/types/ruleTypeRegistry.ts`, `src/app/types/ruleTypeDefinitions.ts`
 - Docs: `docs/modals.md`, `docs/checkpoints.md`, `docs/rule-types.md`, `docs/testing.md`, `docs/llm-streaming.md`

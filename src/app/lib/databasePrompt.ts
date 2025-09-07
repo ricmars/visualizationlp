@@ -34,6 +34,11 @@ Field updates protocol (critical for speed and reliability):
 - Avoid iterative retries that add one missing property at a time. Do the retrieval first, then batch all updates in one call.
 - Prefer large batches (25–50 fields per call) rather than many small calls.
 
+Record creation protocol (critical for data integrity):
+- ALWAYS call listFields(objectid) FIRST before saveObjectRecords to get the correct field names.
+- Field names in record.data must exactly match the 'name' property returned by listFields.
+- Never assume field names - always verify them through listFields to prevent data mapping errors.
+
 Selection-based edits (from UI context):
 - When the Context provides selected viewIds and fieldIds and the instruction is to add or remove those fields from that view, call saveView directly using the given IDs.
 - Prefer not to call list/get tools if the intent is simply adding/removing the selected fields; preserve the existing layout if unknown.

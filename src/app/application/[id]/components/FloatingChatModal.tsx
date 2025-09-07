@@ -9,7 +9,17 @@ interface FloatingChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
-  onSendMessage: (message: string, mode?: ChatMode) => void;
+  onSendMessage: (
+    message: string,
+    mode?: ChatMode,
+    attachedFile?: {
+      file: File;
+      name: string;
+      content: string;
+      type: "text" | "image" | "pdf";
+      base64?: string;
+    },
+  ) => void;
   onAbort: () => void;
   isProcessing: boolean;
   objectid: number;

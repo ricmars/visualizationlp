@@ -181,6 +181,59 @@ interface ChatMessage {
 
 The system prompt has been updated to the unified object model in `src/app/lib/databasePrompt.ts`.
 
+## File Attachment System
+
+The application supports multimodal file attachments in the chat interface, allowing users to attach text files, images, and PDFs to their messages.
+
+### Supported File Types
+
+- **Text Files**: `.txt`, `.md`, `.json`, `.js`, `.ts`, `.tsx`, `.jsx`, `.py`, `.java`, `.cpp`, `.c`, `.h`, `.hpp`, `.cs`, `.php`, `.rb`, `.go`, `.rs`, `.swift`, `.kt`, `.scala`, `.r`, `.sql`, `.xml`, `.yaml`, `.yml`, `.html`, `.css`, `.scss`, `.sass`, `.less`
+- **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.bmp`, `.webp`, `.svg`
+- **PDFs**: `.pdf`
+
+### Implementation Details
+
+#### File Processing
+
+- **Text Files**: Content is read and included directly in the prompt
+- **Images**: Converted to base64 and sent to OpenAI API
+- **PDFs**: Uploaded directly to OpenAI Files API as binary files (no client-side processing)
+
+#### API Integration
+
+- **Images**: Use OpenAI API with multimodal message format
+- **PDFs**: Use OpenAI Files API for direct binary upload
+- **Multimodal Support**: GPT-4o handles both text and images in the same model
+
+#### UI Features
+
+- **File Type Icons**: Different icons for text, image, and PDF files
+- **Filename Truncation**: Long filenames are truncated with tooltip showing full name
+- **File Removal**: Close button to remove attached files
+- **Attachment Toolbar**: Shows above textarea when file is attached
+
+### Technical Architecture
+
+#### Frontend Components
+
+- **ChatInterface**: Main component handling file selection and display
+- **File Type Detection**: Automatic detection based on extension and MIME type
+- **State Management**: Tracks attached file with type, content, and metadata
+
+#### Backend Processing
+
+- **OpenAI API Route**: Handles multimodal content and file uploads
+- **Service Layer**: Passes file data through the request chain
+- **Error Handling**: Graceful fallbacks for failed uploads
+
+#### File Upload Flow
+
+1. **User selects file** → File type automatically detected
+2. **Images** → Converted to base64, sent to Vision API
+3. **PDFs** → Uploaded to Files API, referenced by file_id
+4. **Text files** → Content included in prompt
+5. **LLM receives** → Properly formatted content based on file type
+
 ## Required Environment Variables
 
 ```bash
@@ -189,7 +242,7 @@ DATABASE_URL=postgres://user:password@ep-something.region.aws.neon.tech/dbname
 
 # Azure OpenAI (if using)
 AZURE_OPENAI_ENDPOINT=https://your-resource-name.openai.azure.com
-AZURE_OPENAI_DEPLOYMENT=your-deployment-name
+AZURE_OPENAI_DEPLOYMENT=your-deployment-name  # GPT-4o is multimodal
 AZURE_TENANT_ID=your-tenant-id
 AZURE_CLIENT_ID=your-client-id
 AZURE_CLIENT_SECRET=your-client-secret

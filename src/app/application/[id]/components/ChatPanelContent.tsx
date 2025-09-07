@@ -7,7 +7,17 @@ import type { ChatMode } from "../../../types/types";
 
 type ChatPanelContentProps = {
   messages: ChatMessage[];
-  onSendMessage: (message: string, mode?: ChatMode) => Promise<void> | void;
+  onSendMessage: (
+    message: string,
+    mode?: ChatMode,
+    attachedFile?: {
+      file: File;
+      name: string;
+      content: string;
+      type: "text" | "image" | "pdf";
+      base64?: string;
+    },
+  ) => Promise<void> | void;
   onAbort: () => void;
   isProcessing: boolean;
   objectid: number;

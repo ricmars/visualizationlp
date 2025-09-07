@@ -143,7 +143,8 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, systemContext, history, mode } = await request.json();
+    const { prompt, systemContext, history, mode, attachedFile } =
+      await request.json();
     console.log("Received request with prompt length:", prompt.length);
     console.log("Prompt preview:", prompt.substring(0, 100) + "...");
     console.log("System context length:", systemContext?.length || 0);
@@ -323,7 +324,72 @@ Bulk operations policy:
         const lastContent =
           typeof last?.content === "string" ? last.content : undefined;
         if (!(last && last.role === "user" && lastContent === enhancedPrompt)) {
-          messages.push({ role: "user", content: enhancedPrompt });
+          // Handle multimodal content if attached file is present
+          if (
+            attachedFile &&
+            attachedFile.type === "image" &&
+            attachedFile.base64
+          ) {
+            messages.push({
+              role: "user",
+              content: [
+                { type: "text", text: enhancedPrompt },
+                {
+                  type: "image_url",
+                  image_url: {
+                    url: attachedFile.base64,
+                    detail: "auto",
+                  },
+                },
+              ],
+            });
+          } else if (attachedFile && attachedFile.type === "pdf") {
+            // For PDFs, we need to upload to Files API first
+            try {
+              const formData = new FormData();
+              formData.append("file", attachedFile.file);
+              formData.append("purpose", "assistants");
+
+              const fileUploadResponse = await fetch(
+                `${process.env.AZURE_OPENAI_ENDPOINT}/openai/files?api-version=2024-12-01-preview`,
+                {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${await getAzureAccessToken()}`,
+                  },
+                  body: formData,
+                },
+              );
+
+              if (fileUploadResponse.ok) {
+                const fileData = await fileUploadResponse.json();
+                messages.push({
+                  role: "user",
+                  content: [
+                    { type: "text", text: enhancedPrompt },
+                    {
+                      type: "file",
+                      file: {
+                        file_id: fileData.id,
+                        filename: attachedFile.name,
+                      },
+                    },
+                  ],
+                });
+              } else {
+                console.error(
+                  "Failed to upload PDF file:",
+                  await fileUploadResponse.text(),
+                );
+                messages.push({ role: "user", content: enhancedPrompt });
+              }
+            } catch (error) {
+              console.error("Error uploading PDF file:", error);
+              messages.push({ role: "user", content: enhancedPrompt });
+            }
+          } else {
+            messages.push({ role: "user", content: enhancedPrompt });
+          }
         }
         let loopCount = 0;
         let done = false;
@@ -506,9 +572,12 @@ Bulk operations policy:
               // Ignore write errors (likely client aborted)
             }
 
+            // GPT-4o is multimodal and can handle images directly
+            const modelName = process.env.AZURE_OPENAI_DEPLOYMENT!;
+
             const completionPromise = openai.chat.completions.create(
               {
-                model: process.env.AZURE_OPENAI_DEPLOYMENT!,
+                model: modelName,
                 messages,
                 max_completion_tokens: 6000, // Reduced for faster generation
                 stream: true, // Enable streaming for faster responses

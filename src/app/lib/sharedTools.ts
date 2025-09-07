@@ -1540,13 +1540,14 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     },
     {
       name: "listFields",
-      description: "Lists all fields for a case.",
+      description:
+        "Lists all fields for a data object. CRITICAL: Always call this tool BEFORE saveObjectRecords to get the correct field names (field.name property) that must be used in record data. Field names in the data object must exactly match the 'name' property returned by this tool.",
       parameters: {
         type: "object",
         properties: {
           objectid: {
             type: "integer",
-            description: "Case ID to list fields for",
+            description: "Object ID to list fields for",
           },
         },
         required: ["objectid"],
@@ -1590,13 +1591,13 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     },
     {
       name: "listViews",
-      description: "Lists all views for a specific case.",
+      description: "Lists all views for an object that has workflow enabled.",
       parameters: {
         type: "object",
         properties: {
           objectid: {
             type: "integer",
-            description: "Case ID to list views for",
+            description: "Object ID to list views for",
           },
         },
         required: ["objectid"],
@@ -1842,7 +1843,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     {
       name: "saveObjectRecords",
       description:
-        "Creates or updates one or more records for a data object in a single, batched call. PERFORMANCE: Batch creates/updates together (25–100 records per call is ideal). REQUIRED: Provide the parent objectid once and pass records as an array. Each record item must include a data object; include id only when updating an existing record. Example: { objectid: 123, records: [{ data: { name: 'Jane', age: 25 } }, { id: 42, data: { name: 'Mike', age: 30 } }] }.",
+        "Creates or updates one or more records for a data object in a single, batched call. CRITICAL WORKFLOW: ALWAYS call listFields(objectid) FIRST to get the correct field names, then use those exact field names in the data object. Field names in record.data must exactly match the 'name' property from listFields. PERFORMANCE: Batch creates/updates together (25–100 records per call is ideal). REQUIRED: Provide the parent objectid once and pass records as an array. Each record item must include a data object; include id only when updating an existing record. Example: If listFields returns fields with names 'name' and 'code', use { objectid: 123, records: [{ data: { name: 'Jane', code: 'J001' } }, { id: 42, data: { name: 'Mike', code: 'M002' } }] }.",
       parameters: {
         type: "object",
         properties: {
@@ -1864,7 +1865,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 data: {
                   type: "object",
                   description:
-                    "Key-value object of field names and values to store for this record (REQUIRED).",
+                    "Key-value object of field names and values to store for this record (REQUIRED). Field names must exactly match the 'name' property from listFields output.",
                 },
               },
               required: ["data"],

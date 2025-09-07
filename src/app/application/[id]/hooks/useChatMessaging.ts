@@ -47,7 +47,17 @@ export default function useChatMessaging({
   const router = useRouter();
   const searchParams = useSearchParams();
   const handleSendMessage = useCallback(
-    async (message: string, mode: ChatMode = "agent") => {
+    async (
+      message: string,
+      mode: ChatMode = "agent",
+      attachedFile?: {
+        file: File;
+        name: string;
+        content: string;
+        type: "text" | "image" | "pdf";
+        base64?: string;
+      },
+    ) => {
       let aiMessageId: string;
 
       try {
@@ -105,6 +115,7 @@ export default function useChatMessaging({
           history,
           abortRef.current.signal,
           mode,
+          attachedFile,
         );
 
         if (!response.ok) {
