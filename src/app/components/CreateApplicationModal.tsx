@@ -72,7 +72,7 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
       onClick={isCreating ? undefined : onClose}
     >
       <div
-        className="rounded-lg shadow-xl max-w-md w-full modal-surface min-w-[450px]"
+        className="w-full modal-surface"
         onClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit} className="p-6">

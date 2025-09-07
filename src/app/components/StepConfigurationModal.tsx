@@ -109,7 +109,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   return (
     <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[100] modal-overlay">
       <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[90] modal-surface min-w-[450px]"
+        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-[90] modal-surface"
         ref={modalRef}
         role="dialog"
         data-allow-freeform-select="true"

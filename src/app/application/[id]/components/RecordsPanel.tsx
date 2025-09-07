@@ -280,9 +280,9 @@ export default function RecordsPanel({
       <ModalPortal isOpen={isAddRecordOpen}>
         <AddRecordModal
           isOpen={isAddRecordOpen}
-          onClose={() => setIsAddRecordOpen(false)}
+          onCloseAction={() => setIsAddRecordOpen(false)}
           fields={sortedFields}
-          onSave={handleAddRecord}
+          onSaveAction={handleAddRecord}
         />
       </ModalPortal>
 
@@ -291,10 +291,10 @@ export default function RecordsPanel({
         {editingRecord && (
           <EditRecordModal
             isOpen={!!editingRecord}
-            onClose={() => setEditingRecord(null)}
+            onCloseAction={() => setEditingRecord(null)}
             fields={sortedFields}
             record={editingRecord}
-            onSave={(data: Record<string, any>) =>
+            onSaveAction={(data: Record<string, any>) =>
               handleEditRecord(editingRecord.id, data)
             }
           />

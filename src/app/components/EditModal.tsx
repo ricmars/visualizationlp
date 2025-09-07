@@ -82,7 +82,7 @@ const EditModal: React.FC<EditModalProps> = ({
 
   return (
     <Modal isOpen={isOpen} onClose={onClose}>
-      <div className="rounded-lg shadow-xl max-w-md w-full modal-surface">
+      <div className="w-full modal-surface">
         <div className="p-6">
           <div className="lp-modal-header">
             <h3>

@@ -143,7 +143,7 @@ a[disabled] {
 @layer components {
   /* Semantic utility for modal surfaces */
   .modal-surface {
-    @apply bg-modal text-modal-text min-w-[450px];
+    @apply bg-modal text-modal-text min-w-[450px] max-w-md rounded-xl shadow-xl border border-gray-700;
   }
 
   /* App panels horizontal gutter */

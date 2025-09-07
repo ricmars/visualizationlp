@@ -49,13 +49,10 @@ export default function ConfirmDeleteModal({
 
   return (
     <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[80] modal-overlay p-4">
-      <div
-        className="rounded-lg shadow-xl w-full max-w-md z-[90] modal-surface min-w-[450px]"
-        role="dialog"
-      >
+      <div className="w-full z-[90] modal-surface" role="dialog">
         <div className="p-6">
           <div className="lp-modal-header">
-            <h2>{title}</h2>
+            <h3>{title}</h3>
             <div className="flex items-center gap-2">
               <button
                 onClick={onCancel}

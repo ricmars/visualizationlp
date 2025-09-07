@@ -304,7 +304,7 @@ export default function Home() {
         </div>
       )}
       <div className="flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold">Applications</h1>
+        <h1>Applications</h1>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="interactive-button text-black hover:opacity-90"

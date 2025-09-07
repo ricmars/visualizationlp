@@ -622,9 +622,9 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-50 modal-surface"
+          className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-50 modal-surface"
         >
-          <div className="space-y-4 p-6">
+          <div className="space-y-4 p-4">
             <div className="flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700">
               <h3>Edit Field</h3>
               <div className="flex items-center gap-2">

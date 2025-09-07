@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { Field } from "../../../types";
 import { DB_TABLES } from "../../../types/database";
+import StandardModal from "../../../components/StandardModal";
 
 type ObjectRecord = {
   id: number;
@@ -14,18 +15,18 @@ type ObjectRecord = {
 
 type EditRecordModalProps = {
   isOpen: boolean;
-  onClose: () => void;
+  onCloseAction: () => void;
   fields: Field[];
   record: ObjectRecord;
-  onSave: (data: Record<string, any>) => void;
+  onSaveAction: (data: Record<string, any>) => void;
 };
 
 export default function EditRecordModal({
   isOpen,
-  onClose,
+  onCloseAction,
   fields,
   record,
-  onSave,
+  onSaveAction,
 }: EditRecordModalProps) {
   const [formData, setFormData] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState(false);
@@ -90,7 +91,7 @@ export default function EditRecordModal({
     setLoading(true);
 
     try {
-      await onSave(formData);
+      await onSaveAction(formData);
     } catch (error) {
       console.error("Error updating record:", error);
     } finally {
@@ -98,91 +99,50 @@ export default function EditRecordModal({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onClose();
-    }
-  };
-
-  if (!isOpen) return null;
+  const modalActions = (
+    <>
+      <button
+        type="button"
+        onClick={onCloseAction}
+        className="btn-secondary px-3"
+      >
+        Cancel
+      </button>
+      <button
+        type="submit"
+        disabled={loading}
+        className="interactive-button px-3"
+        form="edit-record-form"
+      >
+        {loading ? "Saving..." : "Save Changes"}
+      </button>
+    </>
+  );
 
   return (
-    <div
-      className="absolute inset-0 bg-black/50 backdrop-blur-sm z-[80] modal-overlay"
-      onClick={onClose}
+    <StandardModal
+      isOpen={isOpen}
+      onCloseAction={onCloseAction}
+      title="Edit Record"
+      actions={modalActions}
     >
-      <div
-        className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-full max-w-2xl max-h-[90vh] overflow-y-auto"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="edit-record-title"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={handleKeyDown}
-      >
-        <div className="bg-[rgb(14,10,42)] text-white rounded-lg shadow-xl border border-white/20">
-          <div className="flex items-center justify-between p-6 border-b border-white/20">
-            <h2 id="edit-record-title">Edit Record</h2>
-            <button
-              onClick={onClose}
-              className="text-white/60 hover:text-white transition-colors"
-              aria-label="Close modal"
-            >
-              <svg
-                className="w-6 h-6"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </button>
+      <form id="edit-record-form" onSubmit={handleSubmit}>
+        {fields.map((field) => (
+          <div key={field.id}>
+            <label className="block text-sm font-medium text-white/80 mb-2">
+              {field.label || field.name}
+              {field.required && <span className="text-red-400 ml-1">*</span>}
+            </label>
+            {renderFieldInput(
+              field,
+              formData[field.name] || "",
+              handleInputChange,
+              referenceOptions,
+            )}
           </div>
-
-          <form onSubmit={handleSubmit} className="p-6">
-            <div className="space-y-4">
-              {fields.map((field) => (
-                <div key={field.id}>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
-                    {field.label || field.name}
-                    {field.required && (
-                      <span className="text-red-400 ml-1">*</span>
-                    )}
-                  </label>
-                  {renderFieldInput(
-                    field,
-                    formData[field.name] || "",
-                    handleInputChange,
-                    referenceOptions,
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-white/20">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-white/80 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 disabled:bg-blue-600/50 text-white rounded transition-colors"
-              >
-                {loading ? "Saving..." : "Save Changes"}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+        ))}
+      </form>
+    </StandardModal>
   );
 }
 

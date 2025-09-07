@@ -6,6 +6,7 @@ import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickChatMessage";
 import type { ChatMode } from "../types";
+import ModalPortal from "./ModalPortal";
 
 // Global cache for objects to avoid refetching
 const objectsCache = new Map<
@@ -1268,135 +1269,131 @@ export default function ChatInterface({
           </div>
         </div>
       </div>
-      {isRecordModalOpen && (
-        <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[80] modal-overlay p-4">
-          <div
-            className="rounded-lg shadow-xl w-full max-w-md z-[90] bg-[rgb(14,10,42)] text-white min-w-[450px]"
-            role="dialog"
-          >
-            <div className="p-6">
-              <div className="lp-modal-header">
-                <h2 className="text-lg font-semibold text-white">
-                  Voice Input Settings
-                </h2>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={closeRecordModal}
-                    className="btn-secondary px-3"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => {
-                      try {
-                        localStorage.setItem("voice.lang", selectedLang);
-                        if (audioOutputDevice) {
-                          localStorage.setItem(
-                            "voice.audioOutputDeviceId",
-                            audioOutputDevice.deviceId,
-                          );
-                          setPreferredOutputDeviceId(
-                            audioOutputDevice.deviceId,
-                          );
-                        }
-                        localStorage.setItem("voice.configured", "true");
-                      } catch {}
-                      setHasVoiceConfig(true);
-                      closeRecordModal();
-                      startRecording();
-                    }}
-                    disabled={disableRecord || !recognition}
-                    className="interactive-button px-3 flex items-center gap-2"
-                  >
-                    {disableRecord && (
-                      <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                    )}
-                    {disableRecord ? "Recording…" : "Record"}
-                  </button>
-                </div>
+      <ModalPortal isOpen={isRecordModalOpen}>
+        <div
+          className="absolute inset-0 modal-backdrop z-[80] modal-overlay"
+          onClick={closeRecordModal}
+        />
+        <div
+          className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[90] w-full modal-surface"
+          role="dialog"
+        >
+          <div className="p-6">
+            <div className="lp-modal-header">
+              <h3>Voice Input Settings</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={closeRecordModal}
+                  className="btn-secondary px-3"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    try {
+                      localStorage.setItem("voice.lang", selectedLang);
+                      if (audioOutputDevice) {
+                        localStorage.setItem(
+                          "voice.audioOutputDeviceId",
+                          audioOutputDevice.deviceId,
+                        );
+                        setPreferredOutputDeviceId(audioOutputDevice.deviceId);
+                      }
+                      localStorage.setItem("voice.configured", "true");
+                    } catch {}
+                    setHasVoiceConfig(true);
+                    closeRecordModal();
+                    startRecording();
+                  }}
+                  disabled={disableRecord || !recognition}
+                  className="interactive-button px-3 flex items-center gap-2"
+                >
+                  {disableRecord && (
+                    <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
+                  )}
+                  {disableRecord ? "Recording…" : "Record"}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-4 mt-4">
+              <div>
+                <label className="block text-sm text-white mb-2">
+                  Language
+                </label>
+                <select
+                  className="lp-input w-full"
+                  value={selectedLang}
+                  onChange={(e) => setSelectedLang(e.target.value)}
+                >
+                  <option value="en-US">English (US)</option>
+                  <option value="en-GB">English (UK)</option>
+                  <option value="es-ES">Español (ES)</option>
+                  <option value="fr-FR">Français (FR)</option>
+                  <option value="de-DE">Deutsch (DE)</option>
+                  <option value="pt-BR">Português (BR)</option>
+                  <option value="it-IT">Italiano (IT)</option>
+                  <option value="ja-JP">日本語 (JP)</option>
+                  <option value="ko-KR">한국어 (KR)</option>
+                  <option value="zh-CN">中文 (简体)</option>
+                </select>
               </div>
 
-              <div className="space-y-4 mt-4">
-                <div>
-                  <label className="block text-sm text-white mb-2">
-                    Language
-                  </label>
-                  <select
-                    className="lp-input w-full"
-                    value={selectedLang}
-                    onChange={(e) => setSelectedLang(e.target.value)}
-                  >
-                    <option value="en-US">English (US)</option>
-                    <option value="en-GB">English (UK)</option>
-                    <option value="es-ES">Español (ES)</option>
-                    <option value="fr-FR">Français (FR)</option>
-                    <option value="de-DE">Deutsch (DE)</option>
-                    <option value="pt-BR">Português (BR)</option>
-                    <option value="it-IT">Italiano (IT)</option>
-                    <option value="ja-JP">日本語 (JP)</option>
-                    <option value="ko-KR">한국어 (KR)</option>
-                    <option value="zh-CN">中文 (简体)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-white mb-2">
-                    Audio Output Device
-                  </label>
-                  <select
-                    className="lp-input w-full"
-                    value={
-                      audioOutputDevice?.deviceId ||
-                      preferredOutputDeviceId ||
-                      ""
-                    }
-                    onChange={async (e) => {
-                      const selected = audioOutputDevices.find(
-                        (d) => d.deviceId === e.target.value,
-                      );
-                      setAudioOutputDevice(selected || null);
-                      setPreferredOutputDeviceId(selected?.deviceId || null);
-                      try {
-                        if (selected?.deviceId) {
-                          localStorage.setItem(
-                            "voice.audioOutputDeviceId",
-                            selected.deviceId,
-                          );
-                        }
-                      } catch {}
-                      if (
-                        selected &&
-                        audioRef.current &&
-                        (audioRef.current as any).setSinkId
-                      ) {
-                        try {
-                          await (audioRef.current as any).setSinkId(
-                            selected.deviceId,
-                          );
-                        } catch (err) {
-                          console.warn("Failed to set sinkId", err);
-                        }
+              <div>
+                <label className="block text-sm text-white mb-2">
+                  Audio Output Device
+                </label>
+                <select
+                  className="lp-input w-full"
+                  value={
+                    audioOutputDevice?.deviceId || preferredOutputDeviceId || ""
+                  }
+                  onChange={async (e) => {
+                    const selected = audioOutputDevices.find(
+                      (d) => d.deviceId === e.target.value,
+                    );
+                    setAudioOutputDevice(selected || null);
+                    setPreferredOutputDeviceId(selected?.deviceId || null);
+                    try {
+                      if (selected?.deviceId) {
+                        localStorage.setItem(
+                          "voice.audioOutputDeviceId",
+                          selected.deviceId,
+                        );
                       }
-                    }}
-                  >
-                    <option value="" disabled>
-                      {audioOutputDevices.length > 0
-                        ? "Choose device"
-                        : "No outputs found"}
+                    } catch {}
+                    if (
+                      selected &&
+                      audioRef.current &&
+                      (audioRef.current as any).setSinkId
+                    ) {
+                      try {
+                        await (audioRef.current as any).setSinkId(
+                          selected.deviceId,
+                        );
+                      } catch (err) {
+                        console.warn("Failed to set sinkId", err);
+                      }
+                    }
+                  }}
+                >
+                  <option value="" disabled>
+                    {audioOutputDevices.length > 0
+                      ? "Choose device"
+                      : "No outputs found"}
+                  </option>
+                  {audioOutputDevices.map((d) => (
+                    <option key={d.deviceId} value={d.deviceId}>
+                      {d.label || d.deviceId}
                     </option>
-                    {audioOutputDevices.map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.label || d.deviceId}
-                      </option>
-                    ))}
-                  </select>
-                  <audio ref={audioRef} className="hidden" />
-                </div>
+                  ))}
+                </select>
+                <audio ref={audioRef} className="hidden" />
               </div>
             </div>
           </div>
         </div>
-      )}
+      </ModalPortal>
 
       {/* Inline Object Selector Popup */}
       {isObjectSelectorOpen && (

@@ -89,11 +89,11 @@ const AddProcessModal: React.FC<AddProcessModalProps> = ({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md rounded-xl shadow-xl z-[90] modal-surface min-w-[450px]"
+            className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full z-[90] modal-surface"
             tabIndex={-1}
             role="dialog"
           >
-            <div className="space-y-4 p-6">
+            <div className="space-y-4 p-4">
               <div className="lp-modal-header">
                 <h3>Add Process</h3>
                 <div className="flex items-center gap-2">
