@@ -8,7 +8,7 @@ import {
   DroppableProvided,
   DraggableProvided,
 } from "@hello-pangea/dnd";
-import { Field } from "../types";
+import { Field } from "../types/types";
 import FieldRow from "./FieldRow";
 
 interface FieldsListProps {

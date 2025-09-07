@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { channel } from "../../../types";
+import type { channel } from "../../../types/types";
 
 type GenerateModel = () => Promise<any>;
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { Stage } from "../../../types";
+import { Stage } from "../../../types/types";
 
 type Params = {
   stages: Stage[];

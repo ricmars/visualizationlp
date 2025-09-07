@@ -2,7 +2,7 @@
 
 import React, { useMemo, useRef, useState } from "react";
 import { motion } from "framer-motion";
-import { Field } from "../../../types";
+import { Field } from "../../../types/types";
 import AddFieldModal from "@/app/components/AddFieldModal";
 import FieldsList from "@/app/components/FieldsList";
 import ConfirmDeleteModal from "@/app/components/ConfirmDeleteModal";

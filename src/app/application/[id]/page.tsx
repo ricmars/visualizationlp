@@ -17,7 +17,7 @@ import ChatPanelContent from "./components/ChatPanelContent";
 import usePersistentTab from "./hooks/usePersistentTab";
 import { useFreeFormSelection } from "./hooks/useFreeFormSelection";
 import usePreviewIframe from "./hooks/usePreviewIframe";
-import type { channel } from "../../types";
+import type { channel } from "../../types/types";
 import useStepsUpdate from "./hooks/useStepsUpdate";
 import useFieldMutations from "./hooks/useFieldMutations";
 import useWorkflowMutations from "./hooks/useWorkflowMutations";
@@ -37,7 +37,7 @@ import {
   Process,
   Step,
   WorkflowModel,
-} from "../../types";
+} from "../../types/types";
 // import { StepType } from "../../utils/stepTypes";
 import { registerRuleTypes } from "../../types/ruleTypeDefinitions";
 // validateModelIds handled inside useWorkflowData

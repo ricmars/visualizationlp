@@ -5,7 +5,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickChatMessage";
-import type { ChatMode } from "../types";
+import type { ChatMode } from "../types/types";
 import ModalPortal from "./ModalPortal";
 
 // Global cache for objects to avoid refetching

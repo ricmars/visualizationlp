@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChatMessage } from "../../../components/ChatInterface";
 import ChatPanelContent from "./ChatPanelContent";
-import type { ChatMode } from "../../../types";
+import type { ChatMode } from "../../../types/types";
 
 interface FloatingChatModalProps {
   isOpen: boolean;

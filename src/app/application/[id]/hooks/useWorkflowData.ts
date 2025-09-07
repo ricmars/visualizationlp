@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Field } from "../../../types";
+import { Field } from "../../../types/types";
 import { DB_COLUMNS, DB_TABLES } from "../../../types/database";
 import { fetchWithBaseUrl } from "../../../lib/fetchWithBaseUrl";
 import { validateModelIds } from "../utils/validateModelIds";

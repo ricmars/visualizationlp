@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense } from "react";
-import { Stage, Field } from "../types";
+import { Stage, Field } from "../types/types";
 
 // Separate the props interface so it can be used by both components
 interface WorkflowLifecycleViewProps {

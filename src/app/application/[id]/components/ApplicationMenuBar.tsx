@@ -18,7 +18,9 @@ type ApplicationMenuBarProps = {
   activeWorkflowId?: number;
   onChangeWorkflowAction?: (id: number) => void;
   onSelectDataObjectAction?: (id: number) => void;
-  onSelectChannelAction?: (channel: import("../../../types").channel) => void;
+  onSelectChannelAction?: (
+    channel: import("../../../types/types").channel,
+  ) => void;
   isPreviewMode: boolean;
   onTogglePreviewAction: () => void;
   onOpenCreateWorkflowAction?: () => void;

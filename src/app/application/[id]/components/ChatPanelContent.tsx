@@ -3,7 +3,7 @@
 import React from "react";
 import ChatPanelHeader from "./ChatPanelHeader";
 import ChatInterface, { ChatMessage } from "../../../components/ChatInterface";
-import type { ChatMode } from "../../../types";
+import type { ChatMode } from "../../../types/types";
 
 type ChatPanelContentProps = {
   messages: ChatMessage[];

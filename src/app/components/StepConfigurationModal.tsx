@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { Field, FieldReference } from "../types";
+import { Field, FieldReference } from "../types/types";
 import AddFieldModal from "./AddFieldModal";
 import EditFieldModal from "./EditFieldModal";
 import StepForm from "./StepForm";

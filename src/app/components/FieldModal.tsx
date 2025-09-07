@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Tooltip from "./Tooltip";
-import { Field } from "../types";
+import { Field } from "../types/types";
 import { getAllFieldTypes, getFieldTypeDisplayName } from "../utils/fieldTypes";
 import FieldRow from "./FieldRow";
 import { DB_TABLES } from "../types/database";

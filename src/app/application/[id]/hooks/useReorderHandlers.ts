@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Stage } from "../../../types";
+import { Stage } from "../../../types/types";
 
 type UseReorderHandlersArgs = {
   stages: Stage[];

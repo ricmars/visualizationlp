@@ -1,4 +1,4 @@
-import type { ChatMode } from "../types";
+import type { ChatMode } from "../types/types";
 
 export type ChatRole = "system" | "user" | "assistant";
 export type LLMProvider = "openai";

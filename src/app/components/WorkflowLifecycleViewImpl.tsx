@@ -9,7 +9,7 @@ import React, {
 } from "react";
 import { createRoot } from "react-dom/client";
 
-import { Stage, Field } from "../types";
+import { Stage, Field } from "../types/types";
 import type { StepType } from "../utils/stepTypes";
 import { getStepTypeData } from "../utils/stepTypes";
 import StepConfigurationModal from "./StepConfigurationModal";

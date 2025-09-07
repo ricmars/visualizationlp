@@ -5,7 +5,7 @@ import React, {
   MutableRefObject,
   useEffect,
 } from "react";
-import { Stage, Field, FieldReference } from "../types";
+import { Stage, Field, FieldReference } from "../types/types";
 import AddFieldModal from "./AddFieldModal";
 import StepForm from "./StepForm";
 import { motion } from "framer-motion";

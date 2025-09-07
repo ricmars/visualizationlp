@@ -4,7 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { FaGripVertical, FaTrash, FaPencilAlt } from "react-icons/fa";
 import { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
-import { Field } from "../types";
+import { Field } from "../types/types";
 import { getFieldTypeDisplayName } from "../utils/fieldTypes";
 import { getObjectName, isReferenceFieldType } from "../utils/objectUtils";
 

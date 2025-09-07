@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Service } from "../../../services/service";
 import processToolResponse from "../utils/processToolResponse";
-import { Stage, ChatMode } from "../../../types";
+import { Stage, ChatMode } from "../../../types/types";
 import { ChatMessage } from "../../../components/ChatInterface";
 
 type MinimalCase = {

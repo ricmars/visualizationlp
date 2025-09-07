@@ -19,7 +19,7 @@ import ModalPortal from "../../../components/ModalPortal";
 import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
 import StepConfigurationModal from "../../../components/StepConfigurationModal";
-import { Field, Stage } from "../../../types";
+import { Field, Stage } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 import { MODEL_UPDATED_EVENT } from "../utils/constants";
 

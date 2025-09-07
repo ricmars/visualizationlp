@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Field, Stage } from "../../../types";
+import { Field, Stage } from "../../../types/types";
 import { composeQuickChatMessage } from "../utils/composeQuickChatMessage";
 import useQuickSelectionSummary from "./useQuickSelectionSummary";
 import useChatMessaging from "./useChatMessaging";

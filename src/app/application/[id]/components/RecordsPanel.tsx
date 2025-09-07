@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Field } from "../../../types";
+import { Field } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 import { FaPlus, FaPencilAlt, FaTrash } from "react-icons/fa";
 import ModalPortal from "../../../components/ModalPortal";

@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import { Case } from "../types";
+import { Case } from "../types/types";
 
 interface WorkflowStore {
   cases: Case[] | undefined;

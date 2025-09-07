@@ -1,4 +1,4 @@
-import { Stage, Process, Step } from "../../../types";
+import { Stage, Process, Step } from "../../../types/types";
 
 export function validateModelIds(stages: Partial<Stage>[]): Stage[] {
   return stages.map((stage, stageIndex) => {

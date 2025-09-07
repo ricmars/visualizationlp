@@ -1,6 +1,6 @@
-import { FieldType } from "./utils/fieldTypes";
-import type { StepType } from "./utils/stepTypes";
-import { CaseRecord, FieldRecord } from "./types/dynamicTypes";
+import { FieldType } from "../utils/fieldTypes";
+import type { StepType } from "../utils/stepTypes";
+import { CaseRecord, FieldRecord } from "./dynamicTypes";
 
 /* Interface definition */
 export type fieldType = FieldType;

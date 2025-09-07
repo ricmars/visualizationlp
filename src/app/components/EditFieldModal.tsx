@@ -1,6 +1,6 @@
 import React from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Field } from "../types";
+import { Field } from "../types/types";
 import FieldModal from "./FieldModal";
 
 interface EditFieldModalProps {

@@ -13,6 +13,9 @@ const montserrat = Montserrat({
 export const metadata: Metadata = {
   title: "Case Designer",
   description: "Case Designer",
+  icons: {
+    icon: "/favicon-32x32.png",
+  },
 };
 
 interface RootLayoutProps {

@@ -4,7 +4,7 @@ import { useState } from "react";
 import dynamic from "next/dynamic";
 import ChangesPanel from "../../../components/ChangesPanel";
 import RulesCheckoutPanel from "./RulesCheckoutPanel";
-import { Stage, Field } from "../../../types";
+import { Stage, Field } from "../../../types/types";
 import ModalPortal from "../../../components/ModalPortal";
 import ConfirmDeleteModal from "../../../components/ConfirmDeleteModal";
 

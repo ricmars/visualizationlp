@@ -1,5 +1,5 @@
 import React from "react";
-import { Field } from "../types";
+import { Field } from "../types/types";
 import ModalPortal from "./ModalPortal";
 import FieldModal from "./FieldModal";
 

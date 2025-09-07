@@ -1,10 +1,10 @@
-import { DynamicDatabaseService } from "../lib/dynamicDatabaseService";
-import { ruleTypeRegistry } from "../types/ruleTypeRegistry";
-import { registerRuleTypes } from "../types/ruleTypeDefinitions";
-import { pool } from "../lib/db";
+import { DynamicDatabaseService } from "../dynamicDatabaseService";
+import { ruleTypeRegistry } from "../../types/ruleTypeRegistry";
+import { registerRuleTypes } from "../../types/ruleTypeDefinitions";
+import { pool } from "../db";
 
 // Mock the database pool for testing
-jest.mock("../lib/db", () => ({
+jest.mock("../db", () => ({
   pool: {
     query: jest.fn(),
     connect: jest.fn(),

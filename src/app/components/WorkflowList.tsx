@@ -1,4 +1,4 @@
-import { Case } from "@/app/types";
+import { Case } from "@/app/types/types";
 import { FaTrash } from "react-icons/fa";
 
 interface WorkflowListProps {

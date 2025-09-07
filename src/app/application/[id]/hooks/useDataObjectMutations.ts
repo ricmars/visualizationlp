@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Field } from "../../../types";
+import { Field } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 
 type MinimalCase = {

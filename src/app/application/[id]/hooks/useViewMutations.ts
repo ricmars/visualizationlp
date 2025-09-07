@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
-import { Field, Process, Stage, Step } from "../../../types";
+import { Field, Process, Stage, Step } from "../../../types/types";
 import { DB_COLUMNS, DB_TABLES } from "../../../types/database";
 import { fetchWithBaseUrl } from "../../../lib/fetchWithBaseUrl";
 import {
