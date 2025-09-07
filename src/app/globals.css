@@ -251,6 +251,96 @@ a[disabled] {
     line-height: 1.2;
   }
 
+  /* Chat toolbar button style */
+  .chat-toolbar-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 25px;
+    color: white;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    transition: all 200ms ease-in-out;
+    cursor: pointer;
+  }
+  .chat-toolbar-btn:hover {
+    color: #d1d5db; /* gray-300 */
+  }
+  .chat-toolbar-btn:focus {
+    color: #d1d5db; /* gray-300 */
+    outline: none;
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.1); /* blue-500 with offset */
+  }
+  .chat-toolbar-btn:active {
+    color: #9ca3af; /* gray-400 */
+  }
+  .chat-toolbar-btn:disabled {
+    color: #6b7280; /* gray-500 */
+    cursor: not-allowed;
+  }
+
+  /* Chat toolbar button variant for stop/abort actions */
+  .chat-toolbar-btn-stop {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 25px;
+    color: #f87171; /* red-400 */
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    transition: all 200ms ease-in-out;
+    cursor: pointer;
+  }
+  .chat-toolbar-btn-stop:hover {
+    color: #fca5a5; /* red-300 */
+  }
+  .chat-toolbar-btn-stop:focus {
+    color: #fca5a5; /* red-300 */
+    outline: none;
+    box-shadow: 0 0 0 2px #ef4444, 0 0 0 4px rgba(239, 68, 68, 0.1); /* red-500 with offset */
+  }
+  .chat-toolbar-btn-stop:active {
+    color: #f87171; /* red-500 */
+  }
+  .chat-toolbar-btn-stop:disabled {
+    color: #6b7280; /* gray-500 */
+    cursor: not-allowed;
+  }
+
+  /* Chat toolbar button variant for mode selector */
+  .chat-toolbar-btn-mode {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 60px;
+    height: 25px;
+    color: white;
+    background: transparent;
+    border: none;
+    border-radius: 4px;
+    transition: all 200ms ease-in-out;
+    cursor: pointer;
+  }
+  .chat-toolbar-btn-mode:hover {
+    color: #d1d5db; /* gray-300 */
+  }
+  .chat-toolbar-btn-mode:focus {
+    color: #d1d5db; /* gray-300 */
+    outline: none;
+    box-shadow: 0 0 0 2px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.1); /* blue-500 with offset */
+  }
+  .chat-toolbar-btn-mode:active {
+    color: #9ca3af; /* gray-400 */
+  }
+  .chat-toolbar-btn-mode:disabled {
+    color: #6b7280; /* gray-500 */
+    cursor: not-allowed;
+  }
+
   /* Consistent modal/overlay header with bottom border */
   .lp-modal-header {
     @apply flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700;

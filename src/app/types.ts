@@ -172,6 +172,9 @@ export interface Application {
 // Channel type for live preview selection
 export type channel = "WorkPortal" | "CSRPortal" | "SelfService";
 
+// Chat mode type for agent/ask functionality
+export type ChatMode = "agent" | "ask";
+
 export interface Checkpoint {
   id: string; // UUID for database-backed checkpoints
   description: string;

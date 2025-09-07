@@ -143,7 +143,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, systemContext, history } = await request.json();
+    const { prompt, systemContext, history, mode } = await request.json();
     console.log("Received request with prompt length:", prompt.length);
     console.log("Prompt preview:", prompt.substring(0, 100) + "...");
     console.log("System context length:", systemContext?.length || 0);
@@ -193,9 +193,34 @@ export async function POST(request: Request) {
       databaseTools.map((t) => t.name),
     );
 
-    // Always include all tools, even when working with an existing workflow.
-    // Users may initiate creation of a new workflow from within an existing case context.
-    const filteredTools = databaseTools;
+    // Filter tools based on mode
+    let filteredTools = databaseTools;
+    if (mode === "ask") {
+      // In Ask mode, only allow read-only tools (list/get operations)
+      const readOnlyToolNames = [
+        "getApplication",
+        "getObject",
+        "listFields",
+        "listViews",
+        "listObjects",
+        "listSystemsOfRecord",
+        "listObjectRecords",
+      ];
+      filteredTools = databaseTools.filter((tool) =>
+        readOnlyToolNames.includes(tool.name),
+      );
+      console.log(
+        "Ask mode: filtered to read-only tools:",
+        filteredTools.map((t) => t.name),
+      );
+    } else {
+      // Agents mode: include all tools
+      filteredTools = databaseTools;
+      console.log(
+        "Agents mode: using all tools:",
+        filteredTools.map((t) => t.name),
+      );
+    }
 
     // Rely on tool descriptions and system guidance (no heuristic gating)
 
@@ -213,11 +238,18 @@ export async function POST(request: Request) {
     const applicationContextLine = currentApplicationId
       ? `\n\nIMPORTANT: You are working within application ID ${currentApplicationId}. When creating new cases, you MUST use applicationid=${currentApplicationId}. Do NOT use any other application ID.`
       : "";
+
+    // Add mode-specific instructions
+    const modeInstructions =
+      mode === "ask"
+        ? `\n\nASK MODE: You are in read-only mode. You can only use tools to list and retrieve information. You cannot create, update, save, or delete anything. Focus on providing helpful information and answering questions about the current state of the application.`
+        : "";
+
     const enhancedSystemPrompt = `${systemCore}
 
 Use ONLY the provided tools. Tool descriptions are authoritative. Destructive tools must be called ONLY when the user is explicit; if unsure, ask for confirmation.
 ${getToolsContext(filteredTools)}
-${contextLine}${applicationContextLine}
+${contextLine}${applicationContextLine}${modeInstructions}
 
 Bulk operations policy:
 - When the request implies updating or deleting ALL items (e.g., "all fields", "every view"), first call list tools to get the full set and its count.

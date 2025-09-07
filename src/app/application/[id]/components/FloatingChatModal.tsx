@@ -3,12 +3,13 @@
 import { useState } from "react";
 import { ChatMessage } from "../../../components/ChatInterface";
 import ChatPanelContent from "./ChatPanelContent";
+import type { ChatMode } from "../../../types";
 
 interface FloatingChatModalProps {
   isOpen: boolean;
   onClose: () => void;
   messages: ChatMessage[];
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, mode?: ChatMode) => void;
   onAbort: () => void;
   isProcessing: boolean;
   objectid: number;

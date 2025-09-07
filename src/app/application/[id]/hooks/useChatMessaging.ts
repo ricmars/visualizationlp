@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 import { Service } from "../../../services/service";
 import processToolResponse from "../utils/processToolResponse";
-import { Stage } from "../../../types";
+import { Stage, ChatMode } from "../../../types";
 import { ChatMessage } from "../../../components/ChatInterface";
 
 type MinimalCase = {
@@ -47,7 +47,7 @@ export default function useChatMessaging({
   const router = useRouter();
   const searchParams = useSearchParams();
   const handleSendMessage = useCallback(
-    async (message: string) => {
+    async (message: string, mode: ChatMode = "agent") => {
       let aiMessageId: string;
 
       try {
@@ -104,6 +104,7 @@ export default function useChatMessaging({
             : "",
           history,
           abortRef.current.signal,
+          mode,
         );
 
         if (!response.ok) {

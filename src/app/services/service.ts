@@ -1,3 +1,5 @@
+import type { ChatMode } from "../types";
+
 export type ChatRole = "system" | "user" | "assistant";
 export type LLMProvider = "openai";
 
@@ -27,6 +29,7 @@ export class Service {
     systemContext: string,
     history?: ChatMessage[],
     signal?: AbortSignal,
+    mode?: ChatMode,
   ) {
     console.log(`Generating response with provider: ${this.currentProvider}`);
     return await this.generateOpenAIResponse(
@@ -34,6 +37,7 @@ export class Service {
       systemContext,
       history,
       signal,
+      mode,
     );
   }
 
@@ -74,6 +78,7 @@ export class Service {
     systemContext: string,
     history?: ChatMessage[],
     signal?: AbortSignal,
+    mode?: ChatMode,
   ) {
     console.log("Calling OpenAI API...");
     const response = await fetch("/api/openai", {
@@ -85,6 +90,7 @@ export class Service {
         prompt,
         systemContext,
         history,
+        mode,
       }),
       signal,
     });

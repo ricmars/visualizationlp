@@ -5,6 +5,7 @@ import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkBreaks from "remark-breaks";
 import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickChatMessage";
+import type { ChatMode } from "../types";
 
 // Global cache for objects to avoid refetching
 const objectsCache = new Map<
@@ -247,7 +248,7 @@ interface CheckpointStatus {
 }
 
 interface ChatInterfaceProps {
-  onSendMessage: (message: string) => void;
+  onSendMessage: (message: string, mode?: ChatMode) => void;
   onAbort?: () => void;
   messages: ChatMessage[];
   isLoading: boolean;
@@ -404,6 +405,9 @@ export default function ChatInterface({
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [filterText, setFilterText] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
+  const [chatMode, setChatMode] = useState<ChatMode>("agent");
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
+  const modeDropdownRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -439,16 +443,22 @@ export default function ChatInterface({
       ) {
         setIsObjectSelectorOpen(false);
       }
+      if (
+        modeDropdownRef.current &&
+        !modeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsModeDropdownOpen(false);
+      }
     };
 
-    if (isObjectSelectorOpen) {
+    if (isObjectSelectorOpen || isModeDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isObjectSelectorOpen]);
+  }, [isObjectSelectorOpen, isModeDropdownOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -684,7 +694,8 @@ export default function ChatInterface({
           });
         }
       } catch {}
-      onSendMessage(outgoing);
+      // Pass the chat mode along with the message
+      onSendMessage(outgoing, chatMode);
       setMessage("");
       // Reset textarea height after sending
       if (textareaRef.current) {
@@ -1108,26 +1119,65 @@ export default function ChatInterface({
           {/* Bottom buttons row */}
           <div className="flex items-center justify-between px-4 pb-4">
             <div className="flex items-center gap-3">
-              {/* Emoji/Options button */}
-              <button
-                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
-                disabled={isLoading || isProcessing}
-                title="Add emoji or options"
-              >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
+              {/* Mode selector dropdown */}
+              <div className="relative" ref={modeDropdownRef}>
+                <button
+                  className="chat-toolbar-btn-mode"
+                  disabled={isLoading || isProcessing}
+                  onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
+                  title={`Current mode: ${
+                    chatMode === "agent" ? "Agent" : "Ask"
+                  }`}
                 >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-                  />
-                </svg>
-              </button>
+                  <span className="text-xs font-medium">
+                    {chatMode === "agent" ? "Agent" : "Ask"}
+                  </span>
+                  <svg
+                    className="w-3 h-3 ml-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+
+                {isModeDropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-1 bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl min-w-24 z-[100]">
+                    <button
+                      onClick={() => {
+                        setChatMode("agent");
+                        setIsModeDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs transition-colors ${
+                        chatMode === "agent"
+                          ? "bg-gray-700 text-white"
+                          : "text-white hover:bg-gray-700"
+                      }`}
+                    >
+                      Agent
+                    </button>
+                    <button
+                      onClick={() => {
+                        setChatMode("ask");
+                        setIsModeDropdownOpen(false);
+                      }}
+                      className={`w-full px-3 py-2 text-left text-xs transition-colors ${
+                        chatMode === "ask"
+                          ? "bg-gray-700 text-white"
+                          : "text-white hover:bg-gray-700"
+                      }`}
+                    >
+                      Ask
+                    </button>
+                  </div>
+                )}
+              </div>
 
               {/* Microphone button */}
               <button
@@ -1146,7 +1196,7 @@ export default function ChatInterface({
                   }
                 }}
                 disabled={isLoading || isProcessing || !recognition}
-                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                className="chat-toolbar-btn"
                 title={
                   recognition
                     ? isRecording
@@ -1164,7 +1214,7 @@ export default function ChatInterface({
 
               {/* Attachment button */}
               <button
-                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                className="chat-toolbar-btn"
                 disabled={isLoading || isProcessing}
                 title="Attach file"
               >
@@ -1188,7 +1238,7 @@ export default function ChatInterface({
             {isProcessing ? (
               <button
                 onClick={() => onAbort?.()}
-                className="flex items-center justify-center w-8 h-8 text-red-400 hover:text-red-300 focus:text-red-300 active:text-red-500 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                className="chat-toolbar-btn-stop"
                 title="Stop"
               >
                 <FaStop className="w-4 h-4" />
@@ -1197,7 +1247,7 @@ export default function ChatInterface({
               <button
                 onClick={handleSendMessage}
                 disabled={isLoading || !message.trim()}
-                className="flex items-center justify-center w-8 h-8 text-white hover:text-gray-300 focus:text-gray-300 active:text-gray-400 disabled:text-gray-600 disabled:cursor-not-allowed transition-all duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-[rgb(14,10,42)] rounded"
+                className="chat-toolbar-btn"
                 title="Send message"
               >
                 {isLoading ? (

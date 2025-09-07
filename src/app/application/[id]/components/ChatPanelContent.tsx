@@ -3,10 +3,11 @@
 import React from "react";
 import ChatPanelHeader from "./ChatPanelHeader";
 import ChatInterface, { ChatMessage } from "../../../components/ChatInterface";
+import type { ChatMode } from "../../../types";
 
 type ChatPanelContentProps = {
   messages: ChatMessage[];
-  onSendMessage: (message: string) => Promise<void> | void;
+  onSendMessage: (message: string, mode?: ChatMode) => Promise<void> | void;
   onAbort: () => void;
   isProcessing: boolean;
   objectid: number;

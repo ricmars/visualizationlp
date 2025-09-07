@@ -125,7 +125,10 @@ describe("ChatInterface", () => {
     // Press Enter
     fireEvent.keyDown(textarea, { key: "Enter" });
 
-    // Check that onSendMessage was called
-    expect(mockProps.onSendMessage).toHaveBeenCalledWith("Test message");
+    // Check that onSendMessage was called with message and mode
+    expect(mockProps.onSendMessage).toHaveBeenCalledWith(
+      "Test message",
+      "agent",
+    );
   });
 });
