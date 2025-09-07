@@ -7,6 +7,8 @@ import remarkBreaks from "remark-breaks";
 import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickChatMessage";
 import type { ChatMode } from "../types/types";
 import StandardModal from "./StandardModal";
+import { useFileAttachment, AttachedFile } from "../hooks/useFileAttachment";
+import { FileAttachmentUI } from "./FileAttachmentUI";
 
 // Global cache for objects to avoid refetching
 const objectsCache = new Map<
@@ -248,15 +250,6 @@ interface CheckpointStatus {
   };
 }
 
-interface AttachedFile {
-  id: string;
-  file: File;
-  name: string;
-  content: string;
-  type: "text" | "image" | "pdf";
-  base64?: string;
-}
-
 interface ChatInterfaceProps {
   onSendMessage: (
     message: string,
@@ -422,8 +415,16 @@ export default function ChatInterface({
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
-  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const {
+    attachedFiles,
+    fileInputRef,
+    handleFileSelect,
+    handleRemoveFile,
+    handleRemoveAllFiles,
+    handleAttachFile,
+    truncateFileName,
+    clearFiles,
+  } = useFileAttachment();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -680,113 +681,6 @@ export default function ChatInterface({
     }
   };
 
-  const getFileType = (
-    fileName: string,
-    mimeType: string,
-  ): "text" | "image" | "pdf" => {
-    const extension = fileName.toLowerCase().split(".").pop();
-
-    if (extension === "pdf" || mimeType === "application/pdf") {
-      return "pdf";
-    }
-
-    if (
-      ["png", "jpg", "jpeg", "gif", "bmp", "webp", "svg"].includes(
-        extension || "",
-      ) ||
-      mimeType.startsWith("image/")
-    ) {
-      return "image";
-    }
-
-    return "text";
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    Array.from(files).forEach((file) => {
-      const fileType = getFileType(file.name, file.type);
-      const fileId = `${file.name}-${Date.now()}-${Math.random()}`;
-
-      if (fileType === "image") {
-        // Handle images - convert to base64 for now
-        // TODO: Consider implementing image URL upload for better efficiency
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const base64 = e.target?.result as string;
-          const newFile: AttachedFile = {
-            id: fileId,
-            file,
-            name: file.name,
-            content: `[Image: ${file.name}]`,
-            type: "image",
-            base64,
-          };
-          setAttachedFiles((prev) => [...prev, newFile]);
-        };
-        reader.readAsDataURL(file);
-      } else if (fileType === "pdf") {
-        // For PDFs, we'll upload directly to OpenAI Files API
-        const newFile: AttachedFile = {
-          id: fileId,
-          file,
-          name: file.name,
-          content: `[PDF: ${file.name}]`,
-          type: "pdf",
-        };
-        setAttachedFiles((prev) => [...prev, newFile]);
-      } else {
-        // Handle text files
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const content = e.target?.result as string;
-          const newFile: AttachedFile = {
-            id: fileId,
-            file,
-            name: file.name,
-            content,
-            type: "text",
-          };
-          setAttachedFiles((prev) => [...prev, newFile]);
-        };
-        reader.readAsText(file);
-      }
-    });
-  };
-
-  const handleRemoveFile = (fileId: string) => {
-    setAttachedFiles((prev) => prev.filter((file) => file.id !== fileId));
-  };
-
-  const handleRemoveAllFiles = () => {
-    setAttachedFiles([]);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleAttachFile = () => {
-    fileInputRef.current?.click();
-  };
-
-  const truncateFileName = (
-    fileName: string,
-    maxLength: number = 10,
-  ): string => {
-    if (fileName.length <= maxLength) return fileName;
-    const extension = fileName.split(".").pop();
-    const nameWithoutExt = fileName.substring(0, fileName.lastIndexOf("."));
-    const truncatedName = nameWithoutExt.substring(
-      0,
-      maxLength - (extension ? extension.length + 1 : 0),
-    );
-    return extension
-      ? `${truncatedName}...${extension}`
-      : `${truncatedName}...`;
-  };
-
   const handleSendMessage = () => {
     const raw = message.trim();
     if (raw || attachedFiles.length > 0) {
@@ -842,10 +736,7 @@ export default function ChatInterface({
         attachedFiles.length > 0 ? attachedFiles : undefined,
       );
       setMessage("");
-      setAttachedFiles([]);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+      clearFiles();
       // Reset textarea height after sending
       if (textareaRef.current) {
         textareaRef.current.style.height = "auto";
@@ -1245,98 +1136,18 @@ export default function ChatInterface({
       </div>
 
       {/* File attachment toolbar */}
-      {attachedFiles.length > 0 && (
-        <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] px-3 py-1.5 flex-shrink-0">
-          <div className="flex items-center justify-between mb-1">
-            <span className="text-xs text-gray-300">
-              Attached files ({attachedFiles.length})
-            </span>
-            <button
-              onClick={handleRemoveAllFiles}
-              className="text-xs text-gray-400 hover:text-white transition-colors"
-              title="Remove all files"
-            >
-              Clear all
-            </button>
-          </div>
-          <div className="space-y-1">
-            {attachedFiles.map((file) => (
-              <div key={file.id} className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  {file.type === "image" ? (
-                    <svg
-                      className="w-3 h-3 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                      />
-                    </svg>
-                  ) : file.type === "pdf" ? (
-                    <svg
-                      className="w-3 h-3 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
-                      />
-                    </svg>
-                  ) : (
-                    <svg
-                      className="w-3 h-3 text-gray-400"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                      />
-                    </svg>
-                  )}
-                  <span
-                    className="text-xs text-white truncate max-w-[180px]"
-                    title={file.name}
-                  >
-                    {truncateFileName(file.name, 15)}
-                  </span>
-                </div>
-                <button
-                  onClick={() => handleRemoveFile(file.id)}
-                  className="btn-secondary w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-600 transition-colors"
-                  title="Remove file"
-                >
-                  <svg
-                    className="w-3 h-3"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      <FileAttachmentUI
+        attachedFiles={attachedFiles}
+        onRemoveFile={handleRemoveFile}
+        onRemoveAllFiles={handleRemoveAllFiles}
+        onAttachFile={handleAttachFile}
+        truncateFileName={truncateFileName}
+        fileInputRef={fileInputRef}
+        onFileSelect={handleFileSelect}
+        disabled={isLoading || isProcessing}
+        showAttachButton={false}
+        className="w-full flex-shrink-0"
+      />
 
       {/* Message input */}
       <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg flex-shrink-0">
@@ -1352,15 +1163,6 @@ export default function ChatInterface({
               rows={3}
               className="w-full min-h-[72px] max-h-[200px] p-4 bg-transparent text-white placeholder-gray-400 text-sm leading-relaxed resize-none overflow-y-auto focus:outline-none transition-all duration-200 ease-in-out"
               disabled={isLoading || isProcessing}
-            />
-            {/* Hidden file input */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              onChange={handleFileSelect}
-              className="hidden"
-              multiple
-              accept=".txt,.md,.json,.js,.ts,.tsx,.jsx,.py,.java,.cpp,.c,.h,.hpp,.cs,.php,.rb,.go,.rs,.swift,.kt,.scala,.r,.sql,.xml,.yaml,.yml,.html,.css,.scss,.sass,.less,.pdf,.png,.jpg,.jpeg,.gif,.bmp,.webp,.svg"
             />
           </div>
 

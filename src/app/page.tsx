@@ -115,7 +115,11 @@ export default function Home() {
     refreshApplications();
   }, []);
 
-  const handleCreateWorkflow = async (name: string, description: string) => {
+  const handleCreateWorkflow = async (
+    name: string,
+    description: string,
+    attachedFiles?: any[],
+  ) => {
     try {
       setIsCreatingWorkflow(true);
       setError(null);
@@ -128,6 +132,10 @@ export default function Home() {
       const response = await Service.generateResponse(
         `Create a new application named "${name}" with description "${description}". First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
         buildDatabaseSystemPrompt(),
+        undefined, // history
+        undefined, // signal
+        undefined, // mode
+        attachedFiles, // attached files
       );
 
       if (!response.ok) {

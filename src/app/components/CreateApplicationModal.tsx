@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 import { LLMResponseDisplay } from "./LLMResponseDisplay";
 import StandardModal from "./StandardModal";
+import { useFileAttachment } from "../hooks/useFileAttachment";
+import { FileAttachmentUI } from "./FileAttachmentUI";
 
 interface CreateApplicationModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreate: (name: string, description: string) => Promise<void>;
+  onCreate: (
+    name: string,
+    description: string,
+    attachedFiles?: any[],
+  ) => Promise<void>;
   isCreating: boolean;
   creationProgress?: string;
   creationError?: string | null;
@@ -27,6 +33,17 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
 
+  const {
+    attachedFiles,
+    fileInputRef,
+    handleFileSelect,
+    handleRemoveFile,
+    handleRemoveAllFiles,
+    handleAttachFile,
+    truncateFileName,
+    clearFiles,
+  } = useFileAttachment();
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setError(null);
@@ -37,13 +54,14 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
     }
     try {
       const trimmedDescription = description.trim().slice(0, 2000);
-      await onCreate(name.trim(), trimmedDescription);
+      await onCreate(name.trim(), trimmedDescription, attachedFiles);
     } catch (_error) {
       setIsSubmitting(false);
       return;
     }
     setName("");
     setDescription("");
+    clearFiles();
   };
 
   const handleDescriptionChange = (
@@ -160,6 +178,24 @@ export const CreateApplicationModal: React.FC<CreateApplicationModalProps> = ({
             </div>
           </div>
         </div>
+
+        {/* File attachment section */}
+        <div>
+          <FileAttachmentUI
+            attachedFiles={attachedFiles}
+            onRemoveFile={handleRemoveFile}
+            onRemoveAllFiles={handleRemoveAllFiles}
+            onAttachFile={handleAttachFile}
+            truncateFileName={truncateFileName}
+            fileInputRef={fileInputRef}
+            onFileSelect={handleFileSelect}
+            disabled={isSubmitting || isCreating}
+            showAttachButton={true}
+            attachButtonText="Attach files"
+            className="mt-2"
+          />
+        </div>
+
         {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
       </div>
     </StandardModal>
