@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import StandardModal from "./StandardModal";
 
 type ConfirmDeleteModalProps = {
   isOpen: boolean;
@@ -31,8 +32,6 @@ export default function ConfirmDeleteModal({
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
-
   const handleConfirm = async () => {
     setIsDeleting(true);
     setError(null);
@@ -47,47 +46,47 @@ export default function ConfirmDeleteModal({
     }
   };
 
-  return (
-    <div className="absolute inset-0 modal-backdrop flex items-center justify-center z-[80] modal-overlay p-4">
-      <div className="w-full z-[90] modal-surface" role="dialog">
-        <div className="p-6">
-          <div className="lp-modal-header">
-            <h3>{title}</h3>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={onCancel}
-                disabled={isDeleting}
-                className="btn-secondary px-3"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirm}
-                disabled={isDeleting}
-                className="interactive-button px-3 flex items-center gap-2"
-              >
-                {isDeleting && (
-                  <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
-                )}
-                {confirmLabel}
-              </button>
-            </div>
-          </div>
-          <p className="p-2 text-sm text-gray-200">{message}</p>
+  const actions = [
+    {
+      id: "cancel",
+      label: "Cancel",
+      type: "secondary" as const,
+      onClick: onCancel,
+      disabled: isDeleting,
+    },
+    {
+      id: "confirm",
+      label: confirmLabel,
+      type: "primary" as const,
+      onClick: handleConfirm,
+      disabled: isDeleting,
+      loading: isDeleting,
+    },
+  ];
 
-          {progress && (
-            <div className="mt-4 text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-              {progress}
-            </div>
-          )}
-          {error && (
-            <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
-              {error}
-            </div>
-          )}
+  return (
+    <StandardModal
+      isOpen={isOpen}
+      onCloseAction={onCancel}
+      title={title}
+      actions={actions}
+      width="w-full"
+      zIndex="z-[90]"
+      closeOnOverlayClick={!isDeleting}
+      closeOnEscape={!isDeleting}
+    >
+      <p className="text-sm text-gray-200">{message}</p>
+
+      {progress && (
+        <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
+          {progress}
         </div>
-        <div className="px-6 pb-6" />
-      </div>
-    </div>
+      )}
+      {error && (
+        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
+          {error}
+        </div>
+      )}
+    </StandardModal>
   );
 }
