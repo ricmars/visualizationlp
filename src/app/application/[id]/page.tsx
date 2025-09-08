@@ -1412,7 +1412,11 @@ export default function WorkflowPage() {
   };
 
   return (
-    <div className={`flex h-app-screen app-panels ${isMobile ? "px-2" : ""}`}>
+    <div
+      className={`flex h-app-screen relative app-panels ${
+        isMobile ? "px-2" : ""
+      }`}
+    >
       {/* Left Panel - Hidden on mobile, shown on tablet/desktop */}
       {!isMobile && (
         <aside className="flex flex-col h-app-screen text-sm left-panel">
@@ -1479,7 +1483,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col relative h-full overflow-auto min-h-0 h-app-screen main-border-radius ${
+        className={`flex-1 flex flex-col h-app-screen main-border-radius ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
@@ -1573,7 +1577,7 @@ export default function WorkflowPage() {
         {/* Main Content Area */}
         <main
           id="main-content-area"
-          className="flex-1 overflow-auto relative h-full"
+          className="flex-1 overflow-auto h-full"
           data-main-content="true"
         >
           <>
@@ -1670,12 +1674,22 @@ export default function WorkflowPage() {
                     onAddProcess={(stageId, processName) =>
                       handleAddProcess(Number(stageId), processName)
                     }
-                    onAddStep={(stageId, processId, stepName, stepType) =>
+                    onAddStep={(
+                      stageId,
+                      processId,
+                      stepName,
+                      stepType,
+                      fields,
+                    ) =>
                       handleAddStep(
                         Number(stageId),
                         Number(processId),
                         stepName,
                         stepType as StepType,
+                        fields?.map((f) => ({
+                          id: f.id!,
+                          required: f.required,
+                        })),
                       )
                     }
                     onDeleteProcess={(stageId, processId) =>

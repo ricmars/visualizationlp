@@ -40,6 +40,7 @@ export default function useWorkflowMutations({
       processId: number,
       stepName: string,
       stepType: StepType,
+      initialFields?: Array<{ id: number; required: boolean }>,
     ) => {
       if (!selectedCase) return;
 
@@ -65,13 +66,53 @@ export default function useWorkflowMutations({
           }
           const { data: createdView } = await createViewResponse.json();
           createdViewId = createdView?.id;
+
+          // If initial fields were provided, persist them into the created view's model
+          if (
+            typeof createdViewId === "number" &&
+            Array.isArray(initialFields) &&
+            initialFields.length > 0
+          ) {
+            try {
+              const fieldsForView = initialFields.map((f) => ({
+                fieldId: f.id,
+                required: !!f.required,
+              }));
+              const updateViewResp = await fetch(
+                `/api/database?table=${DB_TABLES.VIEWS}&id=${createdViewId}`,
+                {
+                  method: "PUT",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    name: stepName,
+                    objectid: selectedCase.id,
+                    model: {
+                      fields: fieldsForView,
+                      layout: { type: "form", columns: 1 },
+                    },
+                  }),
+                },
+              );
+              if (!updateViewResp.ok) {
+                const t = await updateViewResp.text();
+                console.warn(
+                  `Failed to set initial fields on view ${createdViewId}: ${updateViewResp.status} ${t}`,
+                );
+              }
+            } catch (e) {
+              console.warn(
+                "Error updating created view with initial fields:",
+                e,
+              );
+            }
+          }
         }
 
         const newStep: Step = {
           id: Date.now(),
           name: stepName,
           type: stepType,
-          fields: [],
+          fields: initialFields || [],
           ...(createdViewId ? { viewId: createdViewId } : {}),
         } as any;
 

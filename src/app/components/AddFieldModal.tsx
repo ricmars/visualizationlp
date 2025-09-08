@@ -22,6 +22,7 @@ interface AddFieldModalProps {
   allowExistingFields?: boolean;
   workflowObjects?: Array<{ id: number; name: string }>;
   dataObjects?: Array<{ id: number; name: string }>;
+  usePortal?: boolean;
 }
 
 const AddFieldModal: React.FC<AddFieldModalProps> = ({
@@ -34,6 +35,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
   allowExistingFields = true,
   workflowObjects = [],
   dataObjects = [],
+  usePortal = true,
 }) => {
   return (
     <FieldModal
@@ -48,6 +50,7 @@ const AddFieldModal: React.FC<AddFieldModalProps> = ({
       onSubmitAdd={onAddField}
       workflowObjects={workflowObjects}
       dataObjects={dataObjects}
+      usePortal={usePortal}
     />
   );
 };

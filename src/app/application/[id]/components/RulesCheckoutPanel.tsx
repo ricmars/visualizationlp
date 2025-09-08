@@ -745,6 +745,7 @@ export default function RulesCheckoutPanel({
         <StepConfigurationModal
           isOpen={!!editingView}
           onClose={() => setEditingView(null)}
+          mode="edit"
           step={makePseudoStepFromView(editingView)}
           fields={fields}
           onFieldChange={onViewFieldChange}

@@ -26,6 +26,7 @@ type StandardModalProps = {
   description?: string; // For aria-describedby
   closeOnOverlayClick?: boolean; // Allow disabling overlay close
   closeOnEscape?: boolean; // Allow disabling escape close
+  usePortal?: boolean; // Render using ModalPortal (default) or inline
 };
 
 export default function StandardModal({
@@ -40,6 +41,7 @@ export default function StandardModal({
   description,
   closeOnOverlayClick = true,
   closeOnEscape = true,
+  usePortal = true,
 }: StandardModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
@@ -142,50 +144,55 @@ export default function StandardModal({
   );
   const primaryActions = actions.filter((action) => action.type === "primary");
 
-  return (
-    <ModalPortal isOpen={isOpen}>
-      <>
-        {/* Screen reader announcements */}
-        <div aria-live="polite" aria-atomic="true" className="sr-only">
-          {isOpen ? `Modal opened: ${title}` : ""}
-        </div>
+  const modalInner = (
+    <>
+      {/* Screen reader announcements */}
+      <div aria-live="polite" aria-atomic="true" className="sr-only">
+        {isOpen ? `Modal opened: ${title}` : ""}
+      </div>
 
+      <div
+        ref={modalRef}
+        className="absolute inset-0 modal-backdrop modal-overlay"
+        onClick={handleOverlayClick}
+        tabIndex={-1}
+      >
         <div
-          ref={modalRef}
-          className="absolute inset-0 modal-backdrop modal-overlay"
-          onClick={handleOverlayClick}
-          tabIndex={-1}
+          className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${zIndex}`}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="modal-title"
+          aria-describedby={description ? "modal-description" : undefined}
+          onClick={(e) => e.stopPropagation()}
+          onKeyDown={handleKeyDown}
         >
-          <div
-            className={`absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 ${zIndex}`}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-            aria-describedby={description ? "modal-description" : undefined}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleKeyDown}
-          >
-            <div className={`modal-surface ${width}`}>
-              <div className="lp-modal-header p-4">
-                <h3 id="modal-title">{title}</h3>
-                <div className="flex items-center gap-2">
-                  {/* Render secondary actions first */}
-                  {secondaryActions.map(renderAction)}
-                  {/* Then render primary actions */}
-                  {primaryActions.map(renderAction)}
-                </div>
+          <div className={`modal-surface ${width}`}>
+            <div className="lp-modal-header p-4">
+              <h3 id="modal-title">{title}</h3>
+              <div className="flex items-center gap-2">
+                {/* Render secondary actions first */}
+                {secondaryActions.map(renderAction)}
+                {/* Then render primary actions */}
+                {primaryActions.map(renderAction)}
               </div>
-              <div
-                id={description ? "modal-description" : undefined}
-                className="p-4 space-y-4"
-              >
-                {description && <p className="sr-only">{description}</p>}
-                {children}
-              </div>
+            </div>
+            <div
+              id={description ? "modal-description" : undefined}
+              className="p-4 space-y-4"
+            >
+              {description && <p className="sr-only">{description}</p>}
+              {children}
             </div>
           </div>
         </div>
-      </>
-    </ModalPortal>
+      </div>
+    </>
   );
+
+  if (usePortal) {
+    return <ModalPortal isOpen={isOpen}>{modalInner}</ModalPortal>;
+  }
+
+  // Inline rendering (no portal)
+  return modalInner;
 }
