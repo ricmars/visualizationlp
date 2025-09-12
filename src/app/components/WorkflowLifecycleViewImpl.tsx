@@ -382,14 +382,8 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
   );
 
   const containerStyle: React.CSSProperties = {
-    minHeight: 0,
-    height: "auto",
-    // Allow horizontal scrolling for wide lifecycle diagrams while
-    // preventing vertical scrollbars from appearing
-    overflowX: "auto",
-    overflowY: "hidden",
     background: "transparent",
-    position: "fixed",
+    position: "absolute",
   };
 
   // Memoize the stages mapping to prevent unnecessary recalculations
@@ -538,14 +532,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
 
     // Render the LifeCycle component inside shadow DOM
     if (shadowRootRef.current && reactRootRef.current) {
-      console.log("🔧 Rendering Pega LifeCycle in Shadow DOM");
-      // Ensure container does not block modals rendered outside
-      shadowContainer.style.border = "none";
-      shadowContainer.style.position = "relative";
-      shadowContainer.style.overflowX = "auto";
-      shadowContainer.style.overflowY = "hidden";
-      shadowContainer.style.width = "100%";
-
       let content = null;
       if (shadowRootRef.current) {
         // Render content

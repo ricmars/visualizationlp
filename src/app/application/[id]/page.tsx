@@ -1483,7 +1483,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col h-app-screen main-border-radius ${
+        className={`flex-1 flex flex-col h-app-screen overflow-auto main-border-radius ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
@@ -1626,7 +1626,7 @@ export default function WorkflowPage() {
                     Add Stage
                   </button>
                 </div>
-                <div className="flex-1 overflow-hidden">
+                <div className="flex-1 overflow-auto relative">
                   <WorkflowLifecycleView
                     stages={workflowModel.stages}
                     onStepSelect={(stageId, processId, stepId) =>
