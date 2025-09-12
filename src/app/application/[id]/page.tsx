@@ -1413,7 +1413,7 @@ export default function WorkflowPage() {
 
   return (
     <div
-      className={`flex h-app-screen relative app-panels ${
+      className={`flex h-app-screen relative overflow-hidden min-w-0 app-panels ${
         isMobile ? "px-2" : ""
       }`}
     >
