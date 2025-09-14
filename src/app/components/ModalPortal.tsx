@@ -39,7 +39,12 @@ export default function ModalPortal({
 
   // Create portal to main content area to keep modals within the correct bounds
   return createPortal(
-    <div data-modal-portal="true">{children}</div>,
+    <div
+      data-modal-portal="true"
+      style={{ position: "absolute", zIndex: 2, inset: 0 }}
+    >
+      {children}
+    </div>,
     container,
   );
 }

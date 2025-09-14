@@ -196,6 +196,11 @@ export class DynamicDatabaseService {
           );
         }
 
+        // Commit the checkpoint after successful operation
+        if (checkpointId) {
+          await checkpointManager.commitCheckpoint(checkpointId);
+        }
+
         return {
           success: true,
           data: result.rows[0] as T,
@@ -320,6 +325,11 @@ export class DynamicDatabaseService {
           );
         }
 
+        // Commit the checkpoint after successful operation
+        if (checkpointId) {
+          await checkpointManager.commitCheckpoint(checkpointId);
+        }
+
         return {
           success: true,
           data: result.rows[0] as T,
@@ -441,6 +451,11 @@ export class DynamicDatabaseService {
             currentData,
             effectiveobjectid,
           );
+        }
+
+        // Commit the checkpoint after successful operation
+        if (checkpointId) {
+          await checkpointManager.commitCheckpoint(checkpointId);
         }
 
         return {
@@ -682,18 +697,40 @@ export class DynamicDatabaseService {
       const description = `${ruleTypeId} ${operation}`;
       const userCommand = `Dynamic DB: ${operation} ${ruleTypeId}`;
 
-      // Try to extract case ID from data - don't default to avoid wrong application context
+      // Try to extract case ID or application ID from data
       const objectid = data?.objectid;
-      if (!objectid) {
-        console.warn("No case ID found in data for checkpoint creation");
-        return null; // Skip checkpoint creation if no case ID
+      const applicationid = data?.applicationid;
+
+      // For themes and applications, use applicationid; for other entities, use objectid
+      let checkpointObjectId: number;
+      let checkpointApplicationId: number | undefined;
+
+      if (ruleTypeId === "theme" || ruleTypeId === "application") {
+        if (!applicationid) {
+          console.warn(
+            `No application ID found in data for ${ruleTypeId} checkpoint creation`,
+          );
+          return null;
+        }
+        checkpointObjectId = 1; // Use default object ID for application-level entities
+        checkpointApplicationId = applicationid;
+      } else {
+        if (!objectid) {
+          console.warn(
+            `No case ID found in data for ${ruleTypeId} checkpoint creation`,
+          );
+          return null;
+        }
+        checkpointObjectId = objectid;
+        checkpointApplicationId = applicationid;
       }
 
       return await checkpointManager.beginCheckpoint(
-        objectid,
+        checkpointObjectId,
         description,
         userCommand,
         "API",
+        checkpointApplicationId,
       );
     } catch (error) {
       console.warn("Failed to create checkpoint:", error);

@@ -383,7 +383,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
 
   const containerStyle: React.CSSProperties = {
     background: "transparent",
-    position: "absolute",
+    position: "relative",
   };
 
   // Memoize the stages mapping to prevent unnecessary recalculations
@@ -802,9 +802,9 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
 
     // Cleanup: do not unmount to avoid dev StrictMode double-invoke clearing
     return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     mappedStages,
-    stages,
     onStepSelect,
     activeStage,
     activeProcess,
@@ -812,7 +812,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
     handleEditStep,
     handleDeleteStep,
     handleAddStep,
-    views,
     _readOnly,
     onDeleteProcess,
   ]);

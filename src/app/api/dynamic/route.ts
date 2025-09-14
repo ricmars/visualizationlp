@@ -129,8 +129,43 @@ export async function GET(request: NextRequest) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { ruleType, data } = body;
+    const { action, params, ruleType, data } = body;
 
+    // Handle tool actions (like getListOfThemes, getTheme, etc.)
+    if (action) {
+      const tools = createSharedTools(pool);
+      const tool = tools.find((t) => t.name === action);
+
+      if (!tool) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Tool '${action}' not found`,
+          },
+          { status: 400 },
+        );
+      }
+
+      try {
+        const result = await tool.execute(params || {});
+        return NextResponse.json({
+          success: true,
+          data: result,
+        });
+      } catch (error) {
+        console.error(`Tool '${action}' execution error:`, error);
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              error instanceof Error ? error.message : "Tool execution failed",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
+    // Handle regular CRUD operations
     if (!ruleType) {
       return NextResponse.json(
         {

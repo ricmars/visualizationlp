@@ -11,6 +11,11 @@ function normalizeMarkdown(original: string): string {
   content = content.replace(/^\s*\[\[COMPLETED\]\]\s*\n?/i, "");
   // Also remove any inline occurrences of the marker while preserving line breaks
   content = content.replace(/[ \t]*\[\[COMPLETED\]\][ \t]*/gi, "");
+  // Hide theme refresh and updated markers from user display
+  content = content.replace(/^\s*\[\[THEME_REFRESH\]\]\s*\n?/i, "");
+  content = content.replace(/[ \t]*\[\[THEME_REFRESH\]\][ \t]*/gi, "");
+  content = content.replace(/^\s*\[\[THEME_UPDATED_EVENT\]\]\s*\n?/i, "");
+  content = content.replace(/[ \t]*\[\[THEME_UPDATED_EVENT\]\][ \t]*/gi, "");
   // Normalize line endings to \n
   content = content.replace(/\r\n?/g, "\n");
   // Normalize headings and colon/bullet variants in one pass

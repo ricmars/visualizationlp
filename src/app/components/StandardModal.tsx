@@ -17,7 +17,7 @@ type ModalAction = {
 type StandardModalProps = {
   isOpen: boolean;
   onCloseAction: () => void;
-  title: string;
+  title: string | React.ReactNode;
   children: React.ReactNode;
   actions?: ModalAction[];
   width?: string;
@@ -148,7 +148,11 @@ export default function StandardModal({
     <>
       {/* Screen reader announcements */}
       <div aria-live="polite" aria-atomic="true" className="sr-only">
-        {isOpen ? `Modal opened: ${title}` : ""}
+        {isOpen
+          ? `Modal opened: ${
+              typeof title === "string" ? title : "Theme Editor"
+            }`
+          : ""}
       </div>
 
       <div

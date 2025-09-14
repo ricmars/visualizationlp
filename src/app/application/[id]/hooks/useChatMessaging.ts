@@ -99,20 +99,29 @@ export default function useChatMessaging({
 
         abortRef.current = new AbortController();
 
+        // Always include applicationId in system context, even when no case is selected
+        const systemContext = {
+          ...(selectedCase && {
+            currentobjectid: selectedCase.id,
+            name: selectedCase.name,
+            stages,
+            instructions:
+              "You are working with an EXISTING workflow. Use saveObject with isNew=false for any modifications. The current object ID is: " +
+              selectedCase.id,
+          }),
+          applicationId:
+            typeof applicationId === "number" ? applicationId : undefined,
+        };
+
+        console.log("=== useChatMessaging DEBUG ===");
+        console.log("applicationId from props:", applicationId);
+        console.log("selectedCase:", selectedCase);
+        console.log("systemContext being sent:", systemContext);
+        console.log("systemContext JSON:", JSON.stringify(systemContext));
+
         const response = await Service.generateResponse(
           message,
-          selectedCase
-            ? JSON.stringify({
-                currentobjectid: selectedCase.id,
-                applicationId:
-                  typeof applicationId === "number" ? applicationId : undefined,
-                name: selectedCase.name,
-                stages,
-                instructions:
-                  "You are working with an EXISTING workflow. Use saveObject with isNew=false for any modifications. The current object ID is: " +
-                  selectedCase.id,
-              })
-            : "",
+          JSON.stringify(systemContext),
           history,
           abortRef.current.signal,
           mode,
@@ -262,9 +271,65 @@ export default function useChatMessaging({
                       );
 
                     if (!shouldFilter && !isRawJsonToolResult) {
-                      let processedText = processToolResponse(
-                        String(data.text),
-                      );
+                      const rawText = String(data.text);
+                      console.log("🎨 Processing text chunk:", {
+                        rawText,
+                        shouldFilter,
+                        isRawJsonToolResult,
+                      });
+
+                      // Check for theme refresh signal BEFORE processing
+                      if (rawText.includes("[[THEME_REFRESH]]")) {
+                        console.log(
+                          "🎨 Theme refresh signal detected, dispatching event...",
+                        );
+                        // Dispatch custom event to trigger theme refresh
+                        try {
+                          window.dispatchEvent(
+                            new CustomEvent("theme-refresh-requested"),
+                          );
+                          console.log(
+                            "🎨 Theme refresh event dispatched successfully",
+                          );
+                        } catch (error) {
+                          console.warn(
+                            "Failed to dispatch theme refresh event:",
+                            error,
+                          );
+                        }
+                      }
+
+                      // Check for theme updated signal BEFORE processing
+                      if (rawText.includes("[[THEME_UPDATED_EVENT]]")) {
+                        console.log(
+                          "🎨 Theme updated signal detected, dispatching event...",
+                        );
+                        // Dispatch custom event to trigger theme list refresh
+                        try {
+                          window.dispatchEvent(
+                            new CustomEvent("theme-updated"),
+                          );
+                          console.log(
+                            "🎨 Theme updated event dispatched successfully",
+                          );
+                        } catch (error) {
+                          console.warn(
+                            "Failed to dispatch theme updated event:",
+                            error,
+                          );
+                        }
+                      }
+
+                      // Filter out the theme refresh and updated markers before processing
+                      const filteredText = rawText
+                        .replace(/\[\[THEME_REFRESH\]\]/g, "")
+                        .replace(/\[\[THEME_UPDATED_EVENT\]\]/g, "");
+                      console.log("🎨 Filtered text:", {
+                        rawText,
+                        filteredText,
+                      });
+
+                      let processedText = processToolResponse(filteredText);
                       currentThinkingContent += processedText;
                       setMessagesAction((prev) =>
                         prev.map((msg) =>

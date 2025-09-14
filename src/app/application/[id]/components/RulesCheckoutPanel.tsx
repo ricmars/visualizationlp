@@ -11,6 +11,7 @@ import {
 import {
   MdAccountTree,
   MdApps,
+  MdPalette,
   MdStorage,
   MdTableView,
   MdTextFields,
@@ -18,6 +19,7 @@ import {
 import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
 import StepConfigurationModal from "../../../components/StepConfigurationModal";
+import { ThemeModal } from "../../../components/ThemeModal";
 import { Field, Stage } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 import { MODEL_UPDATED_EVENT } from "../utils/constants";
@@ -49,6 +51,7 @@ interface RuleCheckoutData {
     totalChanges: number;
   }>;
   applicationCategory?: CategoryGroup | null;
+  themeCategory?: CategoryGroup | null;
   totalChanges: number;
   totalCheckpoints: number;
 }
@@ -92,6 +95,15 @@ export default function RulesCheckoutPanel({
     name: string;
     description: string;
   } | null>(null);
+  const [editingTheme, setEditingTheme] = useState<{
+    id: number;
+    name: string;
+    description: string;
+    isSystemTheme: boolean;
+    applicationid: number;
+    model: any;
+  } | null>(null);
+  const [isThemeSaving, setIsThemeSaving] = useState(false);
 
   const fetchCheckoutData = useCallback(async () => {
     setIsLoading(true);
@@ -195,6 +207,8 @@ export default function RulesCheckoutPanel({
         return <MdTextFields className={iconClass} />;
       case "app":
         return <MdApps className={iconClass} />;
+      case "theme":
+        return <MdPalette className={iconClass} />;
       default:
         return <MdAccountTree className={iconClass} />;
     }
@@ -334,6 +348,9 @@ export default function RulesCheckoutPanel({
           break;
         case "Applications":
           setEditingApplication(ruleData);
+          break;
+        case "Themes":
+          setEditingTheme(ruleData);
           break;
         default:
           console.error("Unsupported table type:", table);
@@ -475,6 +492,52 @@ export default function RulesCheckoutPanel({
     }
   };
 
+  // Handle theme update
+  const handleThemeUpdate = async (data: {
+    name: string;
+    description: string;
+    isSystemTheme: boolean;
+    applicationid: number;
+    model: any;
+  }) => {
+    if (!editingTheme) return;
+
+    setIsThemeSaving(true);
+    try {
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.THEMES}&id=${editingTheme.id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            table: DB_TABLES.THEMES,
+            data: {
+              name: data.name,
+              description: data.description,
+              isSystemTheme: data.isSystemTheme,
+              applicationid: data.applicationid,
+              model: data.model,
+            },
+          }),
+        },
+      );
+
+      if (response.ok) {
+        // Refresh the checkout data
+        await fetchCheckoutData();
+        setEditingTheme(null);
+      } else {
+        console.error("Failed to update theme:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error updating theme:", error);
+    } finally {
+      setIsThemeSaving(false);
+    }
+  };
+
   // View model field adapters for StepConfigurationModal when editing a View
   const onViewAddField = async (field: {
     label: string;
@@ -563,7 +626,11 @@ export default function RulesCheckoutPanel({
             const hasAppChanges =
               !!data?.applicationCategory &&
               data.applicationCategory.rules.length > 0;
-            return !data || (!hasObjectChanges && !hasAppChanges);
+            const hasThemeChanges =
+              !!data?.themeCategory && data.themeCategory.rules.length > 0;
+            return (
+              !data || (!hasObjectChanges && !hasAppChanges && !hasThemeChanges)
+            );
           })() ? (
           <div className="text-center py-8 text-white/70 text-sm">
             No rule changes found
@@ -715,6 +782,47 @@ export default function RulesCheckoutPanel({
                   )}
                 </div>
               )}
+
+            {/* Theme Category (global) */}
+            {data?.themeCategory && data.themeCategory.rules.length > 0 && (
+              <div className="mt-2">
+                <div
+                  className={`flex items-center gap-2 p-1.5 rounded cursor-pointer transition-colors hover:bg-white/10`}
+                  onClick={() => setIsAppExpanded((v) => !v)}
+                >
+                  {isAppExpanded ? (
+                    <FaChevronDown className="w-3 h-3 text-white/60" />
+                  ) : (
+                    <FaChevronRight className="w-3 h-3 text-white/60" />
+                  )}
+                  {getCategoryIcon("theme", isAppExpanded)}
+                  <span className="font-medium text-[12px] text-white">
+                    {data.themeCategory.categoryName}
+                  </span>
+                  <span className="ml-auto text-[11px] text-white/60">
+                    {data.themeCategory.rules.length}
+                  </span>
+                </div>
+                {isAppExpanded && (
+                  <div className="ml-4 mt-0.5 space-y-0.5">
+                    {data.themeCategory.rules.map((rule) => (
+                      <div
+                        key={rule.id}
+                        className="flex items-start gap-2 p-1.5 rounded text-white/80 hover:bg-white/10 cursor-pointer transition-colors"
+                        onClick={() => handleRuleClick(rule)}
+                      >
+                        <div className="flex items-start gap-2 min-w-0 flex-1">
+                          {getOperationIcon(rule.operation)}
+                          <span className="font-medium truncate text-[12px] leading-4">
+                            {rule.name}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -766,6 +874,25 @@ export default function RulesCheckoutPanel({
             name: editingApplication.name,
             description: editingApplication.description,
           }}
+        />
+      )}
+
+      {/* Theme Edit Modal */}
+      {editingTheme && (
+        <ThemeModal
+          isOpen={!!editingTheme}
+          onClose={() => setEditingTheme(null)}
+          theme={editingTheme}
+          onSave={async (id, name, description, model) => {
+            await handleThemeUpdate({
+              name,
+              description,
+              isSystemTheme: editingTheme.isSystemTheme,
+              applicationid: editingTheme.applicationid,
+              model,
+            });
+          }}
+          isSaving={isThemeSaving}
         />
       )}
     </div>

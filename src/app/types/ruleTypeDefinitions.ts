@@ -764,19 +764,183 @@ export const objectRecordRuleType: RuleTypeDefinition = {
   },
 };
 
+// Theme Rule Type Definition
+export const themeRuleType: RuleTypeDefinition = {
+  id: "theme",
+  name: "Theme",
+  description:
+    "A theme that defines the visual styling and appearance of an application",
+  category: "ui",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "Theme",
+    description:
+      "A theme that defines the visual styling and appearance of an application",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "string",
+        description: "Theme name",
+      },
+      {
+        name: "description",
+        type: "string",
+        description: "Theme description",
+      },
+      {
+        name: "isSystemTheme",
+        type: "boolean",
+        optional: true,
+        description: "Whether this is a system theme that cannot be deleted",
+      },
+      {
+        name: "applicationid",
+        type: "number",
+        description: "Reference to parent application",
+      },
+      {
+        name: "model",
+        type: "ThemeModel",
+        optional: true,
+        description: "Theme configuration model",
+      },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "Themes",
+    columns: [
+      {
+        name: "id",
+        type: "INTEGER",
+        primaryKey: true,
+        nullable: false,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "TEXT",
+        nullable: false,
+        description: "Theme name",
+      },
+      {
+        name: "description",
+        type: "TEXT",
+        nullable: false,
+        description: "Theme description",
+      },
+      {
+        name: "isSystemTheme",
+        type: "BOOLEAN",
+        nullable: false,
+        defaultValue: false,
+        description: "Whether this is a system theme that cannot be deleted",
+      },
+      {
+        name: "applicationid",
+        type: "INTEGER",
+        nullable: false,
+        description: "Reference to parent application",
+      },
+      {
+        name: "model",
+        type: "JSONB",
+        nullable: true,
+        description: "Theme configuration model",
+      },
+    ],
+    foreignKeys: [
+      {
+        name: "themes_applicationid_fkey",
+        columns: ["applicationid"],
+        referenceTable: "Applications",
+        referenceColumns: ["id"],
+        onDelete: "CASCADE",
+      },
+    ],
+    indexes: [
+      { name: "themes_name_idx", columns: ["name"] },
+      { name: "themes_applicationid_idx", columns: ["applicationid"] },
+      { name: "themes_issystemtheme_idx", columns: ["isSystemTheme"] },
+    ],
+    constraints: [
+      {
+        name: "themes_name_applicationid_unique",
+        type: "UNIQUE",
+        expression: "(name, applicationid)",
+      },
+    ],
+  },
+
+  hooks: {
+    beforeCreate: async (data) => {
+      if (data.model === undefined || data.model === null) {
+        data.model = {};
+        return data;
+      }
+      if (typeof data.model === "string") {
+        try {
+          data.model = JSON.parse(data.model);
+        } catch {
+          throw new Error("Invalid JSON in model field");
+        }
+      }
+      return data;
+    },
+    beforeUpdate: async (data) => {
+      if (data.model === undefined || data.model === null) {
+        return data;
+      }
+      if (typeof data.model === "string") {
+        try {
+          data.model = JSON.parse(data.model);
+        } catch {
+          throw new Error("Invalid JSON in model field");
+        }
+      }
+      return data;
+    },
+    beforeDelete: async (id) => {
+      // Check if this is a system theme
+      const pool = (global as any).pool;
+      if (pool) {
+        const checkQuery = `SELECT "isSystemTheme" FROM "Themes" WHERE id = $1`;
+        const result = await pool.query(checkQuery, [id]);
+        if (result.rows.length > 0 && result.rows[0].isSystemTheme) {
+          throw new Error("Cannot delete system theme");
+        }
+      }
+      return true;
+    },
+    afterCreate: async (data, id) => {
+      console.log(
+        `Created theme ${id}: ${data.name} (isSystemTheme=${data.isSystemTheme})`,
+      );
+    },
+  },
+};
+
 // Removed Data Object Rule Type (merged into Object)
 
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
     // Register in dependency order for FK correctness
-    // Applications → SystemsOfRecord → Objects → Fields → Views → ObjectRecords
+    // Applications → SystemsOfRecord → Objects → Fields → Views → ObjectRecords → Themes
     ruleTypeRegistry.register(applicationRuleType);
     ruleTypeRegistry.register(systemOfRecordRuleType);
     ruleTypeRegistry.register(objectRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);
     ruleTypeRegistry.register(objectRecordRuleType);
+    ruleTypeRegistry.register(themeRuleType);
     console.log("✅ All rule types registered successfully");
   } catch (error) {
     console.error("❌ Failed to register rule types:", error);

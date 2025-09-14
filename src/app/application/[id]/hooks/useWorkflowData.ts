@@ -78,7 +78,7 @@ export function useWorkflowData(objectid: string) {
         throw new Error("Case not found");
       }
 
-      const parsedModel = dbCase.model;
+      const parsedModel = dbCase.model || {};
       const stagesWithIds = validateModelIds(parsedModel.stages || []);
       return {
         name: dbCase.name,
@@ -326,7 +326,8 @@ export function useWorkflowData(objectid: string) {
   useEffect(() => {
     fetchCase();
     void loadWorkflow();
-  }, [fetchCase, loadWorkflow]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectid]); // Only depend on objectid to prevent unnecessary re-runs
 
   return {
     model,

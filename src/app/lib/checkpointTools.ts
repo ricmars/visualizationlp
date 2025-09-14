@@ -122,6 +122,8 @@ export function createCheckpointTools(pool: Pool) {
             "deleteView",
             "createObject",
             "saveApplication",
+            "saveTheme",
+            "deleteTheme",
           ].includes(tool.name)
         ) {
           return await executeCheckpointAwareTool(
@@ -175,6 +177,12 @@ async function executeCheckpointAwareTool(
     case "deleteField":
     case "deleteView":
       return await wrapDelete(originalExecute, params, pool, toolName);
+
+    case "saveTheme":
+      return await wrapSaveTheme(originalExecute, params, pool);
+
+    case "deleteTheme":
+      return await wrapDeleteTheme(originalExecute, params, pool);
 
     default:
       return await originalExecute(params);
@@ -459,6 +467,77 @@ async function wrapDelete(
   // Capture the delete operation
   if (itemId && previousData) {
     await captureOperation("delete", tableName, { id: itemId }, previousData);
+  }
+
+  return result;
+}
+
+async function wrapSaveTheme(originalExecute: any, params: any, pool: Pool) {
+  console.log("Wrapping saveTheme with checkpoint capture");
+
+  // Capture previous theme state when updating
+  const themeId = params.id as number | undefined;
+  let previousData = null;
+  if (themeId) {
+    try {
+      const prev = await pool.query(
+        `SELECT * FROM "${DB_TABLES.THEMES}" WHERE id = $1`,
+        [themeId],
+      );
+      previousData = prev.rows[0] || null;
+    } catch (e) {
+      console.warn("wrapSaveTheme: failed to load previous theme", themeId, e);
+    }
+  }
+
+  const result = await originalExecute(params);
+
+  // Capture insert or update
+  if (!themeId && result?.id) {
+    await captureOperation("insert", DB_TABLES.THEMES, { id: result.id });
+  } else if (themeId && previousData) {
+    await captureOperation(
+      "update",
+      DB_TABLES.THEMES,
+      { id: themeId },
+      previousData,
+    );
+  }
+
+  return result;
+}
+
+async function wrapDeleteTheme(originalExecute: any, params: any, pool: Pool) {
+  console.log("Wrapping deleteTheme with checkpoint capture");
+
+  const themeId = params.id;
+  let previousData = null;
+
+  if (themeId) {
+    try {
+      const prev = await pool.query(
+        `SELECT * FROM "${DB_TABLES.THEMES}" WHERE id = $1`,
+        [themeId],
+      );
+      previousData = prev.rows[0] || null;
+    } catch (error) {
+      console.warn(
+        "Could not capture previous theme data for deleteTheme:",
+        error,
+      );
+    }
+  }
+
+  const result = await originalExecute(params);
+
+  // Capture the delete operation
+  if (themeId && previousData) {
+    await captureOperation(
+      "delete",
+      DB_TABLES.THEMES,
+      { id: themeId },
+      previousData,
+    );
   }
 
   return result;

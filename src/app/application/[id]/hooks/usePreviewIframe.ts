@@ -10,12 +10,14 @@ type UsePreviewIframeArgs = {
   selectedChannel: channel;
   // Named as *Action to satisfy Next/React client component lint about functions in props
   generateModelAction: GenerateModel;
+  selectedTheme?: any;
 };
 
 export default function usePreviewIframe({
   enabled,
   selectedChannel,
   generateModelAction,
+  selectedTheme,
 }: UsePreviewIframeArgs) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -33,6 +35,8 @@ export default function usePreviewIframe({
   const postQueuedRef = useRef<boolean>(false);
   // Keep current channel without retriggering effects
   const channelRef = useRef<channel>(selectedChannel);
+  // Keep current theme without retriggering effects
+  const themeRef = useRef<any>(selectedTheme);
   // Pending selection requests keyed by requestId
   const selectionRequestIdRef = useRef<number>(1);
   const pendingSelectionRequestsRef = useRef(
@@ -60,6 +64,11 @@ export default function usePreviewIframe({
   useEffect(() => {
     channelRef.current = selectedChannel;
   }, [selectedChannel]);
+
+  // Keep themeRef in sync
+  useEffect(() => {
+    themeRef.current = selectedTheme;
+  }, [selectedTheme]);
 
   // Soft reload no longer used (handshake-driven init). Keep for future fallback if needed.
   const _softReloadIframe = () => {};
@@ -144,7 +153,11 @@ export default function usePreviewIframe({
             dataTypes: model?.dataTypes,
             channel: channelRef.current,
           }
-        : { ...model, fullUpdate: true, channel: channelRef.current };
+        : {
+            ...model,
+            fullUpdate: true,
+            channel: channelRef.current,
+          };
       lastPostAtRef.current = Date.now();
       if (previewReadyRef.current && hasSentInitialRef.current) {
         iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
@@ -159,6 +172,39 @@ export default function usePreviewIframe({
       post();
     }
   }, [selectedChannel, enabled]);
+
+  // Send theme updates when theme changes
+  useEffect(() => {
+    if (!enabled || !previewReadyRef.current || !hasSentInitialRef.current)
+      return;
+    const now = Date.now();
+    if (now - lastPostAtRef.current < 50) return;
+    if (postQueuedRef.current) return;
+    postQueuedRef.current = true;
+    const post = async () => {
+      const iframe =
+        iframeRef.current ||
+        (containerRef.current?.querySelector(
+          "iframe",
+        ) as HTMLIFrameElement | null);
+      if (!iframe) {
+        postQueuedRef.current = false;
+        return;
+      }
+      iframeRef.current = iframe;
+      const payload = {
+        theme: themeRef.current?.model || null,
+      };
+      lastPostAtRef.current = Date.now();
+      iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
+      postQueuedRef.current = false;
+    };
+    try {
+      requestAnimationFrame(post);
+    } catch {
+      post();
+    }
+  }, [selectedTheme, enabled]);
 
   // Manage iframe creation and cleanup
   useEffect(() => {
@@ -220,11 +266,8 @@ export default function usePreviewIframe({
             );
             hasSentInitialRef.current = true;
             setTimeout(async () => {
-              const { Bootes2025DarkTheme } = await import(
-                "@pega/cosmos-react-core"
-              );
               iframeRef.current?.contentWindow?.postMessage(
-                { theme: Bootes2025DarkTheme },
+                { theme: themeRef.current?.model },
                 PREVIEW_ORIGIN,
               );
             }, 10);

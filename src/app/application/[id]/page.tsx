@@ -83,6 +83,9 @@ import FloatingLeftPanelModal from "./components/FloatingLeftPanelModal";
 import FloatingChatIcon from "./components/FloatingChatIcon";
 import { useResponsive } from "../../contexts/ResponsiveContext";
 import useDataObjectMutations from "./hooks/useDataObjectMutations";
+import { CreateThemeModal } from "../../components/CreateThemeModal";
+import { ThemeModal } from "../../components/ThemeModal";
+import { ThemeDetailView } from "../../components/ThemeDetailView";
 const Icon = dynamic(() =>
   import("@pega/cosmos-react-core").then((mod) => ({ default: mod.Icon })),
 );
@@ -217,6 +220,11 @@ export default function WorkflowPage() {
   const [selectedDataObjectId, setSelectedDataObjectId] = useState<
     number | null
   >(null);
+  const [isCreateThemeModalOpen, setIsCreateThemeModalOpen] = useState(false);
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState(false);
+  const [editingTheme, setEditingTheme] = useState<any>(null);
+  const [selectedThemeId, setSelectedThemeId] = useState<number | null>(null);
+  const [selectedTheme, setSelectedTheme] = useState<any>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -516,6 +524,148 @@ export default function WorkflowPage() {
   // Quick selection summary string for QuickChat overlay
   // quickInputRef already defined for QuickChatOverlay usage
 
+  // Theme handlers
+  const handleCreateTheme = async (
+    name: string,
+    description: string,
+    applicationId: number,
+  ) => {
+    try {
+      const response = await fetch("/api/dynamic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "saveTheme",
+          params: {
+            name,
+            description,
+            applicationid: applicationId,
+            isSystemTheme: false,
+            model: {},
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to create theme");
+      }
+
+      const data = await response.json();
+      const created = data?.data;
+      setSelectedThemeId(created?.id ?? null);
+      setSelectedTheme(created || null);
+      setIsCreateThemeModalOpen(false);
+      showToast("Theme created successfully");
+      try {
+        window.dispatchEvent(new CustomEvent("theme-updated"));
+      } catch {}
+    } catch (error) {
+      console.error("Error creating theme:", error);
+      throw error;
+    }
+  };
+
+  const handleEditTheme = (theme: any) => {
+    setEditingTheme(theme);
+    setIsThemeModalOpen(true);
+  };
+
+  const handleSaveTheme = async (
+    id: number,
+    name: string,
+    description: string,
+    model: any,
+  ) => {
+    try {
+      const response = await fetch("/api/dynamic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "saveTheme",
+          params: {
+            id,
+            name,
+            description,
+            applicationid: applicationId,
+            model,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to save theme");
+      }
+
+      const json = await response.json();
+      const updated = json?.data;
+      setIsThemeModalOpen(false);
+      setEditingTheme(null);
+      if (updated && selectedTheme && selectedTheme.id === updated.id) {
+        setSelectedTheme(updated);
+      }
+      showToast("Theme saved successfully");
+      try {
+        window.dispatchEvent(new CustomEvent("theme-updated"));
+      } catch {}
+    } catch (error) {
+      console.error("Error saving theme:", error);
+      throw error;
+    }
+  };
+
+  const handleDeleteTheme = async (themeId: number) => {
+    try {
+      const response = await fetch("/api/dynamic", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          action: "deleteTheme",
+          params: { id: themeId },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to delete theme");
+      }
+
+      if (selectedThemeId === themeId) {
+        setSelectedThemeId(null);
+      }
+      if (selectedTheme && selectedTheme.id === themeId) {
+        setSelectedTheme(null);
+      }
+      showToast("Theme deleted successfully");
+      try {
+        window.dispatchEvent(new CustomEvent("theme-updated"));
+      } catch {}
+    } catch (error) {
+      console.error("Error deleting theme:", error);
+      showToast("Failed to delete theme");
+    }
+  };
+
+  const handleThemeSelect = useCallback(
+    (themeId: number | null) => {
+      setSelectedThemeId(themeId);
+      const params = new URLSearchParams(searchParams?.toString() || "");
+      if (themeId) {
+        params.set("theme", String(themeId));
+        // Clear object parameter when selecting a theme
+        params.delete("object");
+      } else {
+        params.delete("theme");
+      }
+      router.push(`/application/${applicationId}?${params.toString()}`);
+    },
+    [router, applicationId, searchParams],
+  );
+
   // 3. All useRef hooks
   const addFieldButtonRef = useRef<HTMLButtonElement>(null);
   const generatePreviewModelAction = useCallback(
@@ -537,6 +687,7 @@ export default function WorkflowPage() {
     enabled: isPreviewVisible,
     selectedChannel,
     generateModelAction: generatePreviewModelAction,
+    selectedTheme,
   });
 
   // replaced by useQuickChat
@@ -576,6 +727,21 @@ export default function WorkflowPage() {
               setApplicationName(appJson?.data?.name || "");
             }
           } catch {}
+
+          // Load default theme for this application
+          try {
+            const themesRes = await fetch(
+              `/api/dynamic?ruleType=theme&applicationid=${appIdNum}`,
+            );
+            if (themesRes.ok) {
+              const themesJson = await themesRes.json();
+              const themes = themesJson.data || [];
+              // Select the first theme (should be the default theme)
+              if (themes.length > 0) {
+                setSelectedThemeId(themes[0].id);
+              }
+            }
+          } catch {}
         } catch {}
       })();
     }
@@ -596,6 +762,87 @@ export default function WorkflowPage() {
     }
   }, [searchParams, dataObjects]);
 
+  // Keep selected theme in sync with URL (supports back/forward navigation)
+  useEffect(() => {
+    const t = searchParams?.get("theme");
+    const themeId = t ? parseInt(t, 10) : NaN;
+    if (!Number.isNaN(themeId)) {
+      setSelectedThemeId(themeId);
+      // Only fetch theme data if we don't already have it or if it's a different theme
+      if (!selectedTheme || selectedTheme.id !== themeId) {
+        (async () => {
+          try {
+            const response = await fetch("/api/dynamic", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action: "getTheme",
+                params: { id: themeId },
+              }),
+            });
+            if (response.ok) {
+              const json = await response.json();
+              setSelectedTheme(json?.data || null);
+            } else {
+              setSelectedTheme(null);
+            }
+          } catch {
+            setSelectedTheme(null);
+          }
+        })();
+      }
+    } else {
+      setSelectedTheme(null);
+    }
+  }, [searchParams, selectedTheme]);
+
+  // Listen for theme refresh requests from LLM
+  useEffect(() => {
+    const handleThemeRefresh = async () => {
+      // Get current values from the URL and state
+      const currentThemeId = selectedThemeId;
+      console.log("🎨 Theme refresh event received", { currentThemeId });
+
+      if (currentThemeId) {
+        try {
+          console.log("🎨 Refreshing theme after saveTheme tool execution...");
+          const response = await fetch("/api/dynamic", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "getTheme",
+              params: { id: currentThemeId },
+            }),
+          });
+          if (response.ok) {
+            const json = await response.json();
+            const updatedTheme = json?.data || null;
+            if (updatedTheme) {
+              setSelectedTheme(updatedTheme);
+              console.log(
+                "🎨 Theme refreshed successfully:",
+                updatedTheme.name,
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to refresh theme:", error);
+        }
+      } else {
+        console.log("🎨 Theme refresh skipped - no selected theme", {
+          currentThemeId,
+        });
+      }
+    };
+
+    console.log("🎨 Setting up theme refresh event listener");
+    window.addEventListener("theme-refresh-requested", handleThemeRefresh);
+    return () => {
+      console.log("🎨 Cleaning up theme refresh event listener");
+      window.removeEventListener("theme-refresh-requested", handleThemeRefresh);
+    };
+  }, [selectedThemeId]);
+
   // If not in application context, load a global list of cases for picker
   // No global list needed anymore since application context is required by path
 
@@ -603,9 +850,14 @@ export default function WorkflowPage() {
     async (nextId: number) => {
       // Clear any selected data object when switching workflow
       setSelectedDataObjectId(null);
+      // Clear any selected theme when switching workflow
+      setSelectedThemeId(null);
+      setSelectedTheme(null);
       // Update just the object query param on the same path
       const params = new URLSearchParams(searchParams?.toString() || "");
       params.set("object", String(nextId));
+      // Clear theme parameter when selecting a workflow
+      params.delete("theme");
       router.push(`/application/${applicationId}?${params.toString()}`);
 
       // Manually refresh the workflow data for the new ID
@@ -660,6 +912,7 @@ export default function WorkflowPage() {
         // If there's an error, fall back to full navigation
         const params = new URLSearchParams(searchParams?.toString() || "");
         params.set("object", String(nextId));
+        params.delete("theme");
         router.push(`/application/${applicationId}?${params.toString()}`);
       }
     },
@@ -678,8 +931,13 @@ export default function WorkflowPage() {
   const handleSelectDataObject = useCallback(
     (dataObjectId: number) => {
       setSelectedDataObjectId(dataObjectId);
+      // Clear any selected theme when selecting a data object
+      setSelectedThemeId(null);
+      setSelectedTheme(null);
       const params = new URLSearchParams(searchParams?.toString() || "");
       params.set("object", String(dataObjectId));
+      // Clear theme parameter when selecting a data object
+      params.delete("theme");
       router.push(`/application/${applicationId}?${params.toString()}`);
     },
     [router, applicationId, searchParams],
@@ -1133,6 +1391,7 @@ export default function WorkflowPage() {
       if (nextobjectid) {
         const params = new URLSearchParams();
         params.set("object", String(nextobjectid));
+        params.delete("theme");
         // Refresh header lists before navigating to ensure consistency
         try {
           await refreshApplicationWorkflows();
@@ -1497,6 +1756,10 @@ export default function WorkflowPage() {
           onSelectDataObjectAction={handleSelectDataObject}
           onOpenCreateWorkflowAction={() => setIsCreateWorkflowModalOpen(true)}
           onOpenCreateDataObjectAction={() => setIsAddDataObjectModalOpen(true)}
+          onOpenCreateThemeAction={() => setIsCreateThemeModalOpen(true)}
+          applicationId={applicationId || undefined}
+          selectedThemeId={selectedThemeId}
+          onThemeSelectAction={handleThemeSelect}
           isPreviewMode={isPreviewVisible}
           onTogglePreviewAction={() => setIsPreviewVisible((v) => !v)}
           onSelectChannelAction={(c) => {
@@ -1505,8 +1768,8 @@ export default function WorkflowPage() {
           }}
         />
 
-        {/* Page heading (hidden while preview is visible) */}
-        {!isPreviewVisible && (
+        {/* Page heading (hidden while preview is visible or theme is selected) */}
+        {!isPreviewVisible && !selectedTheme && (
           <div className="px-4 py-3 border-b border-white/10">
             <div>
               <div className="flex items-center gap-2">
@@ -1566,13 +1829,15 @@ export default function WorkflowPage() {
           </div>
         )}
 
-        {/* Tabs - hidden while preview is visible */}
-        {!isPreviewVisible && selectedDataObjectId === null && (
-          <WorkflowTabs
-            active={activeTab as any}
-            onChange={handleTabChange as any}
-          />
-        )}
+        {/* Tabs - hidden while preview is visible or theme is selected */}
+        {!isPreviewVisible &&
+          !selectedTheme &&
+          selectedDataObjectId === null && (
+            <WorkflowTabs
+              active={activeTab as any}
+              onChange={handleTabChange as any}
+            />
+          )}
 
         {/* Main Content Area */}
         <main
@@ -1587,7 +1852,27 @@ export default function WorkflowPage() {
                 ref={previewContainerRef}
               />
             )}
-            {!isPreviewVisible && selectedDataObjectId !== null ? (
+            {!isPreviewVisible && selectedTheme ? (
+              <ThemeDetailView
+                theme={selectedTheme}
+                onEdit={handleEditTheme}
+                onDelete={handleDeleteTheme}
+                onClose={() => {
+                  setSelectedTheme(null);
+                  setSelectedThemeId(null);
+                  try {
+                    const params = new URLSearchParams(
+                      searchParams?.toString() || "",
+                    );
+                    params.delete("theme");
+                    const appId =
+                      applicationId ??
+                      parseInt(applicationIdParam as string, 10);
+                    router.push(`/application/${appId}?${params.toString()}`);
+                  } catch {}
+                }}
+              />
+            ) : !isPreviewVisible && selectedDataObjectId !== null ? (
               <div className="flex flex-col h-full">
                 <div className="flex-1 min-h-0">
                   <DataPanel
@@ -1978,6 +2263,7 @@ export default function WorkflowPage() {
                         const params = new URLSearchParams();
                         if (selectedCase?.id) {
                           params.set("object", String(selectedCase.id));
+                          params.delete("theme");
                           router.push(
                             `/application/${appId}?${params.toString()}`,
                           );
@@ -2008,6 +2294,27 @@ export default function WorkflowPage() {
             await handleDeleteAllCheckpoints();
             setIsDeleteAllCheckpointsModalOpen(false);
           }}
+        />
+
+        {/* Theme Modals */}
+        <CreateThemeModal
+          isOpen={isCreateThemeModalOpen}
+          onClose={() => setIsCreateThemeModalOpen(false)}
+          onCreate={handleCreateTheme}
+          isCreating={false}
+          applicationId={applicationId || 0}
+        />
+
+        <ThemeModal
+          isOpen={isThemeModalOpen}
+          onClose={() => {
+            setIsThemeModalOpen(false);
+            setEditingTheme(null);
+          }}
+          theme={editingTheme}
+          onSave={handleSaveTheme}
+          onDelete={handleDeleteTheme}
+          isSaving={false}
         />
       </div>
 

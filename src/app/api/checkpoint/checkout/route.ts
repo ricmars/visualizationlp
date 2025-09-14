@@ -86,6 +86,7 @@ export async function GET(request: NextRequest) {
     const viewIds = new Set<number>();
     const objectids = new Set<number>();
     const applicationIds = new Set<number>();
+    const themeIds = new Set<number>();
 
     // Process undo_log entries to collect IDs
     for (const entries of undoLogByCheckpoint.values()) {
@@ -115,6 +116,9 @@ export async function GET(request: NextRequest) {
           case DB_TABLES.APPLICATIONS:
             applicationIds.add(id);
             break;
+          case DB_TABLES.THEMES:
+            themeIds.add(id);
+            break;
         }
       }
     }
@@ -128,6 +132,7 @@ export async function GET(request: NextRequest) {
       views: new Map<number, { name: string; objectid: number }>(),
       cases: new Map<number, { name: string; hasWorkflow: boolean }>(),
       applications: new Map<number, { name: string }>(),
+      themes: new Map<number, { name: string; applicationid: number }>(),
     };
 
     // Fetch fields data
@@ -194,11 +199,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Fetch themes data
+    if (themeIds.size > 0) {
+      const themeIdsArray = Array.from(themeIds);
+      const themesResult = await pool.query(
+        `SELECT id, name, applicationid FROM "${DB_TABLES.THEMES}" WHERE id = ANY($1)`,
+        [themeIdsArray],
+      );
+      for (const row of themesResult.rows) {
+        currentData.themes.set(row.id, {
+          name: row.name,
+          applicationid: row.applicationid,
+        });
+        if (typeof row.applicationid === "number") {
+          applicationIds.add(row.applicationid);
+        }
+      }
+    }
+
     // Collect all rule changes from all checkpoints
     const allRuleChanges: RuleChange[] = [];
     const seenRules = new Set<string>(); // Track unique rules by table-id combination
     const objectChangeMap = new Map<number, RuleChange[]>();
     const appChanges: RuleChange[] = [];
+    const themeChanges: RuleChange[] = [];
 
     for (const checkpoint of history) {
       const checkpointEntries = undoLogByCheckpoint.get(checkpoint.id) || [];
@@ -296,6 +320,19 @@ export async function GET(request: NextRequest) {
               name = currentData.applications.get(id)!.name;
             }
             break;
+
+          case DB_TABLES.THEMES:
+            type = "Theme";
+            category = "theme";
+            if (operation === "Delete") {
+              const prev = readPrev();
+              name = prev?.name;
+            } else if (id && currentData.themes.has(id)) {
+              const themeData = currentData.themes.get(id)!;
+              name = themeData.name;
+              owningObjectId = themeData.applicationid;
+            }
+            break;
         }
 
         if (name && type && category && id) {
@@ -319,6 +356,8 @@ export async function GET(request: NextRequest) {
             allRuleChanges.push(change);
             if (category === "app") {
               appChanges.push(change);
+            } else if (category === "theme") {
+              themeChanges.push(change);
             } else if (typeof owningObjectId === "number") {
               if (!objectChangeMap.has(owningObjectId)) {
                 objectChangeMap.set(owningObjectId, []);
@@ -336,9 +375,10 @@ export async function GET(request: NextRequest) {
       ui: "View",
       data: "Field",
       app: "Application",
+      theme: "Theme",
     };
 
-    const categoryOrder = ["workflow", "ui", "data"];
+    const categoryOrder = ["workflow", "ui", "data", "theme"];
 
     const objectGroups: ObjectGroup[] = Array.from(
       objectChangeMap.entries(),
@@ -389,9 +429,24 @@ export async function GET(request: NextRequest) {
           }
         : null;
 
+    // Build theme category (if any)
+    const themeCategory: CategoryGroup | null =
+      themeChanges.length > 0
+        ? {
+            category: "theme",
+            categoryName: categoryNames.theme,
+            rules: themeChanges.sort(
+              (a, b) =>
+                new Date(b.checkpointCreatedAt).getTime() -
+                new Date(a.checkpointCreatedAt).getTime(),
+            ),
+          }
+        : null;
+
     return NextResponse.json({
       objectGroups,
       applicationCategory,
+      themeCategory,
       totalChanges: allRuleChanges.length,
       totalCheckpoints: history.length,
     });

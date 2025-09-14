@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { ThemeDropdown } from "../../../components/ThemeDropdown";
 
 type WorkflowItem = { id: number; name: string };
 type DataObjectItem = {
@@ -25,6 +26,10 @@ type ApplicationMenuBarProps = {
   onTogglePreviewAction: () => void;
   onOpenCreateWorkflowAction?: () => void;
   onOpenCreateDataObjectAction?: () => void;
+  onOpenCreateThemeAction?: () => void;
+  applicationId?: number;
+  selectedThemeId?: number | null;
+  onThemeSelectAction?: (themeId: number | null) => void;
 };
 
 export default function ApplicationMenuBar({
@@ -39,6 +44,10 @@ export default function ApplicationMenuBar({
   onTogglePreviewAction,
   onOpenCreateWorkflowAction,
   onOpenCreateDataObjectAction,
+  onOpenCreateThemeAction,
+  applicationId,
+  selectedThemeId,
+  onThemeSelectAction,
 }: ApplicationMenuBarProps) {
   const [openMenuId, setOpenMenuId] = React.useState<string | null>(null);
   return (
@@ -135,6 +144,14 @@ export default function ApplicationMenuBar({
               ))
             )}
           </Menu>
+
+          {applicationId && (
+            <ThemeDropdown
+              applicationId={applicationId}
+              selectedThemeId={selectedThemeId || null}
+              onThemeSelect={onThemeSelectAction || (() => {})}
+            />
+          )}
         </nav>
       </div>
 
@@ -160,6 +177,12 @@ export default function ApplicationMenuBar({
             }
           >
             Data object
+          </button>
+          <button
+            className="w-full text-left px-4 py-2 hover:bg-gray-800"
+            onClick={() => onOpenCreateThemeAction && onOpenCreateThemeAction()}
+          >
+            Theme
           </button>
         </Menu>
 

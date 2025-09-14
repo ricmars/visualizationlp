@@ -108,6 +108,20 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             icon ?? null,
           ]);
           applicationId = insertRes.rows[0].id;
+
+          // Create default theme for new application
+          const defaultThemeQuery = `
+            INSERT INTO "${DB_TABLES.THEMES}" (name, description, "isSystemTheme", applicationid, model)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id
+          `;
+          await pool.query(defaultThemeQuery, [
+            "Default Theme",
+            "Default theme for this application",
+            true,
+            applicationId,
+            JSON.stringify({}),
+          ]);
         }
 
         if (objectIds && objectIds.length > 0) {
@@ -2037,6 +2051,1042 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
         console.log("deleteObjectRecord successful:", { id });
         return { success: true, deletedId: id };
+      },
+    },
+    // Theme tools
+    {
+      name: "getListOfThemes",
+      description:
+        "Lists all themes for an application with name, description, id, and isSystemTheme flag. System themes cannot be deleted.",
+      parameters: {
+        type: "object",
+        properties: {
+          applicationid: {
+            type: "integer",
+            description: "Application ID to list themes for",
+          },
+        },
+        required: ["applicationid"],
+      },
+      execute: async (params: { applicationid: number }) => {
+        console.log("=== getListOfThemes EXECUTION STARTED ===");
+        console.log(
+          "getListOfThemes parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("getListOfThemes called at:", new Date().toISOString());
+
+        const query = `
+          SELECT id, name, description, "isSystemTheme", applicationid, model
+          FROM "${DB_TABLES.THEMES}"
+          WHERE applicationid = $1
+          ORDER BY name
+        `;
+        console.log("getListOfThemes query:", query);
+        console.log("getListOfThemes query values:", [params.applicationid]);
+
+        const result = await pool.query(query, [params.applicationid]);
+        const themes = result.rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          isSystemTheme: row.isSystemTheme,
+          applicationid: row.applicationid,
+          model:
+            typeof row.model === "string" ? JSON.parse(row.model) : row.model,
+        }));
+
+        console.log("getListOfThemes successful:", {
+          applicationid: params.applicationid,
+          themeCount: themes.length,
+        });
+
+        return { themes };
+      },
+    },
+    {
+      name: "getTheme",
+      description: "Gets a theme by ID including its model",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Theme ID",
+          },
+        },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        console.log("=== getTheme EXECUTION STARTED ===");
+        console.log("getTheme parameters:", JSON.stringify(params, null, 2));
+        console.log("getTheme called at:", new Date().toISOString());
+
+        const query = `
+          SELECT id, name, description, "isSystemTheme", applicationid, model
+          FROM "${DB_TABLES.THEMES}"
+          WHERE id = $1
+        `;
+        console.log("getTheme query:", query);
+        console.log("getTheme query values:", [params.id]);
+
+        const result = await pool.query(query, [params.id]);
+        if (result.rowCount === 0) {
+          console.error(`getTheme ERROR: No theme found with id ${params.id}`);
+          throw new Error(`No theme found with id ${params.id}`);
+        }
+
+        const theme = result.rows[0];
+        if (!theme) {
+          throw new Error(`No theme found with id ${params.id}`);
+        }
+        const model =
+          typeof theme.model === "string"
+            ? JSON.parse(theme.model)
+            : theme.model;
+
+        console.log("getTheme successful:", {
+          id: theme.id,
+          name: theme.name,
+          isSystemTheme: theme.isSystemTheme,
+        });
+
+        return {
+          id: theme.id,
+          name: theme.name,
+          description: theme.description,
+          isSystemTheme: theme.isSystemTheme,
+          applicationid: theme.applicationid,
+          model: model || {},
+        };
+      },
+    },
+    {
+      name: "saveTheme",
+      description:
+        "Creates or updates a theme with a flat model structure containing base and component styling properties.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Theme ID (omit for create)",
+          },
+          name: {
+            type: "string",
+            description: "Theme name",
+          },
+          description: {
+            type: "string",
+            description: "Theme description",
+          },
+          applicationid: {
+            type: "integer",
+            description: "Application ID this theme belongs to",
+          },
+          isSystemTheme: {
+            type: "boolean",
+            description:
+              "Whether this is a system theme (optional, defaults to false)",
+          },
+          model: {
+            type: "object",
+            description:
+              "Complete theme model with base and component styling properties",
+            properties: {
+              base: {
+                type: "object",
+                description: "Base theme properties",
+                properties: {
+                  "font-family": {
+                    type: "string",
+                    description: "The font-family to use for the application",
+                  },
+                  "font-stretch": {
+                    type: "string",
+                    description:
+                      "How the font should stretch - only support if the font-family supports font-stretch",
+                  },
+                  "line-height": {
+                    type: "string",
+                    description: "Line height value for text",
+                  },
+                  "font-scale": {
+                    type: "string",
+                    description: "Font scale type for typography",
+                  },
+                  palette: {
+                    type: "object",
+                    description: "Color palette definitions",
+                    properties: {
+                      ai: {
+                        type: "string",
+                        description: "AI-related element color",
+                      },
+                      "app-background": {
+                        type: "string",
+                        description:
+                          "Application background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                      },
+                      "brand-primary": {
+                        type: "string",
+                        description: "Primary brand color",
+                      },
+                      "border-line": {
+                        type: "string",
+                        description: "Border line color",
+                      },
+                      "secondary-background": {
+                        type: "string",
+                        description:
+                          "Secondary background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                      },
+                      "foreground-color": {
+                        type: "string",
+                        description: "Foreground text color",
+                      },
+                      interactive: {
+                        type: "string",
+                        description: "Interactive element color",
+                      },
+                      "primary-background": {
+                        type: "string",
+                        description:
+                          "Primary background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                      },
+                      urgent: {
+                        type: "string",
+                        description: "Urgent status color",
+                      },
+                      warn: {
+                        type: "string",
+                        description: "Warning status color",
+                      },
+                      success: {
+                        type: "string",
+                        description: "Success status color",
+                      },
+                      pending: {
+                        type: "string",
+                        description: "Pending status color",
+                      },
+                      skeleton: {
+                        type: "string",
+                        description: "Skeleton loading color",
+                      },
+                    },
+                  },
+                  "border-radius": {
+                    type: "string",
+                    description: "Border radius value for elements",
+                  },
+                  spacing: {
+                    type: "string",
+                    description: "Base spacing value for layout elements",
+                  },
+                  shadow: {
+                    type: "object",
+                    description: "Shadow definitions for focus states",
+                    properties: {
+                      focus: {
+                        type: "string",
+                        description: "Focus shadow for interactive elements",
+                      },
+                      "focus-inset": {
+                        type: "string",
+                        description:
+                          "Focus inset shadow for interactive elements",
+                      },
+                      "focus-group": {
+                        type: "string",
+                        description: "Focus group shadow for grouped elements",
+                      },
+                      "focus-group-inset": {
+                        type: "string",
+                        description:
+                          "Focus group inset shadow for grouped elements",
+                      },
+                      "focus-solid": {
+                        type: "string",
+                        description:
+                          "Focus solid shadow for interactive elements",
+                      },
+                      "focus-filter": {
+                        type: "string",
+                        description:
+                          "Focus filter shadow for interactive elements",
+                      },
+                    },
+                  },
+                },
+              },
+              components: {
+                type: "object",
+                description: "Component-specific styling properties",
+                properties: {
+                  avatar: {
+                    type: "object",
+                    description: "Avatar component styling",
+                    properties: {
+                      "background-color": {
+                        type: "string",
+                        description:
+                          "Avatar background color - accepts solid color only",
+                      },
+                    },
+                  },
+                  "app-shell": {
+                    type: "object",
+                    description: "App shell component styling",
+                    properties: {
+                      nav: {
+                        type: "object",
+                        description: "Navigation styling",
+                        properties: {
+                          background: {
+                            type: "string",
+                            description:
+                              "Navigation background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                          },
+                          "foreground-color": {
+                            type: "string",
+                            description: "Navigation foreground text color",
+                          },
+                          "border-color": {
+                            type: "string",
+                            description: "Navigation border color",
+                          },
+                          detached: {
+                            type: "boolean",
+                            description:
+                              "Whether navigation is detached from main content",
+                          },
+                        },
+                      },
+                      header: {
+                        type: "object",
+                        description: "Header styling",
+                        properties: {
+                          background: {
+                            type: "string",
+                            description:
+                              "Header background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                          },
+                          "foreground-color": {
+                            type: "string",
+                            description: "Header foreground text color",
+                          },
+                          "border-color": {
+                            type: "string",
+                            description: "Header border color",
+                          },
+                        },
+                      },
+                    },
+                  },
+                  button: {
+                    type: "object",
+                    description: "Button component styling",
+                    properties: {
+                      "border-radius": {
+                        type: "number",
+                        description: "Button border radius in pixels",
+                      },
+                      color: {
+                        type: "string",
+                        description: "Button text color",
+                      },
+                      "secondary-color": {
+                        type: "string",
+                        description: "Button secondary text color",
+                      },
+                      "foreground-color": {
+                        type: "string",
+                        description: "Button foreground text color",
+                      },
+                    },
+                  },
+                  "form-control": {
+                    type: "object",
+                    description: "Form control styling",
+                    properties: {
+                      "border-radius": {
+                        type: "number",
+                        description: "Form control border radius in pixels",
+                      },
+                      ":hover": {
+                        type: "object",
+                        description: "Form control hover state styling",
+                        properties: {
+                          "border-color": {
+                            type: "string",
+                            description: "Border color on hover",
+                          },
+                        },
+                      },
+                      ":disabled": {
+                        type: "object",
+                        description: "Form control disabled state styling",
+                        properties: {
+                          "background-color": {
+                            type: "string",
+                            description:
+                              "Background color when disabled - accepts solid color only",
+                          },
+                        },
+                      },
+                      ":read-only": {
+                        type: "object",
+                        description: "Form control read-only state styling",
+                        properties: {
+                          "background-color": {
+                            type: "string",
+                            description:
+                              "Background color when read-only - accepts solid color only",
+                          },
+                        },
+                      },
+                    },
+                  },
+                  tabs: {
+                    type: "object",
+                    description: "Tabs component styling",
+                    properties: {
+                      detached: {
+                        type: "boolean",
+                        description:
+                          "Whether tabs are detached from main content",
+                      },
+                    },
+                  },
+                  table: {
+                    type: "object",
+                    description: "Table component styling",
+                    properties: {
+                      typography: {
+                        type: "object",
+                        description: "Table typography settings",
+                        properties: {
+                          "font-stretch": {
+                            type: "string",
+                            description: "Table font stretch percentage",
+                          },
+                        },
+                      },
+                      "striped-rows": {
+                        type: "boolean",
+                        description:
+                          "Whether table has striped rows for better readability",
+                      },
+                    },
+                  },
+                  tooltip: {
+                    type: "object",
+                    description: "Tooltip component styling",
+                    properties: {
+                      "foreground-color": {
+                        type: "string",
+                        description: "Tooltip foreground text color",
+                      },
+                      "background-color": {
+                        type: "string",
+                        description:
+                          "Tooltip background color - accepts solid color only",
+                      },
+                    },
+                  },
+                  badges: {
+                    type: "object",
+                    description: "Badges component styling",
+                    properties: {
+                      "font-stretch": {
+                        type: "string",
+                        description: "Badges font stretch percentage",
+                      },
+                      count: {
+                        type: "object",
+                        description: "Badge count styling",
+                        properties: {
+                          default: {
+                            type: "object",
+                            description: "Default count badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Default count badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Default count badge foreground",
+                              },
+                            },
+                          },
+                        },
+                      },
+                      keyboard: {
+                        type: "object",
+                        description: "Keyboard badge styling",
+                        properties: {
+                          "background-color": {
+                            type: "string",
+                            description:
+                              "Keyboard badge background color - accepts solid color only",
+                          },
+                          "border-color": {
+                            type: "string",
+                            description: "Keyboard badge border color",
+                          },
+                        },
+                      },
+                      status: {
+                        type: "object",
+                        description: "Status badge styling",
+                        properties: {
+                          success: {
+                            type: "object",
+                            description: "Success status badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Success badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Success badge foreground",
+                              },
+                            },
+                          },
+                          warn: {
+                            type: "object",
+                            description: "Warning status badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Warning badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Warning badge foreground",
+                              },
+                            },
+                          },
+                          urgent: {
+                            type: "object",
+                            description: "Urgent status badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Urgent badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Urgent badge foreground",
+                              },
+                            },
+                          },
+                          pending: {
+                            type: "object",
+                            description: "Pending status badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Pending badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Pending badge foreground",
+                              },
+                            },
+                          },
+                          info: {
+                            type: "object",
+                            description: "Info status badge styling",
+                            properties: {
+                              background: {
+                                type: "string",
+                                description:
+                                  "Info badge background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                              },
+                              foreground: {
+                                type: "string",
+                                description: "Info badge foreground",
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  announcement: {
+                    type: "object",
+                    description: "Announcement component styling",
+                    properties: {
+                      background: {
+                        type: "string",
+                        description:
+                          "Announcement background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                      },
+                      "foreground-color": {
+                        type: "string",
+                        description: "Announcement foreground text color",
+                      },
+                    },
+                  },
+                  "case-view": {
+                    type: "object",
+                    description: "Case view component styling",
+                    properties: {
+                      header: {
+                        type: "object",
+                        description: "Case view header styling",
+                        properties: {
+                          background: {
+                            type: "string",
+                            description:
+                              "Case view header background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                          },
+                          "foreground-color": {
+                            type: "string",
+                            description:
+                              "Case view header foreground text color",
+                          },
+                        },
+                      },
+                      summary: {
+                        type: "object",
+                        description: "Case view summary styling",
+                        properties: {
+                          detached: {
+                            type: "boolean",
+                            description:
+                              "Whether case view summary is detached from main content",
+                          },
+                        },
+                      },
+                      utilities: {
+                        type: "object",
+                        description: "Case view utilities styling",
+                        properties: {
+                          detached: {
+                            type: "boolean",
+                            description:
+                              "Whether case view utilities are detached from main content",
+                          },
+                          background: {
+                            type: "string",
+                            description:
+                              "Case view utilities background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                          },
+                          "foreground-color": {
+                            type: "string",
+                            description:
+                              "Case view utilities foreground text color",
+                          },
+                        },
+                      },
+                      assignments: {
+                        type: "object",
+                        description: "Case view assignments styling",
+                        properties: {
+                          detached: {
+                            type: "boolean",
+                            description:
+                              "Whether case view assignments are detached from main content",
+                          },
+                          background: {
+                            type: "string",
+                            description:
+                              "Case view assignments background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                          },
+                          "foreground-color": {
+                            type: "string",
+                            description:
+                              "Case view assignments foreground text color",
+                          },
+                        },
+                      },
+                      stages: {
+                        type: "object",
+                        description: "Case view stages styling",
+                        properties: {
+                          status: {
+                            type: "object",
+                            description: "Stage status styling",
+                            properties: {
+                              completed: {
+                                type: "object",
+                                description: "Completed stage styling",
+                                properties: {
+                                  background: {
+                                    type: "string",
+                                    description:
+                                      "Completed stage background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                                  },
+                                  "foreground-color": {
+                                    type: "string",
+                                    description:
+                                      "Completed stage foreground text color",
+                                  },
+                                },
+                              },
+                              current: {
+                                type: "object",
+                                description: "Current stage styling",
+                                properties: {
+                                  background: {
+                                    type: "string",
+                                    description:
+                                      "Current stage background - accepts solid color, transparent, image (with external URL), or any type of gradient",
+                                  },
+                                  "foreground-color": {
+                                    type: "string",
+                                    description:
+                                      "Current stage foreground text color",
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                  "field-value-list": {
+                    type: "object",
+                    description: "Field value list component styling",
+                    properties: {
+                      inline: {
+                        type: "object",
+                        description: "Inline field value list styling",
+                        properties: {
+                          detached: {
+                            type: "boolean",
+                            description:
+                              "Whether inline field value list is detached from main content",
+                          },
+                        },
+                      },
+                    },
+                  },
+                  label: {
+                    type: "object",
+                    description: "Label component styling",
+                    properties: {
+                      "foreground-color": {
+                        type: "string",
+                        description: "Label foreground text color",
+                      },
+                      "font-size": {
+                        type: "string",
+                        description: "Label font size",
+                      },
+                      "font-family": {
+                        type: "string",
+                        description: "Label font family",
+                      },
+                    },
+                  },
+                  link: {
+                    type: "object",
+                    description: "Link component styling",
+                    properties: {
+                      color: { type: "string", description: "Link text color" },
+                    },
+                  },
+                  card: {
+                    type: "object",
+                    description: "Card component styling",
+                    properties: {
+                      "border-radius": {
+                        type: "string",
+                        description: "Card border radius value",
+                      },
+                      "foreground-color": {
+                        type: "string",
+                        description: "Card foreground text color",
+                      },
+                    },
+                  },
+                  text: {
+                    type: "object",
+                    description:
+                      "Text component styling for different text types",
+                    properties: {
+                      primary: {
+                        type: "object",
+                        description: "Primary text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "Primary text font family",
+                          },
+                        },
+                      },
+                      secondary: {
+                        type: "object",
+                        description: "Secondary text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "Secondary text font family",
+                          },
+                        },
+                      },
+                      h1: {
+                        type: "object",
+                        description: "H1 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H1 font family",
+                          },
+                        },
+                      },
+                      h2: {
+                        type: "object",
+                        description: "H2 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H2 font family",
+                          },
+                        },
+                      },
+                      h3: {
+                        type: "object",
+                        description: "H3 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H3 font family",
+                          },
+                        },
+                      },
+                      h4: {
+                        type: "object",
+                        description: "H4 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H4 font family",
+                          },
+                        },
+                      },
+                      h5: {
+                        type: "object",
+                        description: "H5 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H5 font family",
+                          },
+                        },
+                      },
+                      h6: {
+                        type: "object",
+                        description: "H6 heading text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "H6 font family",
+                          },
+                        },
+                      },
+                      "brand-primary": {
+                        type: "object",
+                        description: "Brand primary text styling",
+                        properties: {
+                          "font-family": {
+                            type: "string",
+                            description: "Brand primary font family",
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        required: ["name", "description", "applicationid", "model"],
+      },
+      execute: async (params: {
+        id?: number;
+        name: string;
+        description: string;
+        applicationid: number;
+        isSystemTheme?: boolean;
+        model: unknown;
+      }) => {
+        console.log("=== saveTheme EXECUTION STARTED ===");
+        console.log("saveTheme parameters:", JSON.stringify(params, null, 2));
+        console.log("saveTheme called at:", new Date().toISOString());
+
+        const {
+          id,
+          name,
+          description,
+          applicationid,
+          isSystemTheme = false,
+          model,
+        } = params;
+
+        if (!name) throw new Error("Theme name is required");
+        if (!description) throw new Error("Theme description is required");
+        if (!applicationid) throw new Error("Application ID is required");
+        if (!model) throw new Error("Theme model is required");
+
+        if (id) {
+          // Update existing theme
+          const query = `
+            UPDATE "${DB_TABLES.THEMES}"
+            SET name = $1, description = $2, "isSystemTheme" = $3, model = $4
+            WHERE id = $5
+            RETURNING id, name, description, "isSystemTheme", applicationid, model
+          `;
+          console.log("saveTheme UPDATE query:", query);
+          const modelJson = JSON.stringify(model);
+          console.log("saveTheme UPDATE query values:", [
+            name,
+            description,
+            isSystemTheme,
+            modelJson,
+            id,
+          ]);
+
+          const result = await pool.query(query, [
+            name,
+            description,
+            isSystemTheme,
+            modelJson,
+            id,
+          ]);
+          if (result.rowCount === 0) {
+            console.error(`saveTheme ERROR: No theme found with id ${id}`);
+            throw new Error(`No theme found with id ${id}`);
+          }
+
+          const theme = result.rows[0];
+          console.log("saveTheme UPDATE successful:", {
+            id: theme.id,
+            name: theme.name,
+            isSystemTheme: theme.isSystemTheme,
+          });
+
+          return {
+            id: theme.id,
+            name: theme.name,
+            description: theme.description,
+            isSystemTheme: theme.isSystemTheme,
+            applicationid: theme.applicationid,
+            model:
+              typeof theme.model === "string"
+                ? JSON.parse(theme.model)
+                : theme.model || {},
+          };
+        } else {
+          // Create new theme
+          const query = `
+            INSERT INTO "${DB_TABLES.THEMES}" (name, description, "isSystemTheme", applicationid, model)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING id, name, description, "isSystemTheme", applicationid, model
+          `;
+          console.log("saveTheme INSERT query:", query);
+          const modelJson = JSON.stringify(model);
+          console.log("saveTheme INSERT query values:", [
+            name,
+            description,
+            isSystemTheme,
+            applicationid,
+            modelJson,
+          ]);
+
+          const result = await pool.query(query, [
+            name,
+            description,
+            isSystemTheme,
+            applicationid,
+            modelJson,
+          ]);
+          const theme = result.rows[0];
+
+          console.log("saveTheme INSERT successful:", {
+            id: theme.id,
+            name: theme.name,
+            isSystemTheme: theme.isSystemTheme,
+          });
+
+          return {
+            id: theme.id,
+            name: theme.name,
+            description: theme.description,
+            isSystemTheme: theme.isSystemTheme,
+            applicationid: theme.applicationid,
+            model:
+              typeof theme.model === "string"
+                ? JSON.parse(theme.model)
+                : theme.model || {},
+          };
+        }
+      },
+    },
+    {
+      name: "deleteTheme",
+      description: "Deletes a theme. System themes cannot be deleted",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description: "Theme ID to delete",
+          },
+        },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        console.log("=== deleteTheme EXECUTION STARTED ===");
+        console.log("deleteTheme parameters:", JSON.stringify(params, null, 2));
+        console.log("deleteTheme called at:", new Date().toISOString());
+
+        const { id } = params;
+
+        // First check if this is a system theme
+        const checkQuery = `SELECT "isSystemTheme", name FROM "${DB_TABLES.THEMES}" WHERE id = $1`;
+        const checkResult = await pool.query(checkQuery, [id]);
+        if (checkResult.rowCount === 0) {
+          console.error(`deleteTheme ERROR: No theme found with id ${id}`);
+          throw new Error(`No theme found with id ${id}`);
+        }
+
+        const theme = checkResult.rows[0];
+        if (!theme) {
+          throw new Error(`No theme found with id ${id}`);
+        }
+        if (theme.isSystemTheme) {
+          console.error(
+            `deleteTheme ERROR: Cannot delete system theme ${theme.name}`,
+          );
+          throw new Error("Cannot delete system theme");
+        }
+
+        const deleteQuery = `DELETE FROM "${DB_TABLES.THEMES}" WHERE id = $1`;
+        console.log("deleteTheme query:", deleteQuery);
+        console.log("deleteTheme query values:", [id]);
+
+        const result = await pool.query(deleteQuery, [id]);
+        if (result.rowCount === 0) {
+          console.error(`deleteTheme ERROR: No theme found with id ${id}`);
+          throw new Error(`No theme found with id ${id}`);
+        }
+
+        console.log("deleteTheme successful:", { id, name: theme.name });
+        return { success: true, deletedId: id, deletedName: theme.name };
       },
     },
     // Data Object tools removed; use Objects with hasWorkflow=false and Fields referencing objectid

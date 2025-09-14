@@ -37,6 +37,20 @@ interface ObjectSelectorPopupProps {
   onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
+// Inline Theme Selector Popup Component
+interface ThemeSelectorPopupProps {
+  onClose: () => void;
+  onSelect: (theme: {
+    id: number;
+    name: string;
+    description: string;
+    isSystemTheme: boolean;
+  }) => void;
+  applicationId?: number;
+  filterText?: string;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+}
+
 const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
   onClose,
   onSelect,
@@ -210,6 +224,170 @@ const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
   );
 };
 
+const ThemeSelectorPopup: React.FC<ThemeSelectorPopupProps> = ({
+  onClose,
+  onSelect,
+  applicationId,
+  filterText = "",
+  onKeyDown,
+}) => {
+  const [themes, setThemes] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      isSystemTheme: boolean;
+    }>
+  >([]);
+  const [filteredThemes, setFilteredThemes] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      isSystemTheme: boolean;
+    }>
+  >([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchThemes = async () => {
+      if (!applicationId) return;
+
+      setLoading(true);
+      try {
+        const response = await fetch("/api/dynamic", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            action: "getListOfThemes",
+            params: { applicationid: applicationId },
+          }),
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const fetchedThemes = result.data?.themes || [];
+          setThemes(fetchedThemes);
+          setFilteredThemes(fetchedThemes.slice(0, 5)); // Limit to 5 items for compact display
+        }
+      } catch (error) {
+        console.error("Error fetching themes:", error);
+        setThemes([]);
+        setFilteredThemes([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchThemes();
+  }, [applicationId]);
+
+  // Filter themes based on filterText
+  useEffect(() => {
+    if (!filterText.trim()) {
+      setFilteredThemes(themes.slice(0, 5));
+    } else {
+      const filtered = themes.filter((theme) =>
+        theme.name.toLowerCase().includes(filterText.toLowerCase()),
+      );
+      setFilteredThemes(filtered.slice(0, 5));
+    }
+    setSelectedIndex(0);
+  }, [filterText, themes]);
+
+  const handleSelect = (theme: {
+    id: number;
+    name: string;
+    description: string;
+    isSystemTheme: boolean;
+  }) => {
+    onSelect(theme);
+    onClose();
+  };
+
+  const handleKeyDown = (e: { key: string; preventDefault: () => void }) => {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < filteredThemes.length - 1 ? prev + 1 : 0,
+        );
+        break;
+      case "ArrowUp":
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : filteredThemes.length - 1,
+        );
+        break;
+      case "Enter":
+      case "Tab":
+        e.preventDefault();
+        if (filteredThemes[selectedIndex]) {
+          handleSelect(filteredThemes[selectedIndex]);
+        }
+        break;
+      case "Escape":
+        e.preventDefault();
+        onClose();
+        break;
+    }
+  };
+
+  // Global key handling so the popup works while focus stays in the textarea
+  useEffect(() => {
+    const keyListener = (ev: KeyboardEvent) => {
+      if (
+        ev.key === "ArrowDown" ||
+        ev.key === "ArrowUp" ||
+        ev.key === "Enter" ||
+        ev.key === "Tab" ||
+        ev.key === "Escape"
+      ) {
+        handleKeyDown({
+          key: ev.key,
+          preventDefault: () => ev.preventDefault(),
+        });
+      }
+    };
+    window.addEventListener("keydown", keyListener);
+    return () => window.removeEventListener("keydown", keyListener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filteredThemes, selectedIndex]);
+
+  if (loading) {
+    return (
+      <div className="p-2 text-[10px] text-white text-center">Loading...</div>
+    );
+  }
+
+  return (
+    <div onKeyDown={onKeyDown ?? ((e) => handleKeyDown(e as any))} tabIndex={0}>
+      {filteredThemes.map((theme, index) => (
+        <button
+          key={theme.id}
+          onClick={() => handleSelect(theme)}
+          className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
+            index === selectedIndex ? "bg-gray-700" : "hover:bg-gray-700"
+          }`}
+        >
+          <div className="text-white truncate">{theme.name}</div>
+          {theme.isSystemTheme && (
+            <div className="text-gray-400 text-[9px]">System</div>
+          )}
+        </button>
+      ))}
+      {filteredThemes.length === 0 && (
+        <div className="p-2 text-[10px] text-white text-center">
+          No themes found
+        </div>
+      )}
+    </div>
+  );
+};
+
 // Blinking cursor component
 const BlinkingCursor = () => (
   <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-1"></span>
@@ -271,6 +449,11 @@ function normalizeMarkdown(original: string): string {
   content = content.replace(/^\s*\[\[COMPLETED\]\]\s*\n?/i, "");
   // Also remove any inline occurrences of the marker while preserving line breaks
   content = content.replace(/[ \t]*\[\[COMPLETED\]\][ \t]*/gi, "");
+  // Hide theme refresh and updated markers from user display
+  content = content.replace(/^\s*\[\[THEME_REFRESH\]\]\s*\n?/i, "");
+  content = content.replace(/[ \t]*\[\[THEME_REFRESH\]\][ \t]*/gi, "");
+  content = content.replace(/^\s*\[\[THEME_UPDATED_EVENT\]\]\s*\n?/i, "");
+  content = content.replace(/[ \t]*\[\[THEME_UPDATED_EVENT\]\][ \t]*/gi, "");
   // Normalize line endings to \n
   content = content.replace(/\r\n?/g, "\n");
   // Normalize headings and colon/bullet variants in one pass
@@ -408,6 +591,7 @@ export default function ChatInterface({
   const [isRecording, setIsRecording] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [isObjectSelectorOpen, setIsObjectSelectorOpen] = useState(false);
+  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [filterText, setFilterText] = useState("");
@@ -459,6 +643,7 @@ export default function ChatInterface({
         !popupRef.current.contains(event.target as Node)
       ) {
         setIsObjectSelectorOpen(false);
+        setIsThemeSelectorOpen(false);
       }
       if (
         modeDropdownRef.current &&
@@ -468,14 +653,14 @@ export default function ChatInterface({
       }
     };
 
-    if (isObjectSelectorOpen || isModeDropdownOpen) {
+    if (isObjectSelectorOpen || isThemeSelectorOpen || isModeDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isObjectSelectorOpen, isModeDropdownOpen]);
+  }, [isObjectSelectorOpen, isThemeSelectorOpen, isModeDropdownOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -681,11 +866,57 @@ export default function ChatInterface({
     }
   };
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     const raw = message.trim();
     if (raw || attachedFiles.length > 0) {
       let outgoing = raw;
+      let selectedThemeId: number | null = null;
+
       try {
+        // Check for theme references first
+        const themeMatch = outgoing.match(/@theme:([^\s]+)/);
+        if (themeMatch) {
+          const themeName = themeMatch[1];
+          // Fetch theme ID from the theme name
+          try {
+            const response = await fetch("/api/dynamic", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                action: "getListOfThemes",
+                params: { applicationid: applicationId },
+              }),
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              const themes = result.data?.themes || [];
+              const matchedTheme = themes.find(
+                (theme: any) => theme.name === themeName,
+              );
+              if (matchedTheme) {
+                selectedThemeId = matchedTheme.id;
+              }
+            }
+          } catch (error) {
+            console.error("Error fetching theme ID:", error);
+          }
+
+          outgoing = outgoing
+            .replace(/@theme:[^\s]+/g, "")
+            .replace(/\s+/g, " ")
+            .trim();
+          // Add theme context to the message
+          if (selectedThemeId) {
+            outgoing = `${outgoing}\n\nContext: Selected theme: ${themeName} (ID: ${selectedThemeId})`;
+          } else {
+            outgoing = `${outgoing}\n\nContext: Selected theme: ${themeName}`;
+          }
+        }
+
+        // Check for object references
         const cacheKey = `objects_${applicationId || "default"}`;
         const candidates = objectsCache.get(cacheKey) || [];
         const matched = candidates.find((obj) =>
@@ -745,7 +976,7 @@ export default function ChatInterface({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isObjectSelectorOpen) {
+    if (isObjectSelectorOpen || isThemeSelectorOpen) {
       // Handle popup navigation
       switch (e.key) {
         case "ArrowDown":
@@ -847,13 +1078,22 @@ export default function ChatInterface({
       setTimeout(() => {
         setIsObjectSelectorOpen(true);
       }, 10);
-    } else if (isObjectSelectorOpen) {
+    } else if (isObjectSelectorOpen || isThemeSelectorOpen) {
       // Update filter text if popup is open
       const textAfterAt = newValue.substring(cursorPosition);
       const spaceIndex = textAfterAt.indexOf(" ");
       const filter =
         spaceIndex === -1 ? textAfterAt : textAfterAt.substring(0, spaceIndex);
       setFilterText(filter);
+
+      // Check if user typed "theme" after @ to switch to theme selector
+      if (filter.toLowerCase() === "theme" && isObjectSelectorOpen) {
+        setIsObjectSelectorOpen(false);
+        setTimeout(() => {
+          setIsThemeSelectorOpen(true);
+        }, 10);
+      }
+
       // Reposition popup as caret moves
       const position = getCursorPosition(e.target, cursorPos, newValue);
       setPopupPosition(position);
@@ -891,6 +1131,44 @@ export default function ChatInterface({
 
     // Set cursor position after the inserted object reference
     const newCursorPosition = beforeAt.length + objectReference.length;
+
+    // Focus and set cursor position
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPosition, newCursorPosition);
+    }, 0);
+  };
+
+  const handleThemeSelect = (theme: {
+    id: number;
+    name: string;
+    description: string;
+    isSystemTheme: boolean;
+  }) => {
+    if (!textareaRef.current) return;
+
+    const textarea = textareaRef.current;
+    // Slice message into: text before '@', the filter after '@', and the rest
+    const atStartIndex = Math.max(0, cursorPosition - 1);
+    const beforeAt = message.substring(0, atStartIndex);
+    const textAfterAt = message.substring(cursorPosition);
+    // Determine end of typed filter (until first space or delimiter)
+    const delimiterMatch = textAfterAt.match(/[\s.,:;!?/\\()\[\]{}]/);
+    const endOfFilterIndex = delimiterMatch
+      ? delimiterMatch.index || 0
+      : textAfterAt.length;
+    const afterFilterRemainder = textAfterAt.substring(endOfFilterIndex);
+
+    // Insert the selected theme mention, replacing the filter
+    const themeReference = `@theme:${theme.name}`;
+    const newMessage = beforeAt + themeReference + afterFilterRemainder;
+
+    setMessage(newMessage);
+    setIsThemeSelectorOpen(false);
+    setFilterText("");
+
+    // Set cursor position after the inserted theme reference
+    const newCursorPosition = beforeAt.length + themeReference.length;
 
     // Focus and set cursor position
     setTimeout(() => {
@@ -1450,6 +1728,25 @@ export default function ChatInterface({
           <ObjectSelectorPopup
             onClose={() => setIsObjectSelectorOpen(false)}
             onSelect={handleObjectSelect}
+            applicationId={applicationId}
+            filterText={filterText}
+          />
+        </div>
+      )}
+
+      {/* Inline Theme Selector Popup */}
+      {isThemeSelectorOpen && (
+        <div
+          ref={popupRef}
+          className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-32 overflow-y-auto min-w-40"
+          style={{
+            left: `${popupPosition.x}px`,
+            top: `${popupPosition.y}px`,
+          }}
+        >
+          <ThemeSelectorPopup
+            onClose={() => setIsThemeSelectorOpen(false)}
+            onSelect={handleThemeSelect}
             applicationId={applicationId}
             filterText={filterText}
           />

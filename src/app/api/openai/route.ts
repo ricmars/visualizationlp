@@ -157,9 +157,17 @@ export async function POST(request: Request) {
       try {
         const contextData = JSON.parse(systemContext);
         console.log("Parsed system context:", contextData);
+
+        // Always extract applicationId if present, regardless of whether there's a currentobjectid
+        if (contextData.applicationId) {
+          currentApplicationId = contextData.applicationId;
+          console.log("Detected application ID:", currentApplicationId);
+        } else {
+          console.log("No applicationId found in contextData:", contextData);
+        }
+
         if (contextData.currentobjectid) {
           currentobjectid = contextData.currentobjectid;
-          currentApplicationId = contextData.applicationId;
           _isExistingWorkflow = true;
           console.log(
             "Detected existing workflow with case ID:",
@@ -1055,6 +1063,24 @@ Bulk operations policy:
                       );
                     } else if (toolName === "deleteObject") {
                       await processor.sendText(`\nDeleted object successfully`);
+                    } else if (toolName === "saveTheme") {
+                      await processor.sendText(
+                        `\nTheme '${
+                          resultObj.name || "Unknown"
+                        }' saved successfully`,
+                      );
+                      // Trigger theme refresh for live preview and theme dropdown
+                      try {
+                        await processor.sendText(
+                          `\nRefreshing theme in live preview...`,
+                        );
+                        // Send a custom event to trigger theme refresh on the frontend
+                        await processor.sendText(`\n[[THEME_REFRESH]]`);
+                        // Also dispatch the theme-updated event that ThemeDropdown listens for
+                        await processor.sendText(`\n[[THEME_UPDATED_EVENT]]`);
+                      } catch (error) {
+                        console.warn("Failed to trigger theme refresh:", error);
+                      }
                     } else if (
                       toolName.startsWith("get") ||
                       toolName.startsWith("list")
