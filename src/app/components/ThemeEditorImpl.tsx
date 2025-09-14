@@ -283,6 +283,7 @@ const ThemeEditorImpl: React.FC<ThemeEditorProps> = ({
 
     // Cleanup: do not unmount to avoid dev StrictMode double-invoke clearing
     return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme, name, onUpdate]);
 
   return <div ref={containerRef} style={{ position: "relative" }}></div>;

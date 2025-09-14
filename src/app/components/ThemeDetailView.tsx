@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { FaPencilAlt, FaTrash } from "react-icons/fa";
+import { FaPencilAlt } from "react-icons/fa";
 import StandardModal from "./StandardModal";
 import ThemeEditorWithToggle from "./ThemeEditorWithToggle";
 
