@@ -1871,6 +1871,16 @@ export default function WorkflowPage() {
                     router.push(`/application/${appId}?${params.toString()}`);
                   } catch {}
                 }}
+                onSave={async (updatedTheme) => {
+                  await handleSaveTheme(
+                    updatedTheme.id,
+                    updatedTheme.name,
+                    updatedTheme.description,
+                    updatedTheme.model,
+                  );
+                  // Update the selected theme with the new data
+                  setSelectedTheme(updatedTheme);
+                }}
               />
             ) : !isPreviewVisible && selectedDataObjectId !== null ? (
               <div className="flex flex-col h-full">
@@ -2315,11 +2325,12 @@ export default function WorkflowPage() {
           onSave={handleSaveTheme}
           onDelete={handleDeleteTheme}
           isSaving={false}
+          showThemeEditor={true} // Show full theme editor in modal
         />
       </div>
 
       {/* Chat Panel - fixed width - Hidden on tablet/mobile */}
-      {isDesktop && (
+      {isDesktop && applicationId && (
         <aside className="flex flex-col h-app-screen text-sm right-panel">
           <div className="flex-1 flex flex-col min-w-0">
             <ChatPanelContent
@@ -2332,7 +2343,7 @@ export default function WorkflowPage() {
               objectid={parseInt(id)}
               onQuickAction={beginFreeFormSelection}
               onClearChat={handleClearChat}
-              applicationId={applicationId || undefined}
+              applicationId={applicationId}
             />
           </div>
         </aside>
@@ -2379,20 +2390,22 @@ export default function WorkflowPage() {
       )}
 
       {/* Floating Chat Modal */}
-      <FloatingChatModal
-        isOpen={isChatModalOpen}
-        onClose={() => setIsChatModalOpen(false)}
-        messages={messages}
-        onSendMessage={(message, mode, attachedFiles) =>
-          void handleSendMessage(message, mode, attachedFiles)
-        }
-        onAbort={() => handleAbort()}
-        isProcessing={isProcessing}
-        objectid={parseInt(id)}
-        onQuickAction={beginFreeFormSelection}
-        onClearChat={handleClearChat}
-        applicationId={applicationId || undefined}
-      />
+      {applicationId && (
+        <FloatingChatModal
+          isOpen={isChatModalOpen}
+          onClose={() => setIsChatModalOpen(false)}
+          messages={messages}
+          onSendMessage={(message, mode, attachedFiles) =>
+            void handleSendMessage(message, mode, attachedFiles)
+          }
+          onAbort={() => handleAbort()}
+          isProcessing={isProcessing}
+          objectid={parseInt(id)}
+          onQuickAction={beginFreeFormSelection}
+          onClearChat={handleClearChat}
+          applicationId={applicationId}
+        />
+      )}
 
       {/* Floating Left Panel Modal */}
       <FloatingLeftPanelModal

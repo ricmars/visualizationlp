@@ -186,7 +186,6 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
         actions={modalActions}
         width="w-full"
         zIndex="z-[30]"
-        usePortal={false}
       >
         <div
           data-allow-freeform-select="true"
@@ -331,7 +330,6 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             return [...prev, ...newFields];
           });
         }}
-        usePortal={false}
       />
 
       {editingField && (

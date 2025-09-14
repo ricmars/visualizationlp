@@ -17,14 +17,20 @@ interface ThemeDetailViewProps {
   onEdit: (theme: Theme) => void;
   onDelete: (themeId: number) => void;
   onClose: () => void;
+  onSave?: (theme: Theme) => Promise<void>;
 }
 
 export const ThemeDetailView: React.FC<ThemeDetailViewProps> = ({
   theme,
   onEdit,
   onDelete,
+  onClose: _onClose,
+  onSave,
 }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editedThemeModel, setEditedThemeModel] = useState<any>(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   if (!theme) return null;
 
@@ -33,32 +39,66 @@ export const ThemeDetailView: React.FC<ThemeDetailViewProps> = ({
     setShowDeleteConfirm(false);
   };
 
+  const handleSaveThemeModel = async () => {
+    if (!editedThemeModel || !onSave) return;
+
+    setIsSaving(true);
+    try {
+      const updatedTheme = { ...theme, model: editedThemeModel };
+      await onSave(updatedTheme);
+      setEditedThemeModel(null);
+      setHasUnsavedChanges(false);
+    } catch (error) {
+      console.error("Error saving theme model:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleThemeUpdate = (updatedTheme: any) => {
+    setEditedThemeModel(updatedTheme);
+    setHasUnsavedChanges(true);
+  };
+
+  const currentThemeModel = editedThemeModel || theme.model;
+
   return (
     <>
       <div className="h-full flex flex-col bg-[rgb(14,10,42)] text-white">
         {/* Header */}
         <div className="px-4 py-3 border-b border-white/10">
-          <div className="flex items-center gap-2">
-            <h2 className="text-lg font-semibold">{theme.name}</h2>
-            {theme.isSystemTheme && (
-              <span className="tag-secondary">System</span>
-            )}
-            <button
-              className="btn-secondary w-8"
-              aria-label="Edit theme"
-              onClick={() => onEdit(theme)}
-            >
-              <FaPencilAlt className="w-4 h-4" />
-            </button>
-            {!theme.isSystemTheme && (
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-semibold">{theme.name}</h2>
+              {theme.isSystemTheme && (
+                <span className="tag-secondary">System</span>
+              )}
               <button
                 className="btn-secondary w-8"
-                aria-label="Delete theme"
-                onClick={() => setShowDeleteConfirm(true)}
+                aria-label="Edit theme name and description"
+                onClick={() => onEdit(theme)}
               >
-                <FaTrash className="w-4 h-4" />
+                <FaPencilAlt className="w-4 h-4" />
               </button>
-            )}
+            </div>
+            <div className="flex items-center gap-2">
+              {!theme.isSystemTheme && (
+                <button
+                  className="btn-secondary px-3"
+                  aria-label="Delete theme"
+                  onClick={() => setShowDeleteConfirm(true)}
+                >
+                  Delete
+                </button>
+              )}
+              <button
+                className="interactive-button px-3"
+                onClick={handleSaveThemeModel}
+                disabled={!hasUnsavedChanges || isSaving}
+              >
+                Save
+              </button>
+            </div>
           </div>
         </div>
 
@@ -67,10 +107,7 @@ export const ThemeDetailView: React.FC<ThemeDetailViewProps> = ({
           <div className="space-y-6">
             {/* Basic Information */}
             <div>
-              <h3 className="text-sm font-medium text-white/70 mb-2">
-                Description
-              </h3>
-              <p className="text-white">{theme.description}</p>
+              <p className="text-white/80 text-sm">{theme.description}</p>
             </div>
 
             {/* Theme Model */}
@@ -83,13 +120,10 @@ export const ThemeDetailView: React.FC<ThemeDetailViewProps> = ({
               }}
             >
               <ThemeEditorWithToggle
-                theme={theme.model}
+                theme={currentThemeModel}
                 name={theme.name}
-                onUpdate={(updatedTheme) => {
-                  // In detail view, we don't allow editing, so this is read-only
-                  console.log("Theme updated:", updatedTheme);
-                }}
-                readOnly={true}
+                onUpdate={handleThemeUpdate}
+                readOnly={false}
               />
             </div>
           </div>

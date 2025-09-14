@@ -26,7 +26,7 @@ interface FloatingChatModalProps {
   objectid: number;
   onQuickAction: () => void;
   onClearChat: () => void;
-  applicationId?: number;
+  applicationId: number;
 }
 
 export default function FloatingChatModal({

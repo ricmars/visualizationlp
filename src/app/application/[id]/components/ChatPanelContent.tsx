@@ -25,7 +25,7 @@ type ChatPanelContentProps = {
   onQuickAction: () => void;
   onClearChat: () => void;
   additionalHeaderButtons?: React.ReactNode;
-  applicationId?: number;
+  applicationId: number;
 };
 
 export default function ChatPanelContent({

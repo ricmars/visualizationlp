@@ -29,6 +29,7 @@ interface ThemeModalProps {
   onDelete?: (themeId: number) => Promise<void>;
   isSaving: boolean;
   saveError?: string | null;
+  showThemeEditor?: boolean; // New prop to control whether to show theme editor
 }
 
 export const ThemeModal: React.FC<ThemeModalProps> = ({
@@ -39,6 +40,7 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
   onDelete,
   isSaving,
   saveError,
+  showThemeEditor = true, // Default to true for backward compatibility
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -189,14 +191,16 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
           </div>
         </div>
 
-        <div style={{ height: "calc(100vh - 400px)", overflow: "auto" }}>
-          <ThemeEditorWithToggle
-            theme={currentTheme}
-            name={name}
-            onUpdate={handleThemeUpdate}
-            readOnly={isSubmitting || isSaving}
-          />
-        </div>
+        {showThemeEditor && (
+          <div style={{ height: "calc(100vh - 400px)", overflow: "auto" }}>
+            <ThemeEditorWithToggle
+              theme={currentTheme}
+              name={name}
+              onUpdate={handleThemeUpdate}
+              readOnly={isSubmitting || isSaving}
+            />
+          </div>
+        )}
 
         {error && <div className="text-red-500 text-sm mt-2">{error}</div>}
       </div>

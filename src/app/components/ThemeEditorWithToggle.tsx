@@ -35,7 +35,6 @@ const ThemeEditorWithToggle: React.FC<ThemeEditorWithToggleProps> = ({
               className="sr-only"
               checked={viewMode === "json"}
               onChange={handleToggleChange}
-              disabled={readOnly}
             />
             <div className="lp-toggle-track"></div>
             <div className="lp-toggle-dot"></div>
@@ -50,7 +49,12 @@ const ThemeEditorWithToggle: React.FC<ThemeEditorWithToggleProps> = ({
       <div className="flex-1 overflow-hidden">
         {viewMode === "editor" ? (
           <div className="h-full">
-            <ThemeEditorImpl theme={theme} name={name} onUpdate={onUpdate} />
+            <ThemeEditorImpl
+              theme={theme}
+              name={name}
+              onUpdate={onUpdate}
+              readOnly={readOnly}
+            />
           </div>
         ) : (
           <div className="bg-gray-800 border border-gray-600 rounded-md p-4 h-full overflow-auto">

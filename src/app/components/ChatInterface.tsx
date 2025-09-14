@@ -22,38 +22,28 @@ const objectsCache = new Map<
   }>
 >();
 
-// Inline Object Selector Popup Component
-interface ObjectSelectorPopupProps {
+const UnifiedSelectorPopup: React.FC<{
   onClose: () => void;
-  onSelect: (object: {
+  onObjectSelect: (object: {
     id: number;
     name: string;
     description: string;
     hasWorkflow: boolean;
     isEmbedded: boolean;
   }) => void;
-  applicationId?: number;
-  filterText?: string;
-  onKeyDown?: (e: React.KeyboardEvent) => void;
-}
-
-// Inline Theme Selector Popup Component
-interface ThemeSelectorPopupProps {
-  onClose: () => void;
-  onSelect: (theme: {
+  onThemeSelect: (theme: {
     id: number;
     name: string;
     description: string;
     isSystemTheme: boolean;
   }) => void;
-  applicationId?: number;
+  applicationId: number;
   filterText?: string;
   onKeyDown?: (e: React.KeyboardEvent) => void;
-}
-
-const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
+}> = ({
   onClose,
-  onSelect,
+  onObjectSelect,
+  onThemeSelect,
   applicationId,
   filterText = "",
   onKeyDown,
@@ -67,6 +57,14 @@ const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
       isEmbedded: boolean;
     }>
   >([]);
+  const [themes, setThemes] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description: string;
+      isSystemTheme: boolean;
+    }>
+  >([]);
   const [filteredObjects, setFilteredObjects] = useState<
     Array<{
       id: number;
@@ -74,169 +72,6 @@ const ObjectSelectorPopup: React.FC<ObjectSelectorPopupProps> = ({
       description: string;
       hasWorkflow: boolean;
       isEmbedded: boolean;
-    }>
-  >([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  useEffect(() => {
-    const fetchObjects = async () => {
-      const cacheKey = `objects_${applicationId || "default"}`;
-
-      // Check cache first
-      if (objectsCache.has(cacheKey)) {
-        const cachedObjects = objectsCache.get(cacheKey)!;
-        setObjects(cachedObjects);
-        setFilteredObjects(cachedObjects.slice(0, 5));
-        return;
-      }
-
-      setLoading(true);
-      try {
-        // Use the standard query
-        let url = "/api/database?table=Objects";
-        if (applicationId) {
-          url += `&applicationid=${applicationId}`;
-        }
-
-        const response = await fetch(url);
-
-        if (response.ok) {
-          const result = await response.json();
-          const fetchedObjects = result.data || [];
-
-          // Cache the results
-          objectsCache.set(cacheKey, fetchedObjects);
-
-          setObjects(fetchedObjects);
-          setFilteredObjects(fetchedObjects.slice(0, 5)); // Limit to 5 items for compact display
-        }
-      } catch (error) {
-        console.error("Error fetching objects:", error);
-        setObjects([]);
-        setFilteredObjects([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchObjects();
-  }, [applicationId]);
-
-  // Filter objects based on filterText
-  useEffect(() => {
-    if (!filterText.trim()) {
-      setFilteredObjects(objects.slice(0, 5));
-    } else {
-      const filtered = objects.filter((obj) =>
-        obj.name.toLowerCase().includes(filterText.toLowerCase()),
-      );
-      setFilteredObjects(filtered.slice(0, 5));
-    }
-    setSelectedIndex(0);
-  }, [filterText, objects]);
-
-  const handleSelect = (object: {
-    id: number;
-    name: string;
-    description: string;
-    hasWorkflow: boolean;
-    isEmbedded: boolean;
-  }) => {
-    onSelect(object);
-    onClose();
-  };
-
-  const handleKeyDown = (e: { key: string; preventDefault: () => void }) => {
-    switch (e.key) {
-      case "ArrowDown":
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < filteredObjects.length - 1 ? prev + 1 : 0,
-        );
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredObjects.length - 1,
-        );
-        break;
-      case "Enter":
-      case "Tab":
-        e.preventDefault();
-        if (filteredObjects[selectedIndex]) {
-          handleSelect(filteredObjects[selectedIndex]);
-        }
-        break;
-      case "Escape":
-        e.preventDefault();
-        onClose();
-        break;
-    }
-  };
-
-  // Global key handling so the popup works while focus stays in the textarea
-  useEffect(() => {
-    const keyListener = (ev: KeyboardEvent) => {
-      if (
-        ev.key === "ArrowDown" ||
-        ev.key === "ArrowUp" ||
-        ev.key === "Enter" ||
-        ev.key === "Tab" ||
-        ev.key === "Escape"
-      ) {
-        handleKeyDown({
-          key: ev.key,
-          preventDefault: () => ev.preventDefault(),
-        });
-      }
-    };
-    window.addEventListener("keydown", keyListener);
-    return () => window.removeEventListener("keydown", keyListener);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredObjects, selectedIndex]);
-
-  if (loading) {
-    return (
-      <div className="p-2 text-[10px] text-white text-center">Loading...</div>
-    );
-  }
-
-  return (
-    <div onKeyDown={onKeyDown ?? ((e) => handleKeyDown(e as any))} tabIndex={0}>
-      {filteredObjects.map((object, index) => (
-        <button
-          key={object.id}
-          onClick={() => handleSelect(object)}
-          className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
-            index === selectedIndex ? "bg-gray-700" : "hover:bg-gray-700"
-          }`}
-        >
-          <div className="text-white truncate">{object.name}</div>
-        </button>
-      ))}
-      {filteredObjects.length === 0 && (
-        <div className="p-2 text-[10px] text-white text-center">
-          No objects found
-        </div>
-      )}
-    </div>
-  );
-};
-
-const ThemeSelectorPopup: React.FC<ThemeSelectorPopupProps> = ({
-  onClose,
-  onSelect,
-  applicationId,
-  filterText = "",
-  onKeyDown,
-}) => {
-  const [themes, setThemes] = useState<
-    Array<{
-      id: number;
-      name: string;
-      description: string;
-      isSystemTheme: boolean;
     }>
   >([]);
   const [filteredThemes, setFilteredThemes] = useState<
@@ -250,83 +85,109 @@ const ThemeSelectorPopup: React.FC<ThemeSelectorPopupProps> = ({
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [loading, setLoading] = useState(false);
 
+  // Combined items for navigation
+  const allItems = [
+    ...filteredObjects.map((obj) => ({ type: "object" as const, data: obj })),
+    ...filteredThemes.map((theme) => ({ type: "theme" as const, data: theme })),
+  ];
+
   useEffect(() => {
-    const fetchThemes = async () => {
-      if (!applicationId) return;
+    const fetchData = async () => {
+      const cacheKey = `objects_${applicationId}`;
 
       setLoading(true);
       try {
-        const response = await fetch("/api/dynamic", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            action: "getListOfThemes",
-            params: { applicationid: applicationId },
-          }),
-        });
+        // Fetch objects
+        const objectsUrl = `/api/database?table=Objects&applicationid=${applicationId}`;
 
-        if (response.ok) {
-          const result = await response.json();
-          const fetchedThemes = result.data?.themes || [];
-          setThemes(fetchedThemes);
-          setFilteredThemes(fetchedThemes.slice(0, 5)); // Limit to 5 items for compact display
+        const objectsResponse = await fetch(objectsUrl);
+        let fetchedObjects: any[] = [];
+
+        if (objectsResponse.ok) {
+          const result = await objectsResponse.json();
+          fetchedObjects = result.data || [];
+          // Cache the results
+          objectsCache.set(cacheKey, fetchedObjects);
         }
+
+        // Fetch themes
+        let fetchedThemes: any[] = [];
+        try {
+          const themesResponse = await fetch("/api/dynamic", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              action: "getListOfThemes",
+              params: { applicationid: applicationId },
+            }),
+          });
+
+          if (themesResponse.ok) {
+            const result = await themesResponse.json();
+            fetchedThemes = result.data?.themes || [];
+          }
+        } catch (error) {
+          console.error("Error fetching themes:", error);
+        }
+
+        setObjects(fetchedObjects);
+        setThemes(fetchedThemes);
+        setFilteredObjects(fetchedObjects.slice(0, 3)); // Limit objects to 3
+        setFilteredThemes(fetchedThemes.slice(0, 3)); // Limit themes to 3
       } catch (error) {
-        console.error("Error fetching themes:", error);
+        console.error("Error fetching data:", error);
+        setObjects([]);
         setThemes([]);
+        setFilteredObjects([]);
         setFilteredThemes([]);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchThemes();
+    fetchData();
   }, [applicationId]);
 
-  // Filter themes based on filterText
+  // Filter data based on filterText
   useEffect(() => {
     if (!filterText.trim()) {
-      setFilteredThemes(themes.slice(0, 5));
+      setFilteredObjects(objects.slice(0, 3));
+      setFilteredThemes(themes.slice(0, 3));
     } else {
-      const filtered = themes.filter((theme) =>
+      const filteredObjs = objects.filter((obj) =>
+        obj.name.toLowerCase().includes(filterText.toLowerCase()),
+      );
+      const filteredThms = themes.filter((theme) =>
         theme.name.toLowerCase().includes(filterText.toLowerCase()),
       );
-      setFilteredThemes(filtered.slice(0, 5));
+      setFilteredObjects(filteredObjs.slice(0, 3));
+      setFilteredThemes(filteredThms.slice(0, 3));
     }
     setSelectedIndex(0);
-  }, [filterText, themes]);
-
-  const handleSelect = (theme: {
-    id: number;
-    name: string;
-    description: string;
-    isSystemTheme: boolean;
-  }) => {
-    onSelect(theme);
-    onClose();
-  };
+  }, [filterText, objects, themes]);
 
   const handleKeyDown = (e: { key: string; preventDefault: () => void }) => {
     switch (e.key) {
       case "ArrowDown":
         e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev < filteredThemes.length - 1 ? prev + 1 : 0,
-        );
+        setSelectedIndex((prev) => (prev < allItems.length - 1 ? prev + 1 : 0));
         break;
       case "ArrowUp":
         e.preventDefault();
-        setSelectedIndex((prev) =>
-          prev > 0 ? prev - 1 : filteredThemes.length - 1,
-        );
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : allItems.length - 1));
         break;
       case "Enter":
       case "Tab":
         e.preventDefault();
-        if (filteredThemes[selectedIndex]) {
-          handleSelect(filteredThemes[selectedIndex]);
+        if (allItems[selectedIndex]) {
+          const item = allItems[selectedIndex];
+          if (item.type === "object") {
+            onObjectSelect(item.data);
+          } else {
+            onThemeSelect(item.data);
+          }
         }
         break;
       case "Escape":
@@ -355,7 +216,7 @@ const ThemeSelectorPopup: React.FC<ThemeSelectorPopupProps> = ({
     window.addEventListener("keydown", keyListener);
     return () => window.removeEventListener("keydown", keyListener);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filteredThemes, selectedIndex]);
+  }, [allItems, selectedIndex]);
 
   if (loading) {
     return (
@@ -363,25 +224,62 @@ const ThemeSelectorPopup: React.FC<ThemeSelectorPopupProps> = ({
     );
   }
 
+  let currentIndex = 0;
+
   return (
     <div onKeyDown={onKeyDown ?? ((e) => handleKeyDown(e as any))} tabIndex={0}>
-      {filteredThemes.map((theme, index) => (
-        <button
-          key={theme.id}
-          onClick={() => handleSelect(theme)}
-          className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
-            index === selectedIndex ? "bg-gray-700" : "hover:bg-gray-700"
-          }`}
-        >
-          <div className="text-white truncate">{theme.name}</div>
-          {theme.isSystemTheme && (
-            <div className="text-gray-400 text-[9px]">System</div>
-          )}
-        </button>
-      ))}
-      {filteredThemes.length === 0 && (
+      {/* Objects Section */}
+      {filteredObjects.length > 0 && (
+        <>
+          <div className="px-2 py-1 text-[9px] text-gray-400 border-b border-gray-600">
+            Objects
+          </div>
+          {filteredObjects.map((object) => {
+            const isSelected = currentIndex === selectedIndex;
+            return (
+              <button
+                key={`obj-${object.id}`}
+                onClick={() => onObjectSelect(object)}
+                className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
+                  isSelected ? "bg-gray-700" : "hover:bg-gray-700"
+                }`}
+              >
+                <div className="text-white truncate">{object.name}</div>
+              </button>
+            );
+          })}
+        </>
+      )}
+
+      {/* Themes Section */}
+      {filteredThemes.length > 0 && (
+        <>
+          <div className="px-2 py-1 text-[9px] text-gray-400 border-b border-gray-600">
+            Themes
+          </div>
+          {filteredThemes.map((theme) => {
+            const isSelected = currentIndex === selectedIndex;
+            return (
+              <button
+                key={`theme-${theme.id}`}
+                onClick={() => onThemeSelect(theme)}
+                className={`w-full px-2 py-1 text-left transition-colors text-[10px] ${
+                  isSelected ? "bg-gray-700" : "hover:bg-gray-700"
+                }`}
+              >
+                <div className="text-white truncate">{theme.name}</div>
+                {theme.isSystemTheme && (
+                  <div className="text-gray-400 text-[9px]">System</div>
+                )}
+              </button>
+            );
+          })}
+        </>
+      )}
+
+      {allItems.length === 0 && (
         <div className="p-2 text-[10px] text-white text-center">
-          No themes found
+          No items found
         </div>
       )}
     </div>
@@ -439,7 +337,7 @@ interface ChatInterfaceProps {
   isLoading: boolean;
   isProcessing: boolean;
   objectid?: number;
-  applicationId?: number;
+  applicationId: number;
 }
 
 // Function to format content based on its type
@@ -590,8 +488,7 @@ export default function ChatInterface({
   const [hasVoiceConfig, setHasVoiceConfig] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const [isObjectSelectorOpen, setIsObjectSelectorOpen] = useState(false);
-  const [isThemeSelectorOpen, setIsThemeSelectorOpen] = useState(false);
+  const [isUnifiedSelectorOpen, setIsUnifiedSelectorOpen] = useState(false);
   const [cursorPosition, setCursorPosition] = useState(0);
   const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
   const [filterText, setFilterText] = useState("");
@@ -642,8 +539,7 @@ export default function ChatInterface({
         popupRef.current &&
         !popupRef.current.contains(event.target as Node)
       ) {
-        setIsObjectSelectorOpen(false);
-        setIsThemeSelectorOpen(false);
+        setIsUnifiedSelectorOpen(false);
       }
       if (
         modeDropdownRef.current &&
@@ -653,14 +549,14 @@ export default function ChatInterface({
       }
     };
 
-    if (isObjectSelectorOpen || isThemeSelectorOpen || isModeDropdownOpen) {
+    if (isUnifiedSelectorOpen || isModeDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isObjectSelectorOpen, isThemeSelectorOpen, isModeDropdownOpen]);
+  }, [isUnifiedSelectorOpen, isModeDropdownOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -730,38 +626,8 @@ export default function ChatInterface({
     } catch {}
   };
 
-  const _openRecordModal = () => {
-    setIsRecordModalOpen(true);
-  };
-
   const closeRecordModal = () => {
     setIsRecordModalOpen(false);
-  };
-
-  const _handleChooseAudioOutput = async () => {
-    try {
-      const md: any = (navigator as any).mediaDevices;
-      if (!md || !md.selectAudioOutput) {
-        console.warn("selectAudioOutput() not supported in this browser.");
-        return;
-      }
-      const device: MediaDeviceInfo = await md.selectAudioOutput();
-      setAudioOutputDevice(device);
-      setPreferredOutputDeviceId(device.deviceId);
-      try {
-        localStorage.setItem("voice.audioOutputDeviceId", device.deviceId);
-      } catch {}
-      if (audioRef.current && (audioRef.current as any).setSinkId) {
-        try {
-          await (audioRef.current as any).setSinkId(device.deviceId);
-        } catch (err) {
-          console.warn("Failed to set sinkId on audio element", err);
-        }
-      }
-      await refreshOutputDevices();
-    } catch (err) {
-      console.error("Error selecting audio output:", err);
-    }
   };
 
   const refreshOutputDevices = async () => {
@@ -917,7 +783,7 @@ export default function ChatInterface({
         }
 
         // Check for object references
-        const cacheKey = `objects_${applicationId || "default"}`;
+        const cacheKey = `objects_${applicationId}`;
         const candidates = objectsCache.get(cacheKey) || [];
         const matched = candidates.find((obj) =>
           outgoing.includes(`@${obj.name}`),
@@ -976,7 +842,7 @@ export default function ChatInterface({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (isObjectSelectorOpen || isThemeSelectorOpen) {
+    if (isUnifiedSelectorOpen) {
       // Handle popup navigation
       switch (e.key) {
         case "ArrowDown":
@@ -1074,25 +940,17 @@ export default function ChatInterface({
       const position = getCursorPosition(e.target, cursorPos, newValue);
       setPopupPosition(position);
 
-      // Open object selector modal after a short delay
+      // Open unified selector modal after a short delay
       setTimeout(() => {
-        setIsObjectSelectorOpen(true);
+        setIsUnifiedSelectorOpen(true);
       }, 10);
-    } else if (isObjectSelectorOpen || isThemeSelectorOpen) {
+    } else if (isUnifiedSelectorOpen) {
       // Update filter text if popup is open
       const textAfterAt = newValue.substring(cursorPosition);
       const spaceIndex = textAfterAt.indexOf(" ");
       const filter =
         spaceIndex === -1 ? textAfterAt : textAfterAt.substring(0, spaceIndex);
       setFilterText(filter);
-
-      // Check if user typed "theme" after @ to switch to theme selector
-      if (filter.toLowerCase() === "theme" && isObjectSelectorOpen) {
-        setIsObjectSelectorOpen(false);
-        setTimeout(() => {
-          setIsThemeSelectorOpen(true);
-        }, 10);
-      }
 
       // Reposition popup as caret moves
       const position = getCursorPosition(e.target, cursorPos, newValue);
@@ -1126,7 +984,7 @@ export default function ChatInterface({
     const newMessage = beforeAt + objectReference + afterFilterRemainder;
 
     setMessage(newMessage);
-    setIsObjectSelectorOpen(false);
+    setIsUnifiedSelectorOpen(false);
     setFilterText("");
 
     // Set cursor position after the inserted object reference
@@ -1164,7 +1022,7 @@ export default function ChatInterface({
     const newMessage = beforeAt + themeReference + afterFilterRemainder;
 
     setMessage(newMessage);
-    setIsThemeSelectorOpen(false);
+    setIsUnifiedSelectorOpen(false);
     setFilterText("");
 
     // Set cursor position after the inserted theme reference
@@ -1715,38 +1573,20 @@ export default function ChatInterface({
         </div>
       </StandardModal>
 
-      {/* Inline Object Selector Popup */}
-      {isObjectSelectorOpen && (
+      {/* Inline Unified Selector Popup */}
+      {isUnifiedSelectorOpen && (
         <div
           ref={popupRef}
-          className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-32 overflow-y-auto min-w-40"
+          className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-40 overflow-y-auto min-w-40"
           style={{
             left: `${popupPosition.x}px`,
             top: `${popupPosition.y}px`,
           }}
         >
-          <ObjectSelectorPopup
-            onClose={() => setIsObjectSelectorOpen(false)}
-            onSelect={handleObjectSelect}
-            applicationId={applicationId}
-            filterText={filterText}
-          />
-        </div>
-      )}
-
-      {/* Inline Theme Selector Popup */}
-      {isThemeSelectorOpen && (
-        <div
-          ref={popupRef}
-          className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-32 overflow-y-auto min-w-40"
-          style={{
-            left: `${popupPosition.x}px`,
-            top: `${popupPosition.y}px`,
-          }}
-        >
-          <ThemeSelectorPopup
-            onClose={() => setIsThemeSelectorOpen(false)}
-            onSelect={handleThemeSelect}
+          <UnifiedSelectorPopup
+            onClose={() => setIsUnifiedSelectorOpen(false)}
+            onObjectSelect={handleObjectSelect}
+            onThemeSelect={handleThemeSelect}
             applicationId={applicationId}
             filterText={filterText}
           />

@@ -26,7 +26,6 @@ type StandardModalProps = {
   description?: string; // For aria-describedby
   closeOnOverlayClick?: boolean; // Allow disabling overlay close
   closeOnEscape?: boolean; // Allow disabling escape close
-  usePortal?: boolean; // Render using ModalPortal (default) or inline
 };
 
 export default function StandardModal({
@@ -41,7 +40,6 @@ export default function StandardModal({
   description,
   closeOnOverlayClick = true,
   closeOnEscape = true,
-  usePortal = true,
 }: StandardModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
@@ -193,10 +191,5 @@ export default function StandardModal({
     </>
   );
 
-  if (usePortal) {
-    return <ModalPortal isOpen={isOpen}>{modalInner}</ModalPortal>;
-  }
-
-  // Inline rendering (no portal)
-  return modalInner;
+  return <ModalPortal isOpen={isOpen}>{modalInner}</ModalPortal>;
 }

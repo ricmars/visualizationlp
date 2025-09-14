@@ -52,6 +52,7 @@ export type ThemeEditorProps = {
   theme: DefaultTheme;
   name: string;
   onUpdate: (theme: DefaultTheme) => void;
+  readOnly?: boolean;
 };
 
 // Stable error boundary to avoid remounting the subtree on each render
@@ -137,6 +138,7 @@ const ThemeEditorImpl: React.FC<ThemeEditorProps> = ({
   theme,
   name,
   onUpdate,
+  readOnly = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
@@ -262,7 +264,12 @@ const ThemeEditorImpl: React.FC<ThemeEditorProps> = ({
         content = (
           <ErrorBoundary>
             <PegaProviders container={shadowContainer}>
-              <ThemeEditor theme={theme} name={name} onUpdate={onUpdate} />
+              <ThemeEditor
+                theme={theme}
+                name={name}
+                onUpdate={onUpdate}
+                readOnly={readOnly}
+              />
             </PegaProviders>
           </ErrorBoundary>
         );

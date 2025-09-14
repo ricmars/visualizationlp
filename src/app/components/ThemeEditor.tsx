@@ -24,10 +24,11 @@ export type ThemeEditorProps = {
   theme: DefaultTheme;
   name: string;
   onUpdate: (theme: DefaultTheme) => void;
+  readOnly?: boolean;
 };
 
 const ThemeEditor = (props: ThemeEditorProps) => {
-  const { theme, name, onUpdate } = props;
+  const { theme, name, onUpdate, readOnly = false } = props;
   const [, setStore] = useSimpleStore(themeDesignerStore, () => {});
   const [panelShown, setPanelShown] = useState("basic");
 
@@ -45,11 +46,11 @@ const ThemeEditor = (props: ThemeEditorProps) => {
     setStore(() => ({
       ...defaultStoreValue,
       theme,
-      readOnly: false,
+      readOnly,
       name,
       onUpdate: handleUpdate,
     }));
-  }, [theme, setStore, name, handleUpdate]);
+  }, [theme, setStore, name, handleUpdate, readOnly]);
 
   const paletteTabs: TabbedPageTab[] = [
     {

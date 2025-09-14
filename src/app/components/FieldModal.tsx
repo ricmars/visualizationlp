@@ -43,9 +43,6 @@ interface FieldModalProps {
   // Reference targets
   workflowObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
   dataObjects?: Array<{ id: number; name: string; isEmbedded?: boolean }>;
-
-  // Render behavior
-  usePortal?: boolean;
 }
 
 const FieldModal: React.FC<FieldModalProps> = ({
@@ -62,7 +59,6 @@ const FieldModal: React.FC<FieldModalProps> = ({
   onSubmitEdit,
   workflowObjects = [],
   dataObjects = [],
-  usePortal = true,
 }) => {
   const [addMode, setAddMode] = useState<"new" | "existing">(
     allowExistingFields ? "existing" : "new",
@@ -447,7 +443,6 @@ const FieldModal: React.FC<FieldModalProps> = ({
       actions={actions}
       width="w-full max-w-md"
       onKeyDownAction={handleKeyDown}
-      usePortal={usePortal}
     >
       {mode === "add" && allowExistingFields && (
         <div className="flex gap-2 p-1 rounded-lg bg-[rgb(20,16,60)]">
