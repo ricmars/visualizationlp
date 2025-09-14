@@ -2200,20 +2200,28 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                 properties: {
                   "font-family": {
                     type: "string",
-                    description: "The font-family to use for the application",
+                    description:
+                      "The font-family to use for the application - the following fonts are supported: 'Inter', 'Tinos', 'Lora', 'Montserrat', 'Open Sans','Playfair', 'Poppins', 'Roboto Flex', 'Roboto Mono', 'Roboto Slab', 'Work Sans',  'Helvetica', 'Arial', 'sans-serif'",
                   },
                   "font-stretch": {
                     type: "string",
                     description:
-                      "How the font should stretch - only support if the font-family supports font-stretch",
+                      "How the font should stretch - only support if the font-family supports font-stretch - for example '100%'",
                   },
                   "line-height": {
                     type: "string",
-                    description: "Line height value for text",
+                    description:
+                      "Line height value for text - for example '1.28'",
+                  },
+                  "font-size": {
+                    type: "string",
+                    description:
+                      "Root Font size for all elements in rem - for example '0.875rem'",
                   },
                   "font-scale": {
                     type: "string",
-                    description: "Font scale type for typography",
+                    description:
+                      "Font scale type for typography, for example 'majorSecond' or 'minorThird'",
                   },
                   palette: {
                     type: "object",
@@ -2278,11 +2286,13 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   },
                   "border-radius": {
                     type: "string",
-                    description: "Border radius value for elements",
+                    description:
+                      "Border radius value for elements in rem - for example '1rem'",
                   },
                   spacing: {
                     type: "string",
-                    description: "Base spacing value for layout elements",
+                    description:
+                      "Base spacing value for layout elements - for example '0.5rem'",
                   },
                   shadow: {
                     type: "object",
@@ -2290,31 +2300,33 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     properties: {
                       focus: {
                         type: "string",
-                        description: "Focus shadow for interactive elements",
+                        description:
+                          "Focus shadow for interactive elements - for example '0 0 0 0.11rem #fff, 0 0 0 0.18rem #b7440b, 0 0 0 0.3rem #b7440b1a'",
                       },
                       "focus-inset": {
                         type: "string",
                         description:
-                          "Focus inset shadow for interactive elements",
+                          "Focus inset shadow for interactive elements - for example 'inset 0 0 0 0.11rem #fff, inset 0 0 0 0.18rem #b7440b, inset 0 0 0 0.3rem #b7440b1a'",
                       },
                       "focus-group": {
                         type: "string",
-                        description: "Focus group shadow for grouped elements",
+                        description:
+                          "Focus group shadow for grouped elements - for example '0 0 0 0.125rem #b7440b66'",
                       },
                       "focus-group-inset": {
                         type: "string",
                         description:
-                          "Focus group inset shadow for grouped elements",
+                          "Focus group inset shadow for grouped elements - for example 'inset 0 0 0 0.125rem #b7440b66'",
                       },
                       "focus-solid": {
                         type: "string",
                         description:
-                          "Focus solid shadow for interactive elements",
+                          "Focus solid shadow for interactive elements - for example '0 0 0 0.0625rem rgb(183, 68, 11)'",
                       },
                       "focus-filter": {
                         type: "string",
                         description:
-                          "Focus filter shadow for interactive elements",
+                          "Focus filter shadow for interactive elements - for example 'drop-shadow(0 0 0.125rem rgba(183, 68, 11, 0.30))'",
                       },
                     },
                   },
@@ -2337,7 +2349,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   },
                   "app-shell": {
                     type: "object",
-                    description: "App shell component styling",
+                    description:
+                      "App shell component styling which includes the navigation, header, and footer",
                     properties: {
                       nav: {
                         type: "object",
@@ -2390,7 +2403,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     properties: {
                       "border-radius": {
                         type: "number",
-                        description: "Button border radius in pixels",
+                        description:
+                          "Button border radius as multiplier - do not include units - for example 0.5",
                       },
                       color: {
                         type: "string",
@@ -2412,7 +2426,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     properties: {
                       "border-radius": {
                         type: "number",
-                        description: "Form control border radius in pixels",
+                        description:
+                          "Form control border radius as multiplier - do not include units - for example 0.5",
                       },
                       ":hover": {
                         type: "object",
@@ -2622,21 +2637,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                       },
                     },
                   },
-                  announcement: {
-                    type: "object",
-                    description: "Announcement component styling",
-                    properties: {
-                      background: {
-                        type: "string",
-                        description:
-                          "Announcement background - accepts solid color, transparent, image (with external URL), or any type of gradient",
-                      },
-                      "foreground-color": {
-                        type: "string",
-                        description: "Announcement foreground text color",
-                      },
-                    },
-                  },
                   "case-view": {
                     type: "object",
                     description: "Case view component styling",
@@ -2783,7 +2783,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                       },
                       "font-size": {
                         type: "string",
-                        description: "Label font size",
+                        description:
+                          "Label font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
                       },
                       "font-family": {
                         type: "string",
@@ -2804,7 +2805,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                     properties: {
                       "border-radius": {
                         type: "string",
-                        description: "Card border radius value",
+                        description:
+                          "Card border radius value - for example ''0.5rem",
                       },
                       "foreground-color": {
                         type: "string",
@@ -2845,6 +2847,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                             type: "string",
                             description: "H1 font family",
                           },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H1 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H1 font weight like 'bold', '600' or 'normal'",
+                          },
                         },
                       },
                       h2: {
@@ -2854,6 +2866,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                           "font-family": {
                             type: "string",
                             description: "H2 font family",
+                          },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H2 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H2 font weight like 'bold', '600' or 'normal'",
                           },
                         },
                       },
@@ -2865,6 +2887,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                             type: "string",
                             description: "H3 font family",
                           },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H3 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H3 font weight like 'bold', '600' or 'normal'",
+                          },
                         },
                       },
                       h4: {
@@ -2874,6 +2906,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                           "font-family": {
                             type: "string",
                             description: "H4 font family",
+                          },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H4 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H4 font weight like 'bold', '600' or 'normal'",
                           },
                         },
                       },
@@ -2885,6 +2927,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                             type: "string",
                             description: "H5 font family",
                           },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H5 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H5 font weight like 'bold', '600' or 'normal'",
+                          },
                         },
                       },
                       h6: {
@@ -2894,6 +2946,16 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                           "font-family": {
                             type: "string",
                             description: "H6 font family",
+                          },
+                          "font-size": {
+                            type: "string",
+                            description:
+                              "H6 font size as a unit - supported values are 'xs', 's', 'm', 'l', 'xl', 'xxl'",
+                          },
+                          "font-weight": {
+                            type: "string",
+                            description:
+                              "H6 font weight like 'bold', '600' or 'normal'",
                           },
                         },
                       },
