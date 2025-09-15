@@ -2,6 +2,7 @@
 
 import React, { MutableRefObject, RefObject } from "react";
 import { FaMagic } from "react-icons/fa";
+import { FaTimes } from "react-icons/fa";
 
 type Point = { x: number; y: number };
 
@@ -32,13 +33,22 @@ export default function QuickChatOverlay({
       style={{ left: position.x, top: position.y }}
     >
       <div className="w-[360px] min-w-[450px] rounded-xl shadow-2xl border border-[rgb(172,117,240)] bg-[rgb(14,10,42)] text-white p-3">
-        <div className="flex items-center gap-2">
-          <div className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-600 text-white shadow">
-            <FaMagic className="w-3.5 h-3.5" />
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-purple-600 text-white shadow">
+              <FaMagic className="w-3.5 h-3.5" />
+            </div>
+            <div className="text-sm font-semibold text-white">
+              {selectionSummary}
+            </div>
           </div>
-          <div className="text-sm font-semibold text-white">
-            {selectionSummary}
-          </div>
+          <button
+            onClick={onEscape}
+            className="inline-flex items-center justify-center w-6 h-6 rounded-md hover:bg-gray-700 text-gray-300 hover:text-white transition-colors"
+            aria-label="Close overlay"
+          >
+            <FaTimes className="w-3.5 h-3.5" />
+          </button>
         </div>
         <div className="mt-1 text-xs text-gray-300">
           AI quick action — type and press Enter. Esc to close.

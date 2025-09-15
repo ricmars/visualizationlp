@@ -340,58 +340,6 @@ export default function usePreviewIframe({
     return () => window.removeEventListener("message", onMessage);
   }, []);
 
-  const requestSelectedFieldIdsInRect = (rect: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }): Promise<number[]> => {
-    try {
-      const iframe =
-        iframeRef.current ||
-        (containerRef.current?.querySelector(
-          "iframe",
-        ) as HTMLIFrameElement | null);
-      if (!enabled || !iframe || !previewReadyRef.current) {
-        return Promise.resolve([]);
-      }
-      // Convert screen-space rect to iframe client-space rect
-      const iframeRect = iframe.getBoundingClientRect();
-      const relativeRect = {
-        x: rect.x - iframeRect.left,
-        y: rect.y - iframeRect.top,
-        width: rect.width,
-        height: rect.height,
-      };
-      const requestId = selectionRequestIdRef.current++;
-      const payload = {
-        type: "blueprint-request-selected-fields",
-        requestId,
-        rect: relativeRect,
-      };
-      return new Promise<number[]>((resolve) => {
-        const timeoutId = setTimeout(() => {
-          // Resolve empty on timeout to avoid blocking UX
-          pendingSelectionRequestsRef.current.delete(requestId);
-          resolve([]);
-        }, 500);
-        pendingSelectionRequestsRef.current.set(requestId, {
-          resolveFields: resolve,
-          timeoutId,
-        });
-        try {
-          iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
-        } catch {
-          clearTimeout(timeoutId);
-          pendingSelectionRequestsRef.current.delete(requestId);
-          resolve([]);
-        }
-      });
-    } catch {
-      return Promise.resolve([]);
-    }
-  };
-
   const requestSelectedIdsInRect = (rect: {
     x: number;
     y: number;
@@ -399,6 +347,7 @@ export default function usePreviewIframe({
     height: number;
   }): Promise<{ fieldIds: number[]; viewIds: number[] }> => {
     try {
+      console.log("[preview] Requesting selected ids in rect", rect);
       const iframe =
         iframeRef.current ||
         (containerRef.current?.querySelector(
@@ -448,7 +397,6 @@ export default function usePreviewIframe({
 
   return {
     containerRef,
-    requestSelectedFieldIdsInRect,
     requestSelectedIdsInRect,
   } as const;
 }

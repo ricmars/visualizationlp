@@ -104,7 +104,6 @@ export type FieldWithType = {
 
 // Field shape expected by live preview (distinct from app database Field)
 type PreviewField = {
-  ID?: string;
   name: string;
   label: string;
   type: string;
@@ -255,27 +254,6 @@ export default function WorkflowPage() {
   // Free Form selection & quick chat state
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
   const [quickChatText, setQuickChatText] = useState("");
-  const {
-    isFreeFormSelecting,
-    selectionRect,
-    selectedFieldIds,
-    selectedViewIds,
-    selectedStageIds,
-    selectedProcessIds,
-    selectedStepIds,
-    quickOverlayPosition,
-    beginFreeFormSelection,
-    onSelectionMouseDown,
-    onSelectionMouseMove,
-    onSelectionMouseUp,
-  } = useFreeFormSelection({
-    activeTab,
-    selectedView,
-    onOpenQuickChatAction: () => setIsQuickChatOpen(true),
-    isDataObjectView: selectedDataObjectId !== null,
-    resolveExternalIdsAction: (_rect) =>
-      Promise.resolve({ fieldIds: [], viewIds: [] }),
-  });
   // Workflow model memo used across UI
   const workflowModel: WorkflowState = useMemo(() => {
     if (!model) {
@@ -313,7 +291,7 @@ export default function WorkflowPage() {
                           );
                           if (!field) return null;
                           return {
-                            name: field.name,
+                            name: field.id,
                             required: Boolean(ref.required),
                           };
                         })
@@ -388,8 +366,7 @@ export default function WorkflowPage() {
           }
         }
         const base: PreviewField = {
-          ID: f?.id !== undefined && f?.id !== null ? String(f.id) : undefined,
-          name: f.name,
+          name: f.id,
           label: f.label,
           type: f.type,
           primary: f.primary,
@@ -684,14 +661,33 @@ export default function WorkflowPage() {
     }
   }, [selectedChannel, isPreviewVisible]);
 
+  const { containerRef: previewContainerRef, requestSelectedIdsInRect } =
+    usePreviewIframe({
+      enabled: isPreviewVisible,
+      selectedChannel,
+      generateModelAction: generatePreviewModelAction,
+      selectedTheme,
+    });
+
   const {
-    containerRef: previewContainerRef,
-    requestSelectedIdsInRect: _requestSelectedIdsInRect,
-  } = usePreviewIframe({
-    enabled: isPreviewVisible,
-    selectedChannel,
-    generateModelAction: generatePreviewModelAction,
-    selectedTheme,
+    isFreeFormSelecting,
+    selectionRect,
+    selectedFieldIds,
+    selectedViewIds,
+    selectedStageIds,
+    selectedProcessIds,
+    selectedStepIds,
+    quickOverlayPosition,
+    beginFreeFormSelection,
+    onSelectionMouseDown,
+    onSelectionMouseMove,
+    onSelectionMouseUp,
+  } = useFreeFormSelection({
+    activeTab,
+    selectedView,
+    onOpenQuickChatAction: () => setIsQuickChatOpen(true),
+    isDataObjectView: selectedDataObjectId !== null,
+    resolveExternalIdsAction: requestSelectedIdsInRect,
   });
 
   // replaced by useQuickChat
