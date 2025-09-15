@@ -166,6 +166,7 @@ describe("Theme Tools", () => {
           "An updated theme",
           false,
           '{"base":{"colors":{"primary":"#ff0000"}}}',
+          undefined,
           1,
         ],
       );

@@ -2077,7 +2077,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("getListOfThemes called at:", new Date().toISOString());
 
         const query = `
-          SELECT id, name, description, "isSystemTheme", applicationid, model
+          SELECT id, name, description, "isSystemTheme", applicationid, model, "logoURL"
           FROM "${DB_TABLES.THEMES}"
           WHERE applicationid = $1
           ORDER BY name
@@ -2092,6 +2092,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description: row.description,
           isSystemTheme: row.isSystemTheme,
           applicationid: row.applicationid,
+          logoURL: row.logoURL,
           model:
             typeof row.model === "string" ? JSON.parse(row.model) : row.model,
         }));
@@ -2123,7 +2124,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("getTheme called at:", new Date().toISOString());
 
         const query = `
-          SELECT id, name, description, "isSystemTheme", applicationid, model
+          SELECT id, name, description, "isSystemTheme", applicationid, model, "logoURL"
           FROM "${DB_TABLES.THEMES}"
           WHERE id = $1
         `;
@@ -2157,6 +2158,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description: theme.description,
           isSystemTheme: theme.isSystemTheme,
           applicationid: theme.applicationid,
+          logoURL: theme.logoURL,
           model: model || {},
         };
       },
@@ -2188,6 +2190,11 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             type: "boolean",
             description:
               "Whether this is a system theme (optional, defaults to false)",
+          },
+          logoURL: {
+            type: "string",
+            description:
+              "URL to the logo of the application - logo will be displayed in the header",
           },
           model: {
             type: "object",
@@ -2985,6 +2992,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         applicationid: number;
         isSystemTheme?: boolean;
         model: unknown;
+        logoURL?: string;
       }) => {
         console.log("=== saveTheme EXECUTION STARTED ===");
         console.log("saveTheme parameters:", JSON.stringify(params, null, 2));
@@ -2997,6 +3005,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           applicationid,
           isSystemTheme = false,
           model,
+          logoURL,
         } = params;
 
         if (!name) throw new Error("Theme name is required");
@@ -3008,9 +3017,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           // Update existing theme
           const query = `
             UPDATE "${DB_TABLES.THEMES}"
-            SET name = $1, description = $2, "isSystemTheme" = $3, model = $4
-            WHERE id = $5
-            RETURNING id, name, description, "isSystemTheme", applicationid, model
+            SET name = $1, description = $2, "isSystemTheme" = $3, model = $4, "logoURL" = $5
+            WHERE id = $6
+            RETURNING id, name, description, "isSystemTheme", applicationid, model, "logoURL"
           `;
           console.log("saveTheme UPDATE query:", query);
           const modelJson = JSON.stringify(model);
@@ -3019,6 +3028,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description,
             isSystemTheme,
             modelJson,
+            logoURL,
             id,
           ]);
 
@@ -3027,6 +3037,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description,
             isSystemTheme,
             modelJson,
+            logoURL,
             id,
           ]);
           if (result.rowCount === 0) {
@@ -3047,6 +3058,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description: theme.description,
             isSystemTheme: theme.isSystemTheme,
             applicationid: theme.applicationid,
+            logoURL: theme.logoURL,
             model:
               typeof theme.model === "string"
                 ? JSON.parse(theme.model)
@@ -3055,9 +3067,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         } else {
           // Create new theme
           const query = `
-            INSERT INTO "${DB_TABLES.THEMES}" (name, description, "isSystemTheme", applicationid, model)
-            VALUES ($1, $2, $3, $4, $5)
-            RETURNING id, name, description, "isSystemTheme", applicationid, model
+            INSERT INTO "${DB_TABLES.THEMES}" (name, description, "isSystemTheme", applicationid, model, "logoURL")
+            VALUES ($1, $2, $3, $4, $5, $6)
+            RETURNING id, name, description, "isSystemTheme", applicationid, model, "logoURL"
           `;
           console.log("saveTheme INSERT query:", query);
           const modelJson = JSON.stringify(model);
@@ -3067,6 +3079,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             isSystemTheme,
             applicationid,
             modelJson,
+            logoURL,
           ]);
 
           const result = await pool.query(query, [
@@ -3075,6 +3088,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             isSystemTheme,
             applicationid,
             modelJson,
+            logoURL,
           ]);
           const theme = result.rows[0];
 
@@ -3090,6 +3104,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description: theme.description,
             isSystemTheme: theme.isSystemTheme,
             applicationid: theme.applicationid,
+            logoURL: theme.logoURL,
             model:
               typeof theme.model === "string"
                 ? JSON.parse(theme.model)

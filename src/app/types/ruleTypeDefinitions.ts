@@ -811,6 +811,13 @@ export const themeRuleType: RuleTypeDefinition = {
         optional: true,
         description: "Theme configuration model",
       },
+      {
+        name: "logoURL",
+        type: "string",
+        optional: true,
+        description:
+          "URL to the logo of the application - logo will be displayed in the header",
+      },
     ],
   },
 
@@ -854,6 +861,13 @@ export const themeRuleType: RuleTypeDefinition = {
         type: "JSONB",
         nullable: true,
         description: "Theme configuration model",
+      },
+      {
+        name: "logoURL",
+        type: "TEXT",
+        nullable: true,
+        description:
+          "URL to the logo of the application - logo will be displayed in the header",
       },
     ],
     foreignKeys: [

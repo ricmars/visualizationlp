@@ -8,6 +8,7 @@ interface CreateThemeModalProps {
     name: string,
     description: string,
     applicationId: number,
+    logoURL?: string,
   ) => Promise<void>;
   isCreating: boolean;
   creationError?: string | null;
@@ -24,6 +25,7 @@ export const CreateThemeModal: React.FC<CreateThemeModalProps> = ({
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [logoURL, setLogoURL] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -36,9 +38,15 @@ export const CreateThemeModal: React.FC<CreateThemeModalProps> = ({
       return;
     }
     try {
-      await onCreate(name.trim(), description.trim(), applicationId);
+      await onCreate(
+        name.trim(),
+        description.trim(),
+        applicationId,
+        logoURL.trim() || undefined,
+      );
       setName("");
       setDescription("");
+      setLogoURL("");
       setIsSubmitting(false);
     } catch (_error) {
       setIsSubmitting(false);
@@ -120,6 +128,23 @@ export const CreateThemeModal: React.FC<CreateThemeModalProps> = ({
             required
             disabled={isSubmitting || isCreating}
             placeholder="Enter theme description"
+          />
+        </div>
+        <div>
+          <label
+            htmlFor="logoURL"
+            className="block text-sm font-medium text-white"
+          >
+            Logo URL (Optional)
+          </label>
+          <input
+            type="url"
+            id="logoURL"
+            value={logoURL}
+            onChange={(e) => setLogoURL(e.target.value)}
+            className="mt-1 block w-full lp-input"
+            disabled={isSubmitting || isCreating}
+            placeholder="https://example.com/logo.png"
           />
         </div>
         {error && <div className="text-red-500 text-sm mt-2">{error}</div>}

@@ -27,7 +27,7 @@ const ThemeEditorWithToggle: React.FC<ThemeEditorWithToggleProps> = ({
     <div className="h-full flex flex-col">
       {/* Toggle Switch Header */}
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-medium text-white/70">Theme Model</h3>
+        <h3 className="text-sm font-medium text-white/70">Settings</h3>
         <label className="flex items-center cursor-pointer group">
           <div className="lp-toggle">
             <input

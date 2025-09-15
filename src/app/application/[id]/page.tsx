@@ -529,6 +529,7 @@ export default function WorkflowPage() {
     name: string,
     description: string,
     applicationId: number,
+    logoURL?: string,
   ) => {
     try {
       const response = await fetch("/api/dynamic", {
@@ -544,6 +545,7 @@ export default function WorkflowPage() {
             applicationid: applicationId,
             isSystemTheme: false,
             model: {},
+            logoURL,
           },
         }),
       });
@@ -577,6 +579,7 @@ export default function WorkflowPage() {
     name: string,
     description: string,
     model: any,
+    logoURL?: string,
   ) => {
     try {
       const response = await fetch("/api/dynamic", {
@@ -592,6 +595,7 @@ export default function WorkflowPage() {
             description,
             applicationid: applicationId,
             model,
+            logoURL,
           },
         }),
       });
@@ -2325,7 +2329,7 @@ export default function WorkflowPage() {
           onSave={handleSaveTheme}
           onDelete={handleDeleteTheme}
           isSaving={false}
-          showThemeEditor={true} // Show full theme editor in modal
+          showThemeEditor={false} // Hide theme editor in main theme region context since it's already visible
         />
       </div>
 

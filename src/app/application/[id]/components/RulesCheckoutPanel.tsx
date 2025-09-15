@@ -893,6 +893,7 @@ export default function RulesCheckoutPanel({
             });
           }}
           isSaving={isThemeSaving}
+          showThemeEditor={true} // Show full theme editor in rule checkout context
         />
       )}
     </div>

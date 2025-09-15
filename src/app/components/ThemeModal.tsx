@@ -14,6 +14,7 @@ interface Theme {
   isSystemTheme: boolean;
   applicationid: number;
   model: any;
+  logoURL?: string;
 }
 
 interface ThemeModalProps {
@@ -25,6 +26,7 @@ interface ThemeModalProps {
     name: string,
     description: string,
     model: any,
+    logoURL?: string,
   ) => Promise<void>;
   onDelete?: (themeId: number) => Promise<void>;
   isSaving: boolean;
@@ -44,6 +46,7 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
 }) => {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
+  const [logoURL, setLogoURL] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -55,6 +58,7 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
     if (theme) {
       setName(theme.name);
       setDescription(theme.description);
+      setLogoURL(theme.logoURL || "");
       setCurrentTheme(theme.model || {});
     }
   }, [theme]);
@@ -69,7 +73,13 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
     }
     try {
       const finalModel = currentTheme;
-      await onSave(theme!.id, name.trim(), description.trim(), finalModel);
+      await onSave(
+        theme!.id,
+        name.trim(),
+        description.trim(),
+        finalModel,
+        logoURL.trim() || undefined,
+      );
       setIsSubmitting(false);
     } catch (_error) {
       setIsSubmitting(false);
@@ -187,6 +197,23 @@ export const ThemeModal: React.FC<ThemeModalProps> = ({
               className="mt-1 block w-full lp-input resize-none"
               required
               disabled={isSubmitting || isSaving}
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="logoURL"
+              className="block text-sm font-medium text-white"
+            >
+              Logo URL (Optional)
+            </label>
+            <input
+              type="url"
+              id="logoURL"
+              value={logoURL}
+              onChange={(e) => setLogoURL(e.target.value)}
+              className="mt-1 block w-full lp-input"
+              disabled={isSubmitting || isSaving}
+              placeholder="https://example.com/logo.png"
             />
           </div>
         </div>

@@ -197,6 +197,15 @@ export default function usePreviewIframe({
       };
       lastPostAtRef.current = Date.now();
       iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
+      setTimeout(async () => {
+        const payload: any = {
+          logoURL: "",
+        };
+        if (themeRef.current?.logoURL && themeRef.current.logoURL.trim()) {
+          payload.logoURL = themeRef.current.logoURL;
+        }
+        iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
+      }, 10);
       postQueuedRef.current = false;
     };
     try {
@@ -270,6 +279,21 @@ export default function usePreviewIframe({
                 { theme: themeRef.current?.model },
                 PREVIEW_ORIGIN,
               );
+              setTimeout(async () => {
+                const message: any = {
+                  logoURL: "",
+                };
+                if (
+                  themeRef.current?.logoURL &&
+                  themeRef.current.logoURL.trim()
+                ) {
+                  message.logoURL = themeRef.current.logoURL;
+                }
+                iframeRef.current?.contentWindow?.postMessage(
+                  message,
+                  PREVIEW_ORIGIN,
+                );
+              }, 10);
             }, 10);
           }
           if (lastQueuedUpdateRef.current) {
