@@ -194,18 +194,13 @@ export default function usePreviewIframe({
       iframeRef.current = iframe;
       const payload = {
         theme: themeRef.current?.model || null,
+        logoURL: "",
       };
+      if (themeRef.current?.logoURL && themeRef.current.logoURL.trim()) {
+        payload.logoURL = themeRef.current.logoURL;
+      }
       lastPostAtRef.current = Date.now();
       iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
-      setTimeout(async () => {
-        const payload: any = {
-          logoURL: "",
-        };
-        if (themeRef.current?.logoURL && themeRef.current.logoURL.trim()) {
-          payload.logoURL = themeRef.current.logoURL;
-        }
-        iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
-      }, 10);
       postQueuedRef.current = false;
     };
     try {
@@ -264,7 +259,11 @@ export default function usePreviewIframe({
             try {
               (initialModel as any).fullUpdate = true;
               (initialModel as any).channel = channelRef.current;
+              (initialModel as any).theme = themeRef.current?.model;
             } catch {}
+            if (themeRef.current?.logoURL && themeRef.current.logoURL.trim()) {
+              (initialModel as any).logoURL = themeRef.current.logoURL;
+            }
             console.debug(
               "[preview] Posting initial model to iframe",
               initialModel,
@@ -274,27 +273,6 @@ export default function usePreviewIframe({
               PREVIEW_ORIGIN,
             );
             hasSentInitialRef.current = true;
-            setTimeout(async () => {
-              iframeRef.current?.contentWindow?.postMessage(
-                { theme: themeRef.current?.model },
-                PREVIEW_ORIGIN,
-              );
-              setTimeout(async () => {
-                const message: any = {
-                  logoURL: "",
-                };
-                if (
-                  themeRef.current?.logoURL &&
-                  themeRef.current.logoURL.trim()
-                ) {
-                  message.logoURL = themeRef.current.logoURL;
-                }
-                iframeRef.current?.contentWindow?.postMessage(
-                  message,
-                  PREVIEW_ORIGIN,
-                );
-              }, 10);
-            }, 10);
           }
           if (lastQueuedUpdateRef.current) {
             iframeRef.current?.contentWindow?.postMessage(
