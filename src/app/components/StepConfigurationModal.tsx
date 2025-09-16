@@ -32,7 +32,6 @@ interface StepConfigurationModalProps {
     label: string;
     type: Field["type"];
     options?: string[];
-    required?: boolean;
     primary?: boolean;
   }) => Promise<string>;
   onAddExistingField: (stepId: number, fieldIds: number[]) => void;
@@ -40,17 +39,13 @@ interface StepConfigurationModalProps {
   onDeleteField: (field: Field) => void;
   workflowObjects?: Array<{ id: number; name: string }>;
   dataObjects?: Array<{ id: number; name: string }>;
-  onUpdateMeta?: (
-    name: string,
-    type: StepType,
-    fields?: (Field & { required: boolean })[],
-  ) => void;
+  onUpdateMeta?: (name: string, type: StepType, fields?: Field[]) => void;
   onAddStep?: (
     stageId: number,
     processId: number,
     stepName: string,
     stepType: StepType,
-    fields?: (Field & { required: boolean })[],
+    fields?: Field[],
   ) => void;
 }
 
@@ -84,9 +79,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   );
 
   // Temporary cache for fields being added/edited in the modal
-  const [tempFields, setTempFields] = useState<
-    (Field & { required: boolean })[]
-  >([]);
+  const [tempFields, setTempFields] = useState<Field[]>([]);
 
   useEffect(() => {
     if (mode === "edit" && step) {
@@ -98,16 +91,9 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
       const initialFields = step.fields
         .map((fieldRef) => {
           const field = fields.find((f) => f.id === fieldRef.fieldId);
-          return field && typeof field.id === "number"
-            ? ({ ...field, required: fieldRef.required } as Field & {
-                required: boolean;
-              })
-            : null;
+          return field && typeof field.id === "number" ? field : null;
         })
-        .filter(
-          (f): f is Field & { required: boolean } =>
-            f !== null && f.id !== undefined,
-        );
+        .filter((f): f is Field => f !== null && f.id !== undefined);
       setTempFields(initialFields);
     } else if (mode === "add") {
       // Reset to defaults for add mode
@@ -291,10 +277,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
           // Add the created field to tempFields
           const createdField = fields.find((f) => f.name === createdFieldName);
           if (createdField && typeof createdField.id === "number") {
-            setTempFields((prev) => [
-              ...prev,
-              { ...createdField, required: field.required ?? false },
-            ]);
+            setTempFields((prev) => [...prev, createdField]);
           }
         }}
         buttonRef={addFieldButtonRef}
@@ -315,12 +298,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
           // Add the selected fields to tempFields
           const selectedFields = fields
             .filter((f) => numericFieldIds.includes(f.id!))
-            .map(
-              (field) =>
-                ({ ...field, required: false } as Field & {
-                  required: boolean;
-                }),
-            );
+            .map((field) => field);
 
           setTempFields((prev) => {
             const existingIds = new Set(prev.map((f) => f.id));
@@ -340,9 +318,7 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             // Update the field in tempFields
             setTempFields((prev) =>
               prev.map((f) =>
-                f.id === editingField.id
-                  ? ({ ...f, ...updates } as Field & { required: boolean })
-                  : f,
+                f.id === editingField.id ? { ...f, ...updates } : f,
               ),
             );
             setEditingField(null);

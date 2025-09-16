@@ -29,9 +29,10 @@ interface FieldModalProps {
     label: string;
     type: Field["type"];
     options?: string[];
-    required: boolean;
     primary?: boolean;
     sampleValue: string;
+    source?: "User input" | "Calculated";
+    highlighted?: boolean;
     refObjectId?: number;
     refMultiplicity?: "single" | "multi";
   }) => Promise<void>;
@@ -68,10 +69,15 @@ const FieldModal: React.FC<FieldModalProps> = ({
   const [type, setType] = useState<Field["type"]>(
     (initialField?.type as Field["type"]) || ("Text" as Field["type"]),
   );
-  const [required, setRequired] = useState<boolean>(!!initialField?.required);
   const [isPrimary, setIsPrimary] = useState<boolean>(!!initialField?.primary);
   const [options, setOptions] = useState<string>("");
   const [sampleValue, setSampleValue] = useState<string>("");
+  const [source, setSource] = useState<"User input" | "Calculated">(
+    initialField?.source ?? "User input",
+  );
+  const [highlighted, setHighlighted] = useState<boolean>(
+    !!initialField?.highlighted,
+  );
   const [selectedFieldIds, setSelectedFieldIds] = useState<string[]>([]);
   const [error, setError] = useState<string>("");
   const labelInputRef = useRef<HTMLInputElement>(null);
@@ -117,14 +123,15 @@ const FieldModal: React.FC<FieldModalProps> = ({
     return () => clearTimeout(timer);
   }, [isOpen, mode, addMode]);
 
-  // Initialize edit-specific state on open
+  // Initialize state on open
   useEffect(() => {
     if (!isOpen) return;
+
     if (mode === "edit" && initialField) {
+      // Edit mode: populate with existing field data
       setLabel(initialField.label);
       setType(initialField.type as Field["type"]);
       setIsPrimary(initialField.primary || false);
-      setRequired(initialField.required || false);
       // Parse options from field.options (string or array)
       const parsedOptions = initialField.options
         ? Array.isArray(initialField.options)
@@ -138,6 +145,10 @@ const FieldModal: React.FC<FieldModalProps> = ({
             })()
         : [];
       setOptions(parsedOptions.join(", "));
+
+      // Set source and highlighted values
+      setSource(initialField.source ?? "User input");
+      setHighlighted(!!initialField.highlighted);
 
       const dv: any = (initialField as any).sampleValue;
       if (dv === null || dv === undefined) setSampleValue("");
@@ -172,9 +183,22 @@ const FieldModal: React.FC<FieldModalProps> = ({
         setRefGroup(null);
         setRefObjectId(null);
       }
+    } else if (mode === "add") {
+      // Add mode: reset to default values
+      setLabel("");
+      setType("Text" as Field["type"]);
+      setIsPrimary(false);
+      setSource("User input");
+      setHighlighted(false);
+      setOptions("");
+      setSampleValue("");
+      setRefGroup(null);
+      setRefObjectId(null);
+      setSelectedFieldIds([]);
+      setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  }, [isOpen, mode]);
 
   // Autoload reference target lists in edit mode when not provided
   useEffect(() => {
@@ -255,11 +279,11 @@ const FieldModal: React.FC<FieldModalProps> = ({
               .filter((opt) => opt.length > 0)
           : [];
         if (refGroup && refObjectId) {
-          const refName =
+          const refType =
             refGroup === "workflow"
               ? workflowIdToName.get(refObjectId)
               : dataIdToName.get(refObjectId);
-          if (!sampleValue) setSampleValue(refName || "");
+          if (!sampleValue) setSampleValue(refType || "");
         }
         if (onSubmitAdd) {
           // Determine the actual field type based on the selected object's isEmbedded property
@@ -290,10 +314,11 @@ const FieldModal: React.FC<FieldModalProps> = ({
           await onSubmitAdd({
             label,
             type: actualType,
-            required,
             primary: isPrimary,
             options: parsedOptions,
             sampleValue: sampleValue,
+            source: source,
+            highlighted: highlighted,
             refObjectId: refObjectId ?? undefined,
             refMultiplicity:
               refGroup && refObjectId
@@ -350,9 +375,10 @@ const FieldModal: React.FC<FieldModalProps> = ({
         label: label.trim(),
         type: actualType,
         primary: isPrimary,
-        required: required,
         options: parsedOptions,
         sampleValue: sampleValue,
+        source: source,
+        highlighted: highlighted,
         refObjectId: refObjectId ?? undefined,
         refMultiplicity:
           refGroup && refObjectId
@@ -375,11 +401,12 @@ const FieldModal: React.FC<FieldModalProps> = ({
     workflowIdToName,
     dataIdToName,
     sampleValue,
+    source,
+    highlighted,
     onSubmitAdd,
     type,
     resolvedWorkflowObjects,
     resolvedDataObjects,
-    required,
     isPrimary,
     onSubmitEdit,
     initialField,
@@ -678,16 +705,32 @@ const FieldModal: React.FC<FieldModalProps> = ({
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
-                id="required"
-                checked={required}
-                onChange={(e) => setRequired(e.target.checked)}
+                id="highlighted"
+                checked={highlighted}
+                onChange={(e) => setHighlighted(e.target.checked)}
                 className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
               />
-              <label htmlFor="required" className="text-sm text-white">
-                Required
+              <label htmlFor="highlighted" className="text-sm text-white">
+                Highlighted
               </label>
+              <Tooltip content="Highlighted fields are displayed with special emphasis in the Summary View of the case. If both Primary and Highlighted are true, the field will be considered as highlighted.">
+                <span className="text-gray-400 hover:text-interactive cursor-help">
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
+                  </svg>
+                </span>
+              </Tooltip>
             </div>
-
             <div className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -699,7 +742,7 @@ const FieldModal: React.FC<FieldModalProps> = ({
               <label htmlFor="isPrimary" className="text-sm text-white">
                 Primary Field
               </label>
-              <Tooltip content="Primary fields are used as identifiers and are displayed prominently in the workflow">
+              <Tooltip content="Primary fields are displayed prominently in the Summary View of the case. If both Primary and Highlighted are true, the field will be considered as highlighted.">
                 <span className="text-gray-400 hover:text-interactive cursor-help">
                   <svg
                     className="w-4 h-4"
@@ -746,6 +789,40 @@ const FieldModal: React.FC<FieldModalProps> = ({
                 className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
                 placeholder="Enter sample value"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-white mb-1">
+                Source
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="inline-flex items-center gap-2 text-white">
+                  <input
+                    type="radio"
+                    name="source"
+                    value="User input"
+                    checked={source === "User input"}
+                    onChange={(e) =>
+                      setSource(e.target.value as "User input" | "Calculated")
+                    }
+                    className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                  />
+                  User input
+                </label>
+                <label className="inline-flex items-center gap-2 text-white">
+                  <input
+                    type="radio"
+                    name="source"
+                    value="Calculated"
+                    checked={source === "Calculated"}
+                    onChange={(e) =>
+                      setSource(e.target.value as "User input" | "Calculated")
+                    }
+                    className="rounded border-gray-600 text-blue-500 focus:ring-blue-500"
+                  />
+                  Calculated
+                </label>
+              </div>
             </div>
           </>
         )}

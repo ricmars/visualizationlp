@@ -9,7 +9,6 @@ interface AddFieldModalProps {
     label: string;
     type: Field["type"];
     options?: string[];
-    required: boolean;
     primary?: boolean;
     sampleValue: string;
     refObjectId?: number;

@@ -40,7 +40,7 @@ export default function useWorkflowMutations({
       processId: number,
       stepName: string,
       stepType: StepType,
-      initialFields?: Array<{ id: number; required: boolean }>,
+      initialFields?: Array<{ id: number }>,
     ) => {
       if (!selectedCase) return;
 
@@ -76,7 +76,6 @@ export default function useWorkflowMutations({
             try {
               const fieldsForView = initialFields.map((f) => ({
                 fieldId: f.id,
-                required: !!f.required,
               }));
               const updateViewResp = await fetch(
                 `/api/database?table=${DB_TABLES.VIEWS}&id=${createdViewId}`,

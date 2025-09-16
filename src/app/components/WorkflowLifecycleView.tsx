@@ -39,7 +39,7 @@ interface WorkflowLifecycleViewProps {
     processId: number,
     stepName: string,
     stepType: string,
-    initialFields?: Array<{ id: number; required: boolean }>,
+    initialFields?: Array<{ id: number }>,
   ) => void;
   onDeleteProcess?: (stageId: number, processId: number) => void;
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import type { channel } from "../../../types/types";
 
 type GenerateModel = () => Promise<any>;
@@ -11,6 +11,7 @@ type UsePreviewIframeArgs = {
   // Named as *Action to satisfy Next/React client component lint about functions in props
   generateModelAction: GenerateModel;
   selectedTheme?: any;
+  selectedCaseName?: string;
 };
 
 export default function usePreviewIframe({
@@ -18,6 +19,7 @@ export default function usePreviewIframe({
   selectedChannel,
   generateModelAction,
   selectedTheme,
+  selectedCaseName,
 }: UsePreviewIframeArgs) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
@@ -31,12 +33,15 @@ export default function usePreviewIframe({
   const _reloadInFlightRef = useRef<boolean>(false);
   // No burst dedupe; updates are cheap and deterministic now
   const hasSentInitialRef = useRef<boolean>(false);
+  const isGeneratingInitialRef = useRef<boolean>(false);
   const lastQueuedUpdateRef = useRef<any | null>(null);
   const postQueuedRef = useRef<boolean>(false);
   // Keep current channel without retriggering effects
   const channelRef = useRef<channel>(selectedChannel);
   // Keep current theme without retriggering effects
   const themeRef = useRef<any>(selectedTheme);
+  // Keep current case name without retriggering effects
+  const caseNameRef = useRef<string | undefined>(selectedCaseName);
   // Pending selection requests keyed by requestId
   const selectionRequestIdRef = useRef<number>(1);
   const pendingSelectionRequestsRef = useRef(
@@ -70,25 +75,68 @@ export default function usePreviewIframe({
     themeRef.current = selectedTheme;
   }, [selectedTheme]);
 
+  // Keep caseNameRef in sync
+  useEffect(() => {
+    caseNameRef.current = selectedCaseName;
+  }, [selectedCaseName]);
+
   // Soft reload no longer used (handshake-driven init). Keep for future fallback if needed.
   const _softReloadIframe = () => {};
+
+  // Function to send workflow change message
+  const sendWorkflowChangeMessage = useCallback(
+    (caseName: string) => {
+      if (!enabled || !previewReadyRef.current || !hasSentInitialRef.current) {
+        return;
+      }
+
+      const iframe =
+        iframeRef.current ||
+        (containerRef.current?.querySelector(
+          "iframe",
+        ) as HTMLIFrameElement | null);
+
+      if (!iframe) {
+        return;
+      }
+
+      const payload = {
+        caseName,
+        stepName: "",
+      };
+
+      iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
+    },
+    [enabled],
+  );
 
   // Send model updates when the model is updated (stable listener)
   useEffect(() => {
     const handleModelUpdate = () => {
-      console.debug("[preview] model-updated event received (enabled)", {
-        enabled,
-      });
       if (!enabled) return;
       const now = Date.now();
       if (now - lastPostAtRef.current < 100) return;
       if (postQueuedRef.current) return; // Coalesce multiple events before next frame
+
+      // Don't send model update if we're currently generating the initial model
+      if (isGeneratingInitialRef.current) {
+        return;
+      }
+
+      // Don't send model update if we haven't sent the initial model yet
+      if (!hasSentInitialRef.current) {
+        return;
+      }
+
+      // Don't send model update if we just sent the initial model (within 1 second)
+      if (now - lastPostAtRef.current < 1000) {
+        return;
+      }
       postQueuedRef.current = true;
       const post = async () => {
         const iframe =
           iframeRef.current || containerRef.current?.querySelector("iframe");
         if (!iframe) {
-          console.debug("[preview] No iframe found to post model update");
           postQueuedRef.current = false;
           return;
         }
@@ -99,10 +147,6 @@ export default function usePreviewIframe({
           dataTypes: fullModel?.dataTypes,
           channel: channelRef.current,
         };
-        console.debug(
-          "[preview] Posting model update to iframe",
-          updatePayload,
-        );
         lastPostAtRef.current = Date.now();
         postCountRef.current += 1;
         if (previewReadyRef.current && hasSentInitialRef.current) {
@@ -246,33 +290,31 @@ export default function usePreviewIframe({
     const onMessage = async (event: MessageEvent) => {
       if (event.origin !== PREVIEW_ORIGIN) return;
       try {
-        console.debug("[preview] Received message from iframe", event.data);
-      } catch {}
-      try {
         const data =
           typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         if (data && data.type === "blueprint-preview-ready") {
           previewReadyRef.current = true;
-          console.debug("[preview] Handshake acknowledged by iframe", data);
           if (!hasSentInitialRef.current) {
+            isGeneratingInitialRef.current = true; // Prevent model updates during generation
+            hasSentInitialRef.current = true; // Set this immediately to prevent duplicates
             const initialModel = await generateModelRef.current();
+            isGeneratingInitialRef.current = false; // Allow model updates after generation
             try {
               (initialModel as any).fullUpdate = true;
               (initialModel as any).channel = channelRef.current;
               (initialModel as any).theme = themeRef.current?.model;
+              if (caseNameRef.current) {
+                (initialModel as any).caseName = caseNameRef.current;
+                (initialModel as any).stepName = "";
+              }
             } catch {}
             if (themeRef.current?.logoURL && themeRef.current.logoURL.trim()) {
               (initialModel as any).logoURL = themeRef.current.logoURL;
             }
-            console.debug(
-              "[preview] Posting initial model to iframe",
-              initialModel,
-            );
             iframeRef.current?.contentWindow?.postMessage(
               initialModel,
               PREVIEW_ORIGIN,
             );
-            hasSentInitialRef.current = true;
           }
           if (lastQueuedUpdateRef.current) {
             iframeRef.current?.contentWindow?.postMessage(
@@ -296,7 +338,6 @@ export default function usePreviewIframe({
               : { ...model, fullUpdate: true };
             (payload as any).channel = channelRef.current;
             iframe.contentWindow?.postMessage(payload, PREVIEW_ORIGIN);
-            console.debug("[preview] Responded to model request from iframe");
           }
         }
         // Selection response from preview: { type: 'blueprint-selected-fields', requestId, fieldIds, viewIds? }
@@ -398,5 +439,6 @@ export default function usePreviewIframe({
   return {
     containerRef,
     requestSelectedIdsInRect,
+    sendWorkflowChangeMessage,
   } as const;
 }

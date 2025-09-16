@@ -106,7 +106,7 @@ interface WorkflowLifecycleViewProps {
     processId: number,
     stepName: string,
     stepType: StepType,
-    initialFields?: Array<{ id: number; required: boolean }>,
+    initialFields?: Array<{ id: number }>,
   ) => void;
   onDeleteProcess?: (stageId: number, processId: number) => void;
 }
@@ -316,7 +316,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                       stepFields = model.fields
                         .map((f: { fieldId: number; required?: boolean }) => ({
                           fieldId: Number(f.fieldId),
-                          required: !!f.required,
                         }))
                         .filter(
                           (f: { fieldId: number }) =>
@@ -836,7 +835,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
           const handleUpdateMeta = (
             name: string,
             type: StepType,
-            fields?: (Field & { required: boolean })[],
+            fields?: Field[],
           ) => {
             setEditingStep((prev) => (prev ? { ...prev, name, type } : prev));
 
@@ -899,7 +898,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                         try {
                           const fieldRefs = fields.map((f) => ({
                             fieldId: f.id,
-                            required: !!f.required,
                           }));
                           const putResp = await fetch(
                             `/api/database?table=${DB_TABLES.VIEWS}&id=${createdViewId}`,
@@ -970,7 +968,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                   ) {
                     const fieldRefs = fields.map((f) => ({
                       fieldId: f.id,
-                      required: !!f.required,
                     }));
                     const putResp = await fetch(
                       `/api/database?table=${DB_TABLES.VIEWS}&id=${targetViewId}`,
@@ -1028,7 +1025,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                                 ) {
                                   next.fields = fields.map((field) => ({
                                     fieldId: field.id,
-                                    required: field.required || false,
                                   }));
                                 }
                                 // If switching to collect info and fields provided, set step fields as well (for model parity)
@@ -1039,7 +1035,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                                 ) {
                                   next.fields = fields.map((field) => ({
                                     fieldId: field.id,
-                                    required: field.required || false,
                                   }));
                                 }
                                 return next;
@@ -1336,7 +1331,6 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                   stepType,
                   fields?.map((f) => ({
                     id: f.id!,
-                    required: f.required,
                   })),
                 );
               }

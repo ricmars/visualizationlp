@@ -43,7 +43,6 @@ export interface SaveFieldsParams extends ToolParams {
     type: FieldType;
     objectid: number;
     primary?: boolean;
-    required?: boolean;
     label: string;
     description?: string;
     order?: number;
@@ -51,6 +50,8 @@ export interface SaveFieldsParams extends ToolParams {
     refObjectId?: number;
     refMultiplicity?: "single" | "multi";
     sampleValue: unknown;
+    source?: "User input" | "Calculated";
+    highlighted?: boolean;
   }>;
 }
 

@@ -83,13 +83,14 @@ export default function useDataObjectMutations({
               description: field.label,
               order: 0,
               options: field.options ?? [],
-              required: field.required ?? false,
               sampleValue: field.sampleValue,
               refObjectId:
                 typeof field.refObjectId === "number"
                   ? field.refObjectId
                   : undefined,
               refMultiplicity: field.refMultiplicity,
+              source: "User input",
+              highlighted: false,
             },
           }),
         },
@@ -167,7 +168,6 @@ export default function useDataObjectMutations({
               primary: field.primary ?? false,
               objectid: dataObjectId,
               options: field.options ?? [],
-              required: field.required ?? false,
               order: index + 1,
               description: (field as any).description ?? "",
               sampleValue: (field as any).sampleValue,

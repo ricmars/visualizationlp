@@ -7,14 +7,8 @@ export type fieldType = FieldType;
 
 // Use dynamic field type from rule type registry
 export type Field = FieldRecord & {
-  /** if type is embeddded data, data reference or case reference, set this value to the object name */
+  /** if type is embedded data, data reference or case reference, set this value to the object name */
   refType?: string;
-  /** normalized target object id for reference fields */
-  refObjectId?: number;
-  /** multiplicity for reference fields */
-  refMultiplicity?: "single" | "multi";
-  /** source of the field - if not set will default to 'User input' */
-  source?: "User input" | "System" | "Integration" | "Calculated";
   /** Example of value of the field - Only used when field is render as a displayField */
   value?: string | number | boolean | Array<string>;
 };
@@ -22,8 +16,6 @@ export type Field = FieldRecord & {
 export interface FieldReference {
   /** Unique identifier for the field (database ID) */
   fieldId: number;
-  /** set to true if the field is required */
-  required: boolean;
 }
 
 export interface Step {

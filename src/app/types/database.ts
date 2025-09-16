@@ -16,7 +16,6 @@ export const DB_COLUMNS = {
   ICON: "icon",
   ORDER: "order",
   OPTIONS: "options",
-  REQUIRED: "required",
 } as const;
 
 // Dynamic database table names - get from rule type registry

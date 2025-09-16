@@ -375,10 +375,6 @@ export default function RulesCheckoutPanel({
           updates.primary !== undefined
             ? updates.primary
             : editingField.primary,
-        required:
-          updates.required !== undefined
-            ? updates.required
-            : editingField.required,
         options: updates.options || editingField.options || [],
         sampleValue:
           updates.sampleValue !== undefined
@@ -386,6 +382,14 @@ export default function RulesCheckoutPanel({
             : editingField.sampleValue,
         description: updates.description || editingField.description || "",
         order: updates.order || editingField.order || 0,
+        source:
+          (updates as any).source ??
+          (editingField as any).source ??
+          "User input",
+        highlighted:
+          (updates as any).highlighted ??
+          (editingField as any).highlighted ??
+          false,
       },
     };
 
@@ -562,6 +566,8 @@ export default function RulesCheckoutPanel({
           order: 0,
           options: field.options || [],
           required: field.required ?? false,
+          source: "User input",
+          highlighted: false,
         },
       }),
     });

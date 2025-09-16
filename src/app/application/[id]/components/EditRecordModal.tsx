@@ -135,7 +135,6 @@ export default function EditRecordModal({
           <div key={field.id}>
             <label className="block text-sm font-medium text-white/80 mb-2">
               {field.label || field.name}
-              {field.required && <span className="text-red-400 ml-1">*</span>}
             </label>
             {renderFieldInput(
               field,
@@ -158,7 +157,7 @@ function renderFieldInput(
   referenceOptions: Record<string, any[]>,
 ): React.ReactNode {
   const fieldName = field.name;
-  const isRequired = field.required;
+  const isRequired = false; // Required field concept moved to view level
 
   switch (field.type) {
     case "Text":

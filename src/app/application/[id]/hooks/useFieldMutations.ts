@@ -67,6 +67,8 @@ export default function useFieldMutations({
           sampleValue: field.sampleValue,
           refObjectId: field.refObjectId,
           refMultiplicity: field.refMultiplicity,
+          source: "User input",
+          highlighted: false,
         };
 
         const response = await fetch(
@@ -89,6 +91,8 @@ export default function useFieldMutations({
                 sampleValue: fieldData.sampleValue,
                 refObjectId: fieldData.refObjectId,
                 refMultiplicity: fieldData.refMultiplicity,
+                source: fieldData.source,
+                highlighted: fieldData.highlighted,
               },
             }),
           },
@@ -166,7 +170,6 @@ export default function useFieldMutations({
               }
               return [] as any[];
             })(),
-            required: updates.required ?? targetField.required,
             order: updates.order ?? targetField.order ?? 0,
             description:
               updates.description ||
@@ -185,6 +188,14 @@ export default function useFieldMutations({
               (updates as any).refMultiplicity !== undefined
                 ? ((updates as any).refMultiplicity as any)
                 : ((targetField as any).refMultiplicity as any) ?? null,
+            source:
+              (updates as any).source ??
+              (targetField as any).source ??
+              "User input",
+            highlighted:
+              (updates as any).highlighted ??
+              (targetField as any).highlighted ??
+              false,
           },
         };
 

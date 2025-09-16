@@ -197,7 +197,6 @@ export function useViewMutations({
                 if (found && found.id && !existingMap.has(found.id)) {
                   existingMap.set(found.id, {
                     fieldId: found.id,
-                    required: false,
                   });
                 }
               });

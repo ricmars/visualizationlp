@@ -30,14 +30,7 @@ import {
   MAX_CHECKPOINTS,
   MODEL_UPDATED_EVENT,
 } from "./utils/constants";
-import {
-  Field,
-  FieldReference,
-  Stage,
-  Process,
-  Step,
-  WorkflowModel,
-} from "../../types/types";
+import { Field, Stage, Process, Step, WorkflowModel } from "../../types/types";
 // import { StepType } from "../../utils/stepTypes";
 import { registerRuleTypes } from "../../types/ruleTypeDefinitions";
 // validateModelIds handled inside useWorkflowData
@@ -108,8 +101,7 @@ type PreviewField = {
   label: string;
   type: string;
   refType?: string;
-  refName?: string;
-  source?: "" | "User input" | "System" | "Integration" | "Calculated";
+  source?: "" | "User input" | "Calculated";
   highlighted?: boolean;
   primary?: boolean;
   fillAvailableSpace?: boolean;
@@ -267,124 +259,268 @@ export default function WorkflowPage() {
 
   // Function to generate the model data structure for preview
   const generateModelData = useCallback(
-    async (currentFields: Field[], currentStages: Stage[]) => {
-      const tmpStages = [] as any[];
-      for (const stage of currentStages) {
-        const tmpSteps = [] as any[];
-        for (const process of stage.processes) {
-          for (const step of process.steps) {
-            if (step.type === "Collect information") {
-              // Only "Collect information" steps can have fields
-              if (typeof (step as any).viewId === "number") {
-                const view = views.find((v) => v.id === (step as any).viewId);
-                if (view) {
+    async (currentFields: Field[], _currentStages: Stage[]) => {
+      // Generate caseTypes array with all workflows, their stages, steps and fields
+      const caseTypes = [];
+
+      // Debug logging
+      console.debug(
+        "[generateModelData] applicationWorkflows:",
+        applicationWorkflows,
+      );
+      console.debug("[generateModelData] selectedCase:", selectedCase);
+      console.debug("[generateModelData] currentFields:", currentFields);
+
+      // If applicationWorkflows is empty, include the current selected workflow
+      const workflowsToProcess =
+        applicationWorkflows.length > 0
+          ? applicationWorkflows
+          : selectedCase
+          ? [{ id: selectedCase.id, name: selectedCase.name }]
+          : [];
+
+      // If we have no workflows to process, return early with empty caseTypes
+      if (workflowsToProcess.length === 0) {
+        console.warn(
+          "[generateModelData] No workflows to process, returning empty caseTypes",
+        );
+      }
+
+      for (const workflow of workflowsToProcess) {
+        try {
+          // Fetch the workflow data for this workflow
+          const workflowResponse = await fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.OBJECTS}&id=${workflow.id}`,
+          );
+          if (!workflowResponse.ok) {
+            console.error(`Failed to fetch workflow ${workflow.id}`);
+            continue;
+          }
+
+          const workflowData = await workflowResponse.json();
+
+          // The API response has structure {success: true, data: {...}}
+          const actualWorkflowData = workflowData.data || workflowData;
+          const workflowModel =
+            typeof actualWorkflowData.model === "string"
+              ? JSON.parse(actualWorkflowData.model)
+              : actualWorkflowData.model;
+
+          if (!workflowModel || !workflowModel.stages) {
+            console.warn(
+              `[generateModelData] Skipping workflow ${workflow.name} - no model or stages`,
+            );
+            continue;
+          }
+
+          // Fetch fields for this workflow
+          const workflowFieldsResponse = await fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.FIELDS}&objectid=${workflow.id}`,
+          );
+          let workflowFields: Field[] = [];
+          if (workflowFieldsResponse.ok) {
+            const fieldsData = await workflowFieldsResponse.json();
+
+            // Check if the response has a data property like other API calls
+            workflowFields = Array.isArray(fieldsData)
+              ? fieldsData
+              : Array.isArray(fieldsData?.data)
+              ? fieldsData.data
+              : [];
+          } else {
+            console.warn(
+              `[generateModelData] Failed to fetch fields for ${workflow.name}:`,
+              workflowFieldsResponse.status,
+            );
+          }
+
+          // Fetch views for this workflow
+          const workflowViewsResponse = await fetchWithBaseUrl(
+            `/api/database?table=${DB_TABLES.VIEWS}&objectid=${workflow.id}`,
+          );
+          let workflowViews: any[] = [];
+          if (workflowViewsResponse.ok) {
+            const viewsData = await workflowViewsResponse.json();
+
+            // Check if the response has a data property like other API calls
+            workflowViews = Array.isArray(viewsData)
+              ? viewsData
+              : Array.isArray(viewsData?.data)
+              ? viewsData.data
+              : [];
+          } else {
+            console.warn(
+              `[generateModelData] Failed to fetch views for ${workflow.name}:`,
+              workflowViewsResponse.status,
+            );
+          }
+
+          const tmpStages = [] as any[];
+          for (const stage of workflowModel.stages) {
+            const tmpSteps = [] as any[];
+            for (const process of stage.processes) {
+              for (const step of process.steps) {
+                if (step.type === "Collect information") {
+                  // Only "Collect information" steps can have fields
+                  if (typeof (step as any).viewId === "number") {
+                    const view = workflowViews.find(
+                      (v) => v.id === (step as any).viewId,
+                    );
+                    if (view) {
+                      try {
+                        const viewModel =
+                          typeof view.model === "string"
+                            ? JSON.parse(view.model)
+                            : view.model;
+                        if (Array.isArray(viewModel.fields)) {
+                          const stepFields = viewModel.fields
+                            .map(
+                              (ref: {
+                                fieldId: number;
+                                required?: boolean;
+                              }) => {
+                                const field = workflowFields.find(
+                                  (cf) => cf.id === ref.fieldId,
+                                );
+                                if (!field) {
+                                  console.warn(
+                                    `[generateModelData] Field not found for fieldId ${ref.fieldId} in workflow ${workflow.name}`,
+                                  );
+                                  return null;
+                                }
+                                return {
+                                  name: field.id,
+                                  required: Boolean(ref.required),
+                                };
+                              },
+                            )
+                            .filter((f: any) => f !== null);
+                          tmpSteps.push({
+                            id: step.viewId,
+                            name: step.name,
+                            fields: stepFields as Array<{
+                              name: string;
+                              required: boolean;
+                            }>,
+                          });
+                          continue;
+                        }
+                      } catch {
+                        // ignore JSON errors
+                      }
+                    }
+                  }
+                  // For "Collect information" steps without valid viewId, push without fields
+                  tmpSteps.push({
+                    id: step.id,
+                    name: step.name,
+                    type: step.type,
+                    // No fields array for steps without valid viewId
+                  });
+                } else {
+                  // For non-"Collect information" steps, push without fields array
+                  tmpSteps.push({
+                    id: step.id,
+                    name: step.name,
+                    type: step.type,
+                    // No fields array for non-collect steps
+                  });
+                }
+              }
+            }
+            // For live preview, omit processes and provide flattened steps directly under the stage
+            tmpStages.push({
+              id: stage.id,
+              name: stage.name,
+              steps: tmpSteps,
+            });
+          }
+
+          const fieldsWithValues: PreviewField[] = workflowFields.map(
+            (f: any) => {
+              const dv = f?.sampleValue;
+              let value: any = undefined;
+              if (dv !== undefined && dv !== null) {
+                if (typeof dv === "string") {
                   try {
-                    const viewModel =
-                      typeof view.model === "string"
-                        ? JSON.parse(view.model)
-                        : view.model;
-                    if (Array.isArray(viewModel.fields)) {
-                      const stepFields = viewModel.fields
-                        .map((ref: { fieldId: number; required?: boolean }) => {
-                          const field = currentFields.find(
-                            (cf) => cf.id === ref.fieldId,
-                          );
-                          if (!field) return null;
-                          return {
-                            name: field.id,
-                            required: Boolean(ref.required),
-                          };
-                        })
-                        .filter((f: any) => f !== null);
-                      tmpSteps.push({
-                        id: step.viewId,
-                        name: step.name,
-                        fields: stepFields as Array<{
-                          name: string;
-                          required: boolean;
-                        }>,
-                      });
-                      continue;
+                    value = JSON.parse(dv);
+                  } catch {
+                    value = dv;
+                  }
+                } else {
+                  value = dv;
+                }
+              }
+              // Normalize options: only include for Dropdown; ensure it's an array
+              let normalizedOptions: string[] | undefined = undefined;
+              if (f?.type === "Dropdown" || f?.type === "RadioButtons") {
+                const rawOptions = (f as any)?.options;
+                if (Array.isArray(rawOptions)) {
+                  normalizedOptions = rawOptions as string[];
+                } else if (typeof rawOptions === "string") {
+                  try {
+                    const parsed = JSON.parse(rawOptions);
+                    if (Array.isArray(parsed)) {
+                      normalizedOptions = parsed as string[];
                     }
                   } catch {
                     // ignore JSON errors
                   }
                 }
               }
-              // For "Collect information" steps without valid viewId, push without fields
-              tmpSteps.push({
-                id: step.id,
-                name: step.name,
-                type: step.type,
-                // No fields array for steps without valid viewId
-              });
-            } else {
-              // For non-"Collect information" steps, push without fields array
-              tmpSteps.push({
-                id: step.id,
-                name: step.name,
-                type: step.type,
-                // No fields array for non-collect steps
-              });
-            }
-          }
-        }
-        // For live preview, omit processes and provide flattened steps directly under the stage
-        tmpStages.push({
-          id: stage.id,
-          name: stage.name,
-          steps: tmpSteps,
-        });
-      }
-      const fieldsWithValues: PreviewField[] = currentFields.map((f: any) => {
-        const dv = f?.sampleValue;
-        let value: any = undefined;
-        if (dv !== undefined && dv !== null) {
-          if (typeof dv === "string") {
-            try {
-              value = JSON.parse(dv);
-            } catch {
-              value = dv;
-            }
-          } else {
-            value = dv;
-          }
-        }
-        // Normalize options: only include for Dropdown; ensure it's an array
-        let normalizedOptions: string[] | undefined = undefined;
-        if (f?.type === "Dropdown" || f?.type === "RadioButtons") {
-          const rawOptions = (f as any)?.options;
-          if (Array.isArray(rawOptions)) {
-            normalizedOptions = rawOptions as string[];
-          } else if (typeof rawOptions === "string") {
-            try {
-              const parsed = JSON.parse(rawOptions);
-              if (Array.isArray(parsed)) normalizedOptions = parsed as string[];
-            } catch {
-              normalizedOptions = undefined;
-            }
-          }
-        }
-        const base: PreviewField = {
-          name: f.id,
-          label: f.label,
-          type: f.type,
-          primary: f.primary,
-          value,
-        } as PreviewField;
 
-        // Add refType for embedded fields (EmbedDataSingle and EmbedDataMulti)
-        if (
-          (f.type === "EmbedDataSingle" || f.type === "EmbedDataMulti") &&
-          f.refObjectId
-        ) {
-          base.refType = f.refObjectId.toString();
+              const base: PreviewField = {
+                name: f.id,
+                label: f.label || f.name,
+                type: f.type,
+                primary: f.primary,
+                highlighted: f.highlighted,
+                value,
+              };
+
+              if (normalizedOptions !== undefined) {
+                (base as any).options = normalizedOptions;
+              }
+
+              // Add refType for reference field types
+              const referenceFieldTypes = [
+                "EmbedDataSingle",
+                "EmbedDataMulti",
+                "DataReferenceSingle",
+                "DataReferenceMulti",
+                "CaseReferenceSingle",
+                "CaseReferenceMulti",
+              ];
+
+              if (referenceFieldTypes.includes(f.type)) {
+                if (f.refObjectId) {
+                  (base as any).refType = f.refObjectId.toString();
+                }
+              }
+
+              return base;
+            },
+          );
+
+          caseTypes.push({
+            name: workflow.name,
+            fields: fieldsWithValues,
+            creationFields: [],
+            stages: tmpStages,
+            data: [], // Add empty data array for caseTypes (workflows don't have sample data like data objects)
+          });
+        } catch (error) {
+          console.error(`Error loading workflow ${workflow.name}:`, error);
+          // Add empty case type if there's an error
+          caseTypes.push({
+            name: workflow.name,
+            fields: [],
+            creationFields: [],
+            stages: [],
+            data: [], // Add empty data array for caseTypes
+          });
         }
-        if (normalizedOptions && normalizedOptions.length > 0) {
-          (base as any).options = normalizedOptions;
-        }
-        return base;
-      });
+      }
 
       // Generate dataTypes array with data objects, their fields, and sample records
       const dataTypes = [];
@@ -484,18 +620,23 @@ export default function WorkflowPage() {
             channel: "WorkPortal",
           },
         ],
-        caseTypes: [
-          {
-            name: selectedCase?.name || "Workflow",
-            fields: fieldsWithValues,
-            creationFields: [],
-            stages: tmpStages,
-          },
-        ],
+        caseTypes,
         dataTypes,
       };
+
+      console.debug("[generateModelData] Final caseTypes:", caseTypes);
+      console.debug(
+        "[generateModelData] Final dataTypes length:",
+        dataTypes.length,
+      );
     },
-    [selectedCase?.name, views, selectedChannel, dataObjects, dataObjectFields],
+    [
+      selectedCase,
+      selectedChannel,
+      dataObjects,
+      dataObjectFields,
+      applicationWorkflows,
+    ],
   );
 
   // Quick selection summary string for QuickChat overlay
@@ -661,13 +802,17 @@ export default function WorkflowPage() {
     }
   }, [selectedChannel, isPreviewVisible]);
 
-  const { containerRef: previewContainerRef, requestSelectedIdsInRect } =
-    usePreviewIframe({
-      enabled: isPreviewVisible,
-      selectedChannel,
-      generateModelAction: generatePreviewModelAction,
-      selectedTheme,
-    });
+  const {
+    containerRef: previewContainerRef,
+    requestSelectedIdsInRect,
+    sendWorkflowChangeMessage,
+  } = usePreviewIframe({
+    enabled: isPreviewVisible,
+    selectedChannel,
+    generateModelAction: generatePreviewModelAction,
+    selectedTheme,
+    selectedCaseName: selectedCase?.name,
+  });
 
   const {
     isFreeFormSelecting,
@@ -870,8 +1015,9 @@ export default function WorkflowPage() {
         const caseResponse = await fetchWithBaseUrl(
           `/api/database?table=${DB_TABLES.OBJECTS}&id=${newId}`,
         );
+        let caseData: any = null;
         if (caseResponse.ok) {
-          const caseData = await caseResponse.json();
+          caseData = await caseResponse.json();
           setSelectedCase(caseData.data);
         }
 
@@ -905,8 +1051,10 @@ export default function WorkflowPage() {
 
         // Keep chat messages and left panel state intact; history/checkout persists per application
 
-        // Dispatch model update event for preview iframe
-        window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
+        // Send workflow change message to preview if visible (no need for full model update)
+        if (isPreviewVisible && caseData.data?.name) {
+          sendWorkflowChangeMessage(caseData.data.name);
+        }
       } catch (error) {
         console.error("Error switching workflow:", error);
         // If there's an error, fall back to full navigation
@@ -925,6 +1073,8 @@ export default function WorkflowPage() {
       setViews,
       _fetchCaseData,
       searchParams,
+      isPreviewVisible,
+      sendWorkflowChangeMessage,
     ],
   );
 
@@ -1573,10 +1723,6 @@ export default function WorkflowPage() {
                 ...step,
                 fields: uniqueFieldIds.map((fieldId) => ({
                   fieldId,
-                  required:
-                    step.fields?.find(
-                      (f: FieldReference) => f.fieldId === fieldId,
-                    )?.required ?? false,
                 })),
               };
             }
@@ -1647,7 +1793,6 @@ export default function WorkflowPage() {
                 primary: field.primary,
                 objectid: selectedCase.id,
                 options: field.options,
-                required: field.required,
                 order: nextOrder,
                 description: field.description,
               },
@@ -1983,7 +2128,6 @@ export default function WorkflowPage() {
                         stepType as StepType,
                         fields?.map((f) => ({
                           id: f.id!,
-                          required: f.required,
                         })),
                       )
                     }

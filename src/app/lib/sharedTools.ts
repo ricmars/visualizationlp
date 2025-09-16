@@ -623,7 +623,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
     },
     {
       name: "saveFields",
-      description: `Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, required, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary/required, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).
+      description: `Creates or updates one or more fields for a case. Use this tool for ALL field-level changes (sampleValue, primary, label, order, options, type). PERFORMANCE: Batch changes in a single call whenever possible (25–50 fields per call is ideal). REQUIRED PER FIELD: name, type, objectid, label, sampleValue. If you only need to toggle boolean flags like primary, you STILL MUST provide type, label, and sampleValue for each field (fetch them once via listFields if not in context). NEVER call saveView or saveObject after field-only changes; those are unrelated. Views define layout/membership; saveObject updates workflow structure (stages/processes/steps).
                     Reference fields: To create a reference to another object, set type to one of: 'CaseReferenceSingle' | 'CaseReferenceMulti' | 'DataReferenceSingle' | 'DataReferenceMulti'. Provide 'refObjectId' with the referenced object's ID and 'refMultiplicity' as 'single' or 'multi'.
                     Embedded fields: To embed another object's data directly, set type to one of: 'EmbedDataSingle' | 'EmbedDataMulti'. Provide 'refObjectId' with the embedded object's ID and 'refMultiplicity' as 'single' or 'multi'. Embedded fields store the actual data from the referenced object rather than just a reference. The field type is automatically determined based on whether the referenced object has isEmbedded=true.`,
       parameters: {
@@ -676,18 +676,26 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   enum: ["single", "multi"],
                   description: "Reference type/multiplicity (optional)",
                 },
-                required: {
-                  type: "boolean",
-                  description: "Whether the field is required",
-                },
                 primary: {
                   type: "boolean",
-                  description: "Whether this is a primary field",
+                  description:
+                    "Whether this is a primary field. A primary field is displayed in the summary view and is usually used to indicate the most important fields of the case. if it is false, then the field will be displayed as a regular field in the Details view.",
                 },
                 sampleValue: {
                   type: "string",
                   description:
                     "Sample value for live preview (REQUIRED; reuse existing value if updating).",
+                },
+                source: {
+                  type: "string",
+                  enum: ["User input", "Calculated"],
+                  description:
+                    "Source of the field data - a calculated field will be shown as Read Only in a form and is usually used to indicate a value calculated on the server",
+                },
+                highlighted: {
+                  type: "boolean",
+                  description:
+                    "Whether this field should be highlighted in the UI - Highlighted fields are displayed with special emphasis in the summary view with a larger font size. They are more important than primary fields. If both primary and highlighted are true, the field will be considered as highlighted.",
                 },
               },
               required: ["name", "type", "objectid", "label", "sampleValue"],
@@ -720,9 +728,10 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description: string;
           order: number;
           options: unknown;
-          required: boolean;
           primary: boolean;
           sampleValue?: unknown;
+          source?: string;
+          highlighted?: boolean;
         }> = [];
 
         // Process each field
@@ -735,9 +744,10 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             description,
             order,
             options,
-            required,
             primary,
             sampleValue,
+            source,
+            highlighted,
             refObjectId,
             refMultiplicity,
           } = field as any;
@@ -785,8 +795,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             const nextDescription =
               description ?? existingRow.description ?? "";
             const nextOrder = order ?? existingRow.order ?? 0;
-            const nextRequired =
-              required ?? (existingRow.required as boolean) ?? false;
             const nextPrimary =
               primary ?? (existingRow.primary as boolean) ?? false;
             const normalizedOptions = Array.isArray(options)
@@ -806,9 +814,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
 
             const updateExistingQuery = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10, "refObjectId" = $11, "refMultiplicity" = $12
-              WHERE id = $13
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, "primary" = $8, "sampleValue" = $9, "refObjectId" = $10, "refMultiplicity" = $11, source = $12, highlighted = $13
+              WHERE id = $14
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, "primary", "sampleValue", "refObjectId", "refMultiplicity", source, highlighted
             `;
             const updateExistingValues = [
               name,
@@ -818,11 +826,12 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               nextDescription,
               nextOrder,
               normalizedOptions,
-              nextRequired,
               nextPrimary,
               normalizedSampleValue,
               typeof refObjectId === "number" ? refObjectId : null,
               typeof refMultiplicity === "string" ? refMultiplicity : null,
+              source || null,
+              highlighted ?? false,
               existingFieldId,
             ];
             console.log(
@@ -862,8 +871,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                         return [];
                       }
                     })(),
-                required: fieldData.required ?? nextRequired,
                 primary: fieldData.primary ?? nextPrimary,
+                source: fieldData.source ?? (source || null),
+                highlighted: fieldData.highlighted ?? highlighted ?? false,
               };
               if (returnedSample !== null && returnedSample !== "") {
                 resultItem.sampleValue = returnedSample;
@@ -877,9 +887,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
             // Update existing field
             const query = `
               UPDATE "${DB_TABLES.FIELDS}"
-              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, required = $8, "primary" = $9, "sampleValue" = $10, "refObjectId" = $11, "refMultiplicity" = $12
-              WHERE id = $13
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
+              SET name = $1, type = $2, objectid = $3, label = $4, description = $5, "order" = $6, options = $7, "primary" = $8, "sampleValue" = $9, "refObjectId" = $10, "refMultiplicity" = $11
+              WHERE id = $12
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, "primary", "sampleValue", "refObjectId", "refMultiplicity"
             `;
             console.log("saveFields UPDATE query:", query);
             // Normalize options & sampleValue for DB storage
@@ -902,7 +912,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               description ?? "",
               order ?? 0,
               normalizedOptions,
-              required ?? false,
               primary ?? false,
               normalizedSampleValue,
               typeof (field as any).refObjectId === "number"
@@ -922,7 +931,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               description ?? "",
               order ?? 0,
               normalizedOptions,
-              required ?? false,
               primary ?? false,
               normalizedSampleValue,
               typeof (field as any).refObjectId === "number"
@@ -969,8 +977,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   : Array.isArray(options)
                   ? options
                   : [],
-                required: fieldData.required ?? required ?? false,
                 primary: fieldData.primary ?? primary ?? false,
+                source: fieldData.source ?? (source || null),
+                highlighted: fieldData.highlighted ?? highlighted ?? false,
               };
               if (returnedSample !== null && returnedSample !== "") {
                 resultItem.sampleValue = returnedSample;
@@ -980,9 +989,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           } else {
             // Create new field
             const query = `
-              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity")
-              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-              RETURNING id, name, type, objectid as objectid, label, description, "order", options, required, "primary", "sampleValue", "refObjectId", "refMultiplicity"
+              INSERT INTO "${DB_TABLES.FIELDS}" (name, type, objectid, label, description, "order", options, "primary", "sampleValue", "refObjectId", "refMultiplicity", source, highlighted)
+              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+              RETURNING id, name, type, objectid as objectid, label, description, "order", options, "primary", "sampleValue", "refObjectId", "refMultiplicity", source, highlighted
             `;
             console.log("saveFields INSERT query:", query);
             const normalizedOptions = Array.isArray(options)
@@ -1004,7 +1013,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               description ?? "",
               order ?? 0,
               normalizedOptions,
-              required ?? false,
               primary ?? false,
               normalizedSampleValue,
               typeof (field as any).refObjectId === "number"
@@ -1013,6 +1021,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               typeof (field as any).refMultiplicity === "string"
                 ? (field as any).refMultiplicity
                 : null,
+              source || null,
+              highlighted ?? false,
             ]);
 
             const result = await pool.query(query, [
@@ -1023,7 +1033,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               description ?? "",
               order ?? 0,
               normalizedOptions,
-              required ?? false,
               primary ?? false,
               normalizedSampleValue,
               typeof (field as any).refObjectId === "number"
@@ -1032,6 +1041,8 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
               typeof (field as any).refMultiplicity === "string"
                 ? (field as any).refMultiplicity
                 : null,
+              source || null,
+              highlighted ?? false,
             ]);
             const fieldData = result.rows[0] || {};
 
@@ -1065,8 +1076,9 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
                   : Array.isArray(options)
                   ? options
                   : [],
-                required: fieldData.required ?? required ?? false,
                 primary: fieldData.primary ?? primary ?? false,
+                source: fieldData.source ?? (source || null),
+                highlighted: fieldData.highlighted ?? highlighted ?? false,
                 refObjectId:
                   fieldData.refObjectId ??
                   (typeof (field as any).refObjectId === "number"

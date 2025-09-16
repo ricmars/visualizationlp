@@ -308,15 +308,22 @@ export const fieldRuleType: RuleTypeDefinition = {
         description: "Reference multiplicity: 'single' or 'multi'",
       },
       {
-        name: "required",
-        type: "boolean",
-        description: "Whether field is required",
-      },
-      {
         name: "sampleValue",
         type: "unknown",
         optional: true,
         description: "Sample value for previews",
+      },
+      {
+        name: "source",
+        type: "string",
+        optional: true,
+        description: "Source of the field data: 'User input' or 'Calculated'",
+      },
+      {
+        name: "highlighted",
+        type: "boolean",
+        optional: true,
+        description: "Whether this field should be highlighted in the UI",
       },
     ],
   },
@@ -396,17 +403,23 @@ export const fieldRuleType: RuleTypeDefinition = {
         description: "Reference multiplicity: 'single' or 'multi'",
       },
       {
-        name: "required",
-        type: "BOOLEAN",
-        nullable: false,
-        defaultValue: false,
-        description: "Whether field is required",
-      },
-      {
         name: "sampleValue",
         type: "TEXT",
         nullable: true,
         description: "Sample value",
+      },
+      {
+        name: "source",
+        type: "TEXT",
+        nullable: true,
+        description: "Source of the field data: 'User input' or 'Calculated'",
+      },
+      {
+        name: "highlighted",
+        type: "BOOLEAN",
+        nullable: false,
+        defaultValue: false,
+        description: "Whether this field should be highlighted in the UI",
       },
     ],
     foreignKeys: [

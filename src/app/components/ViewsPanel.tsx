@@ -23,7 +23,6 @@ interface ViewsPanelProps {
     label: string;
     type: Field["type"];
     options?: string[];
-    required?: boolean;
     primary?: boolean;
   }) => Promise<string>;
   onUpdateField?: (updates: Partial<Field>) => void;
@@ -188,16 +187,11 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
           // Map fieldIds to actual field objects
           const viewFields: Field[] = [];
           viewModel.fields.forEach(
-            (fieldRef: {
-              fieldId: number;
-              required?: boolean;
-              order?: number;
-            }) => {
+            (fieldRef: { fieldId: number; order?: number }) => {
               const field = fields.find((f) => f.id === fieldRef.fieldId);
               if (field) {
                 viewFields.push({
                   ...field,
-                  required: fieldRef.required || false,
                   order: fieldRef.order || 0,
                 });
               }
@@ -299,25 +293,17 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   }, [selectedView, collectSteps, allViews]); // Added _views to dependencies
 
   const handleEditSubmit = useCallback(
-    (updates: {
-      label: string;
-      type: Field["type"];
-      options?: string[];
-      required?: boolean;
-      refObjectId?: number;
-      refMultiplicity?: "single" | "multi";
-    }) => {
+    (updates: { label: string; required?: boolean }) => {
       if (editingField && onUpdateField) {
         onUpdateField({
           id: editingField.id,
           name: editingField.name,
           label: updates.label,
-          type: updates.type,
-          options: updates.options,
+          type: editingField.type,
+          options: editingField.options,
           primary: editingField.primary,
-          required: updates.required ?? editingField.required,
-          refObjectId: updates.refObjectId,
-          refMultiplicity: updates.refMultiplicity,
+          refObjectId: editingField.refObjectId,
+          refMultiplicity: editingField.refMultiplicity,
         } as Partial<Field>);
         setEditingField(null);
       }
@@ -329,7 +315,6 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
     if (editingField) {
       handleEditSubmit({
         label: editingField.label,
-        type: editingField.type,
       });
     }
   }, [editingField, handleEditSubmit]);
@@ -658,21 +643,23 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         width="w-full max-w-md"
       >
         {editingField && (
-          <div>
-            <label className="block text-sm font-medium text-white mb-1">
-              Label
-            </label>
-            <input
-              type="text"
-              value={editingField.label}
-              onChange={(e) =>
-                setEditingField({
-                  ...editingField,
-                  label: e.target.value,
-                })
-              }
-              className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
-            />
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-white mb-1">
+                Label
+              </label>
+              <input
+                type="text"
+                value={editingField.label}
+                onChange={(e) =>
+                  setEditingField({
+                    ...editingField,
+                    label: e.target.value,
+                  })
+                }
+                className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
+              />
+            </div>
           </div>
         )}
       </StandardModal>
