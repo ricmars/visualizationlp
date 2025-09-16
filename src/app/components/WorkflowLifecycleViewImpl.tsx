@@ -828,7 +828,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
             ...editingStep,
             fields: editingStep.fields.map((field: any) => ({
               fieldId: field.fieldId || field.id,
-              required: field.required || false,
+              required: false, // Required is now only in view model, not on field
             })),
           };
           console.log("🔍 Modal step:", modalStep);

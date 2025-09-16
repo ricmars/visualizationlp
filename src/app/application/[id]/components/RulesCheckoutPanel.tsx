@@ -565,7 +565,6 @@ export default function RulesCheckoutPanel({
           description: "",
           order: 0,
           options: field.options || [],
-          required: field.required ?? false,
           source: "User input",
           highlighted: false,
         },

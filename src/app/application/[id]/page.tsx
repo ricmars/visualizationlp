@@ -1215,6 +1215,7 @@ export default function WorkflowPage() {
     handleAddFieldsToView,
     handleRemoveFieldFromView,
     handleAddFieldsToStep,
+    handleUpdateFieldInView,
   } = useViewMutations({
     selectedCase,
     fields,
@@ -2196,6 +2197,9 @@ export default function WorkflowPage() {
                     ) => {
                       handleFieldsReorder(selectedViewId, fieldIds);
                     }}
+                    onUpdateFieldInView={(viewId, fieldId, updates) =>
+                      void handleUpdateFieldInView(viewId, fieldId, updates)
+                    }
                     onViewSelect={setSelectedView}
                     selectedView={selectedView}
                   />

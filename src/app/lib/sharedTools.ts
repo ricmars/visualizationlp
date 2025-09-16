@@ -1584,7 +1584,7 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         console.log("listFields called at:", new Date().toISOString());
 
         const query = `
-          SELECT id, name, type, objectid, label, description, "order", options, required, "primary", "sampleValue"
+          SELECT id, name, type, objectid, label, description, "order", options, "primary", "sampleValue"
           FROM "${DB_TABLES.FIELDS}"
           WHERE objectid = $1
           ORDER BY "order", name
@@ -1602,7 +1602,6 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           description: row.description,
           order: row.order,
           options: row.options,
-          required: row.required,
           primary: row.primary,
           sampleValue: row.sampleValue ?? null,
         }));

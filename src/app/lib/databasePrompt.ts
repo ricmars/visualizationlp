@@ -24,13 +24,13 @@ Tool choice rules (critical):
 - Creating a new application: FIRST call saveApplication with name/description (and optional icon) to create the application and get its id. THEN create a sensible set of workflow-type objects (createObject/saveObject), passing applicationid into createObject and hasWorkflow=true so they are linked on insert. Optionally call saveApplication again with objectIds at the end if any object was created without applicationid.
 - Working within existing application: When the Context shows applicationId (not "NEW"), you MUST use that exact applicationid value when creating new objects. Never use a different application ID.
 - Updating application metadata or associations: call saveApplication.
-- Field-only changes (label, description, order, options, required, primary, sampleValue, type) → saveFields only, then stop.
+- Field-only changes (label, description, order, options, primary, sampleValue, type) → saveFields only, then stop.
 - View composition/layout changes → saveView only.
 - Structural workflow model (create new, or add/remove stages/processes/steps, or finalize) → saveObject only (for hasWorkflow=true objects).
 Do not call saveObject for simple field-only edits.
 
 Field updates protocol (critical for speed and reliability):
-- When toggling flags (primary/required) or changing options/order/labels on existing fields, you MUST include for each field: id, name, type, objectid, label, and sampleValue. If any of these are missing from context, call listFields(objectid) ONCE to retrieve them, then perform a single saveFields call for all targets.
+- When toggling flags (primary) or changing options/order/labels on existing fields, you MUST include for each field: id, name, type, objectid, label, and sampleValue. If any of these are missing from context, call listFields(objectid) ONCE to retrieve them, then perform a single saveFields call for all targets.
 - Avoid iterative retries that add one missing property at a time. Do the retrieval first, then batch all updates in one call.
 - Prefer large batches (25–50 fields per call) rather than many small calls.
 
@@ -54,7 +54,7 @@ New workflow scaffolding (applies when Context says mode=NEW or when creating a 
 - Required sequence:
   1) createObject(name, description, applicationid, hasWorkflow=true) — applicationid is REQUIRED. Do not call createObject without applicationid for workflows. Use the exact applicationid from Context if working within an existing application.
   2) saveFields to create 6–10 sensible fields inferred from the description (IDs are returned by the tool)
-  3) saveView to create one view per "Collect information" step ONLY; each such view MUST include a non-empty model.fields array referencing existing field IDs. Use the IDs returned by saveFields; if unavailable in context, call listFields(objectid) to retrieve them. Choose 3–6 relevant fields per view. Provide a basic layout: use { type: "two-column", columns: 2 } when >3 fields, otherwise { type: "single-column" }. Preserve each field's required flag where applicable.
+  3) saveView to create one view per "Collect information" step ONLY; each such view MUST include a non-empty model.fields array referencing existing field IDs. Use the IDs returned by saveFields; if unavailable in context, call listFields(objectid) to retrieve them. Choose 3–6 relevant fields per view. Provide a basic layout: use { type: "two-column", columns: 2 } when >3 fields, otherwise { type: "single-column" }. Set required flag on fields in the view model as needed.
   4) saveObject with a full model having at least 4 stages, each with 1–3 steps; use a mix of step types. Any "Collect information" step must set viewId to one of the created views. Non-collect steps MUST NOT set viewId. Use integer IDs and consistent ordering for stages/processes/steps.
   5) Repeat steps 1–4 until you have created and saved at least two distinct workflow objects (different object IDs) for the application.
   6) If needed, call saveApplication(name, description, icon?, objectIds) to ensure associations if any object was created without applicationid

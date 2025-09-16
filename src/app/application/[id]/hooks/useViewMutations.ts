@@ -241,9 +241,74 @@ export function useViewMutations({
     [selectedCase, fields, setSelectedCaseAction, setModelAction, eventName],
   );
 
+  const handleUpdateFieldInView = useCallback(
+    async (
+      viewId: number,
+      fieldId: number,
+      updates: { required?: boolean; label?: string },
+    ) => {
+      if (!selectedCase) return;
+
+      const view = views.find((v) => v.id === viewId);
+      if (!view) throw new Error("View not found");
+
+      let viewModel;
+      try {
+        viewModel =
+          typeof view.model === "string" ? JSON.parse(view.model) : view.model;
+      } catch {
+        viewModel = { fields: [] };
+      }
+
+      // Update the field reference in the view model
+      if (viewModel.fields && Array.isArray(viewModel.fields)) {
+        const fieldIndex = viewModel.fields.findIndex(
+          (f: { fieldId: number }) => f.fieldId === fieldId,
+        );
+        if (fieldIndex !== -1) {
+          // Update the existing field reference
+          viewModel.fields[fieldIndex] = {
+            ...viewModel.fields[fieldIndex],
+            ...updates,
+          };
+        }
+      }
+
+      // Save the updated view model
+      const response = await fetch(
+        `/api/database?table=${DB_TABLES.VIEWS}&id=${viewId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: view.name,
+            objectid: selectedCase.id,
+            model: {
+              fields: viewModel.fields,
+              layout: viewModel.layout || { type: "form", columns: 1 },
+            },
+          }),
+        },
+      );
+
+      if (!response.ok) throw new Error("Failed to update view");
+
+      // Refresh views data
+      const viewsResponse = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.VIEWS}&${DB_COLUMNS.CASE_ID}=${selectedCase.id}`,
+      );
+      if (viewsResponse.ok) {
+        const viewsData = await viewsResponse.json();
+        setViewsAction(viewsData.data);
+      }
+    },
+    [selectedCase, views, setViewsAction],
+  );
+
   return {
     handleAddFieldsToView,
     handleRemoveFieldFromView,
     handleAddFieldsToStep,
+    handleUpdateFieldInView,
   } as const;
 }

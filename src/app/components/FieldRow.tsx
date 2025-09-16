@@ -70,7 +70,9 @@ const FieldRow: React.FC<FieldRowProps> = ({
           <div className="font-medium text-white truncate">
             {field.label || field.name}
           </div>
-          {field.primary ? (
+          {field.highlighted ? (
+            <span className="tag-secondary">Highlighted</span>
+          ) : field.primary ? (
             <span className="tag-secondary">Primary</span>
           ) : null}
         </div>

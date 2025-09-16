@@ -31,6 +31,11 @@ interface ViewsPanelProps {
   onAddFieldsToView?: (viewId: number, fieldNames: string[]) => void;
   onAddFieldsToStep?: (stepId: number, fieldNames: string[]) => void;
   onFieldsReorder?: (selectedViewId: string, fieldIds: number[]) => void;
+  onUpdateFieldInView?: (
+    viewId: number,
+    fieldId: number,
+    updates: { required?: boolean; label?: string },
+  ) => void;
   selectedView?: string | null;
   onViewSelect?: (view: string | null) => void;
 }
@@ -63,12 +68,15 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
   onRemoveFieldFromView,
   onAddFieldsToView,
   onAddFieldsToStep,
+  onUpdateFieldInView,
   selectedView,
   onViewSelect,
   onFieldsReorder,
 }) => {
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
+  const [editingFieldRequired, setEditingFieldRequired] =
+    useState<boolean>(false);
   const addFieldButtonRef = useRef<HTMLButtonElement>(
     null,
   ) as MutableRefObject<HTMLButtonElement>;
@@ -292,32 +300,94 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
     return [];
   }, [selectedView, collectSteps, allViews]); // Added _views to dependencies
 
+  // Get the current field requirement status from the view model
+  const getFieldRequirementStatus = useCallback(
+    (fieldId: number): boolean => {
+      if (!selectedView) return false;
+
+      // First try to find it as a database view
+      const databaseView = allViews.find(
+        (v) => v.id.toString() === selectedView && v.isDatabaseView,
+      );
+      if (databaseView && databaseView.viewData) {
+        try {
+          const viewModel =
+            typeof databaseView.viewData.model === "string"
+              ? JSON.parse(databaseView.viewData.model as any)
+              : databaseView.viewData.model || {};
+          if (viewModel.fields && Array.isArray(viewModel.fields)) {
+            const fieldRef = viewModel.fields.find(
+              (f: { fieldId: number; required?: boolean }) =>
+                f.fieldId === fieldId,
+            );
+            return fieldRef?.required ?? false;
+          }
+        } catch (error) {
+          console.error("Error parsing view model:", error);
+        }
+      }
+
+      return false;
+    },
+    [selectedView, allViews],
+  );
+
   const handleEditSubmit = useCallback(
     (updates: { label: string; required?: boolean }) => {
-      if (editingField && onUpdateField) {
-        onUpdateField({
-          id: editingField.id,
-          name: editingField.name,
-          label: updates.label,
-          type: editingField.type,
-          options: editingField.options,
-          primary: editingField.primary,
-          refObjectId: editingField.refObjectId,
-          refMultiplicity: editingField.refMultiplicity,
-        } as Partial<Field>);
+      if (editingField) {
+        // Update the field label if it changed
+        if (updates.label !== editingField.label && onUpdateField) {
+          onUpdateField({
+            id: editingField.id,
+            name: editingField.name,
+            label: updates.label,
+            type: editingField.type,
+            options: editingField.options,
+            primary: editingField.primary,
+            refObjectId: editingField.refObjectId,
+            refMultiplicity: editingField.refMultiplicity,
+          } as Partial<Field>);
+        }
+
+        // Update field requirement in view if it's a database view and requirement changed
+        if (
+          selectedView &&
+          selectedView.startsWith("db-") &&
+          onUpdateFieldInView
+        ) {
+          const viewId = parseInt(selectedView.substring(3), 10);
+          const currentRequired = getFieldRequirementStatus(editingField.id!);
+          if (
+            updates.required !== undefined &&
+            updates.required !== currentRequired
+          ) {
+            onUpdateFieldInView(viewId, editingField.id!, {
+              required: updates.required,
+            });
+          }
+        }
+
         setEditingField(null);
+        setEditingFieldRequired(false);
       }
     },
-    [editingField, onUpdateField],
+    [
+      editingField,
+      onUpdateField,
+      selectedView,
+      onUpdateFieldInView,
+      getFieldRequirementStatus,
+    ],
   );
 
   const handleEditFieldSave = useCallback(() => {
     if (editingField) {
       handleEditSubmit({
         label: editingField.label,
+        required: editingFieldRequired,
       });
     }
-  }, [editingField, handleEditSubmit]);
+  }, [editingField, editingFieldRequired, handleEditSubmit]);
 
   const actions = useMemo(() => {
     if (!editingField) return [];
@@ -385,6 +455,7 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
 
   const onEditField = (field: Field) => {
     setEditingField(field);
+    setEditingFieldRequired(getFieldRequirementStatus(field.id!));
   };
 
   const handleDeleteField = (field: Field) => {
@@ -637,7 +708,10 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
 
       <StandardModal
         isOpen={!!editingField}
-        onCloseAction={() => setEditingField(null)}
+        onCloseAction={() => {
+          setEditingField(null);
+          setEditingFieldRequired(false);
+        }}
         title="Edit Field"
         actions={actions}
         width="w-full max-w-md"
@@ -645,10 +719,14 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
         {editingField && (
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-white mb-1">
+              <label
+                htmlFor="field-label-input"
+                className="block text-sm font-medium text-white mb-1"
+              >
                 Label
               </label>
               <input
+                id="field-label-input"
                 type="text"
                 value={editingField.label}
                 onChange={(e) =>
@@ -660,6 +738,25 @@ const ViewsPanel: React.FC<ViewsPanelProps> = ({
                 className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white transition-colors"
               />
             </div>
+            {selectedView && selectedView.startsWith("db-") && (
+              <div>
+                <label
+                  htmlFor="field-required-checkbox"
+                  className="flex items-center space-x-2 cursor-pointer"
+                >
+                  <input
+                    id="field-required-checkbox"
+                    type="checkbox"
+                    checked={editingFieldRequired}
+                    onChange={(e) => setEditingFieldRequired(e.target.checked)}
+                    className="w-4 h-4 text-blue-600 bg-[rgb(20,16,60)] border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
+                  />
+                  <span className="text-sm font-medium text-white">
+                    Required in this view
+                  </span>
+                </label>
+              </div>
+            )}
           </div>
         )}
       </StandardModal>
