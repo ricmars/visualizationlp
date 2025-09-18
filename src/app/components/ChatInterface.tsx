@@ -9,6 +9,11 @@ import type { ChatMode } from "../types/types";
 import StandardModal from "./StandardModal";
 import { useFileAttachment, AttachedFile } from "../hooks/useFileAttachment";
 import { FileAttachmentUI } from "./FileAttachmentUI";
+import {
+  AVAILABLE_MODELS,
+  getDefaultModelId,
+  getModelLabelById,
+} from "../lib/models";
 
 // Global cache for objects to avoid refetching
 const objectsCache = new Map<
@@ -331,6 +336,7 @@ interface ChatInterfaceProps {
     message: string,
     mode?: ChatMode,
     attachedFiles?: AttachedFile[],
+    modelId?: string,
   ) => void;
   onAbort?: () => void;
   messages: ChatMessage[];
@@ -496,6 +502,11 @@ export default function ChatInterface({
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
   const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const modeDropdownRef = useRef<HTMLDivElement>(null);
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    getDefaultModelId(),
+  );
+  const [isModelDropdownOpen, setIsModelDropdownOpen] = useState(false);
+  const modelDropdownRef = useRef<HTMLDivElement>(null);
   const {
     attachedFiles,
     fileInputRef,
@@ -547,16 +558,22 @@ export default function ChatInterface({
       ) {
         setIsModeDropdownOpen(false);
       }
+      if (
+        modelDropdownRef.current &&
+        !modelDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsModelDropdownOpen(false);
+      }
     };
 
-    if (isUnifiedSelectorOpen || isModeDropdownOpen) {
+    if (isUnifiedSelectorOpen || isModeDropdownOpen || isModelDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isUnifiedSelectorOpen, isModeDropdownOpen]);
+  }, [isUnifiedSelectorOpen, isModeDropdownOpen, isModelDropdownOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -831,6 +848,7 @@ export default function ChatInterface({
         outgoing,
         chatMode,
         attachedFiles.length > 0 ? attachedFiles : undefined,
+        selectedModelId,
       );
       setMessage("");
       clearFiles();
@@ -896,8 +914,7 @@ export default function ChatInterface({
       "lineHeight",
     ];
     props.forEach((p) => {
-      // @ts-expect-error dynamic style index
-      mirror.style[p] = style[p as any];
+      mirror.style[p as any] = style[p as any];
     });
     mirror.style.width = style.width;
 
@@ -1304,7 +1321,7 @@ export default function ChatInterface({
 
           {/* Bottom buttons row */}
           <div className="flex items-center justify-between px-4 pb-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               {/* Mode selector dropdown */}
               <div className="relative" ref={modeDropdownRef}>
                 <button
@@ -1361,6 +1378,53 @@ export default function ChatInterface({
                     >
                       Ask
                     </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Model selector dropdown */}
+              <div className="relative" ref={modelDropdownRef}>
+                <button
+                  className="chat-toolbar-btn-mode"
+                  disabled={isLoading || isProcessing}
+                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
+                  title={`Current model: ${getModelLabelById(selectedModelId)}`}
+                >
+                  <span className="text-xs font-medium">
+                    {getModelLabelById(selectedModelId)}
+                  </span>
+                  <svg
+                    className="w-3 h-3 ml-1"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+                {isModelDropdownOpen && (
+                  <div className="absolute bottom-full left-0 mb-1 bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl min-w-32 z-[100]">
+                    {AVAILABLE_MODELS.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedModelId(m.id);
+                          setIsModelDropdownOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-xs transition-colors ${
+                          selectedModelId === m.id
+                            ? "bg-gray-700 text-white"
+                            : "text-white hover:bg-gray-700"
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

@@ -38,6 +38,7 @@ export class Service {
       type: "text" | "image" | "pdf";
       base64?: string;
     }>,
+    modelId?: string,
   ) {
     console.log(`Generating response with provider: ${this.currentProvider}`);
     return await this.generateOpenAIResponse(
@@ -47,6 +48,7 @@ export class Service {
       signal,
       mode,
       attachedFiles,
+      modelId,
     );
   }
 
@@ -96,20 +98,24 @@ export class Service {
       type: "text" | "image" | "pdf";
       base64?: string;
     }>,
+    modelId?: string,
   ) {
     console.log("Calling OpenAI API...");
+    const body = {
+      prompt,
+      systemContext,
+      history,
+      mode,
+      attachedFiles,
+      model: modelId,
+    } as const;
+    console.log("/api/openai POST body:", body);
     const response = await fetch("/api/openai", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        prompt,
-        systemContext,
-        history,
-        mode,
-        attachedFiles,
-      }),
+      body: JSON.stringify(body),
       signal,
     });
 

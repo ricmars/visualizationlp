@@ -575,7 +575,10 @@ export default function RulesCheckoutPanel({
     return (resp?.data?.name as string) || field.label;
   };
 
-  const onViewAddExistingField = async (stepId: number, fieldIds: number[]) => {
+  const onViewAddExistingField = async (
+    _stepId: number,
+    fieldIds: number[],
+  ) => {
     if (!editingView) return;
     const current = makePseudoStepFromView(editingView);
     const existingIds = new Set(
@@ -599,6 +602,37 @@ export default function RulesCheckoutPanel({
       body: JSON.stringify({ table: DB_TABLES.FIELDS, data: updates }),
     });
     await fetchCheckoutData();
+  };
+
+  const onViewUpdateFieldInView = async (
+    _viewId: number,
+    fieldId: number,
+    updates: { required?: boolean; label?: string },
+  ) => {
+    if (!editingView) return;
+
+    // Update the field requirement in the view model
+    const currentModel =
+      typeof editingView.model === "string"
+        ? JSON.parse(editingView.model)
+        : editingView.model;
+
+    const updatedFields = currentModel.fields.map((fieldRef: any) => {
+      if (fieldRef.fieldId === fieldId) {
+        return { ...fieldRef, ...updates };
+      }
+      return fieldRef;
+    });
+
+    await updateViewModel(editingView, updatedFields);
+  };
+
+  const onViewUpdateStepFieldReference = async (
+    _fieldId: number,
+    _updates: { required?: boolean },
+  ) => {
+    // For view editing, this is handled by onViewUpdateFieldInView
+    // This function is here for interface compatibility
   };
 
   const onViewDeleteField = async (field: Field) => {
@@ -866,6 +900,8 @@ export default function RulesCheckoutPanel({
           onAddExistingField={onViewAddExistingField}
           onUpdateField={onViewUpdateField}
           onDeleteField={onViewDeleteField}
+          onUpdateFieldInView={onViewUpdateFieldInView}
+          onUpdateStepFieldReference={onViewUpdateStepFieldReference}
         />
       )}
 
@@ -888,7 +924,7 @@ export default function RulesCheckoutPanel({
           isOpen={!!editingTheme}
           onClose={() => setEditingTheme(null)}
           theme={editingTheme}
-          onSave={async (id, name, description, model) => {
+          onSave={async (_id, name, description, model) => {
             await handleThemeUpdate({
               name,
               description,

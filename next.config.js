@@ -22,7 +22,6 @@ const nextConfig = {
     if (isServer) {
       const requiredEnvVars = [
         "AZURE_OPENAI_ENDPOINT",
-        "AZURE_OPENAI_DEPLOYMENT",
         "AZURE_TENANT_ID",
         "AZURE_CLIENT_ID",
         "AZURE_CLIENT_SECRET",

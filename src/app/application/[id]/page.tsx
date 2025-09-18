@@ -2483,8 +2483,8 @@ export default function WorkflowPage() {
           <div className="flex-1 flex flex-col min-w-0">
             <ChatPanelContent
               messages={messages}
-              onSendMessage={(message, mode, attachedFile) =>
-                void handleSendMessage(message, mode, attachedFile)
+              onSendMessage={(message, mode, attachedFile, modelId) =>
+                void handleSendMessage(message, mode, attachedFile, modelId)
               }
               onAbort={() => handleAbort()}
               isProcessing={isProcessing}

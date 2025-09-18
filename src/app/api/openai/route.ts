@@ -77,10 +77,10 @@ async function getAzureAccessToken() {
 }
 
 // Initialize OpenAI client with Azure AD token
-async function createOpenAIClient() {
+async function createOpenAIClient(deploymentId: string) {
   console.log("Creating OpenAI client...");
   const token = await getAzureAccessToken();
-  const baseURL = `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${process.env.AZURE_OPENAI_DEPLOYMENT}`;
+  const baseURL = `${process.env.AZURE_OPENAI_ENDPOINT}/openai/deployments/${deploymentId}`;
   console.log("OpenAI base URL:", baseURL);
 
   const client = new OpenAI({
@@ -143,7 +143,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { prompt, systemContext, history, mode, attachedFiles } =
+    const { prompt, systemContext, history, mode, attachedFiles, model } =
       await request.json();
     console.log("Received request with prompt length:", prompt.length);
     console.log("Prompt preview:", prompt.substring(0, 100) + "...");
@@ -233,9 +233,16 @@ export async function POST(request: Request) {
 
     // Rely on tool descriptions and system guidance (no heuristic gating)
 
+    // Determine deployment/model to use
+    const selectedDeployment =
+      (typeof model === "string" && model.trim()) ||
+      process.env.AZURE_OPENAI_DEPLOYMENT ||
+      "gpt-4o";
+    console.log("Using deployment:", selectedDeployment);
+
     // Create OpenAI client with fresh token
     console.log("Creating OpenAI client...");
-    const openai = await createOpenAIClient();
+    const openai = await createOpenAIClient(selectedDeployment);
 
     // Build lightweight system prompt
     const systemCore = buildDatabaseSystemPrompt();
@@ -583,7 +590,7 @@ Bulk operations policy:
             }
 
             // GPT-4o is multimodal and can handle images directly
-            const modelName = process.env.AZURE_OPENAI_DEPLOYMENT!;
+            const modelName = selectedDeployment;
 
             const completionPromise = openai.chat.completions.create(
               {

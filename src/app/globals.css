@@ -324,7 +324,7 @@ a[disabled] {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 60px;
+    width: 70px;
     height: 25px;
     color: white;
     background: transparent;
@@ -974,6 +974,7 @@ html {
   );
   color: white;
   padding-top: 4px;
+  word-break: break-word;
 }
 
 /* User Message Bubble Styles */
@@ -986,6 +987,7 @@ html {
   );
   color: white;
   padding-top: 4px;
+  word-break: break-word;
 }
 
 /* Panel Layout Classes */

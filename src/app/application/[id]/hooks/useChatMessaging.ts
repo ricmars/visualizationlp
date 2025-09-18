@@ -58,6 +58,7 @@ export default function useChatMessaging({
         type: "text" | "image" | "pdf";
         base64?: string;
       }>,
+      modelId?: string,
     ) => {
       let aiMessageId: string;
 
@@ -126,6 +127,7 @@ export default function useChatMessaging({
           abortRef.current.signal,
           mode,
           attachedFiles,
+          modelId,
         );
 
         if (!response.ok) {

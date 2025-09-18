@@ -18,6 +18,7 @@ type ChatPanelContentProps = {
       type: "text" | "image" | "pdf";
       base64?: string;
     }>,
+    modelId?: string,
   ) => Promise<void> | void;
   onAbort: () => void;
   isProcessing: boolean;

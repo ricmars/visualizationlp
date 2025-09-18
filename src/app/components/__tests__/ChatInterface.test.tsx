@@ -125,11 +125,12 @@ describe("ChatInterface", () => {
     // Press Enter
     fireEvent.keyDown(textarea, { key: "Enter" });
 
-    // Check that onSendMessage was called with message, mode, and attachedFile
+    // Check that onSendMessage was called with message, mode, attachedFile, and modelId
     expect(mockProps.onSendMessage).toHaveBeenCalledWith(
       "Test message",
       "agent",
       undefined,
+      expect.any(String),
     );
   });
 });
