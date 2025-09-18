@@ -412,8 +412,6 @@ a[disabled] {
   }
 
   .chat-panel-content {
-    max-height: calc(100vh - 266px);
-    height: calc(100vh - 266px);
     overflow-y: auto;
   }
 
@@ -1002,4 +1000,6 @@ html {
   width: 400px;
   min-width: 400px;
   font-size: 14px;
+  max-height: calc(100vh - 60px);
+  height: calc(100vh - 60px);
 }

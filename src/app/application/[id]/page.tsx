@@ -2480,20 +2480,18 @@ export default function WorkflowPage() {
       {/* Chat Panel - fixed width - Hidden on tablet/mobile */}
       {isDesktop && applicationId && (
         <aside className="flex flex-col h-app-screen text-sm right-panel">
-          <div className="flex-1 flex flex-col min-w-0">
-            <ChatPanelContent
-              messages={messages}
-              onSendMessage={(message, mode, attachedFile, modelId) =>
-                void handleSendMessage(message, mode, attachedFile, modelId)
-              }
-              onAbort={() => handleAbort()}
-              isProcessing={isProcessing}
-              objectid={parseInt(id)}
-              onQuickAction={beginFreeFormSelection}
-              onClearChat={handleClearChat}
-              applicationId={applicationId}
-            />
-          </div>
+          <ChatPanelContent
+            messages={messages}
+            onSendMessage={(message, mode, attachedFile, modelId) =>
+              void handleSendMessage(message, mode, attachedFile, modelId)
+            }
+            onAbort={() => handleAbort()}
+            isProcessing={isProcessing}
+            objectid={parseInt(id)}
+            onQuickAction={beginFreeFormSelection}
+            onClearChat={handleClearChat}
+            applicationId={applicationId}
+          />
         </aside>
       )}
 
