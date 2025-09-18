@@ -94,8 +94,7 @@ body {
   background-repeat: no-repeat;
   background-attachment: fixed;
   color: var(--foreground);
-  font-family: "Montserrat", ui-sans-serif, system-ui, -apple-system, Segoe UI,
-    Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial,
+  font-family: "Noto Sans", Ubuntu, Cantarell, Helvetica Neue, Arial,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
   padding-top: var(--header-height);
 }

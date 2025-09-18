@@ -10,12 +10,6 @@ module.exports = {
     extend: {
       fontFamily: {
         sans: [
-          "Montserrat",
-          "ui-sans-serif",
-          "system-ui",
-          "-apple-system",
-          "Segoe UI",
-          "Roboto",
           "Noto Sans",
           "Ubuntu",
           "Cantarell",

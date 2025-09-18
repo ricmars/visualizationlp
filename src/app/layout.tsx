@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
-import { Montserrat } from "next/font/google";
+import { Noto_Sans } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
 import "./globals.css";
 import { ResponsiveProvider } from "./contexts/ResponsiveContext";
 import HeaderHamburgerMenu from "./components/HeaderHamburgerMenu";
 
-const montserrat = Montserrat({
+const notoSans = Noto_Sans({
   subsets: ["latin"],
+  weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
+  style: ["normal", "italic"],
 });
 
 export const metadata: Metadata = {
@@ -25,7 +27,7 @@ interface RootLayoutProps {
 export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" className="dark">
-      <body className={`${montserrat.className} antialiased`}>
+      <body className={`${notoSans.className} antialiased`}>
         <ResponsiveProvider>
           <header className="app-header">
             <div className="app-header-content">
