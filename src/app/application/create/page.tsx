@@ -1,0 +1,510 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
+import { useFileAttachment } from "../../hooks/useFileAttachment";
+import ChatInputToolbar from "../../components/ChatInputToolbar";
+import ChatInterface, { ChatMessage } from "../../components/ChatInterface";
+import { Service } from "../../services/service";
+import { buildDatabaseSystemPrompt } from "../../lib/databasePrompt";
+import { registerRuleTypes } from "../../types/ruleTypeDefinitions";
+import { getDefaultModelId } from "../../lib/models";
+
+// Initialize rule types on module load
+registerRuleTypes();
+
+export default function CreateApplicationPage() {
+  const [description, setDescription] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [creationProgress, setCreationProgress] = useState<string>("");
+  const [progressDots, setProgressDots] = useState<number>(0);
+  const [selectedModelId, setSelectedModelId] = useState<string>(
+    getDefaultModelId(),
+  );
+  const [showChatInterface, setShowChatInterface] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [createdApplication, setCreatedApplication] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
+  const [creationSummary, setCreationSummary] = useState<string | null>(null);
+  const progressRef = useRef<HTMLDivElement>(null);
+
+  const {
+    attachedFiles,
+    fileInputRef,
+    handleFileSelect,
+    handleRemoveFile,
+    handleRemoveAllFiles,
+    handleAttachFile,
+    truncateFileName,
+    clearFiles,
+  } = useFileAttachment();
+
+  // Auto-scroll progress box to bottom whenever new progress arrives
+  useEffect(() => {
+    if (isCreating && creationProgress && progressRef.current) {
+      progressRef.current.scrollTop = progressRef.current.scrollHeight;
+    }
+  }, [isCreating, creationProgress]);
+
+  // Animate three dots while creating
+  useEffect(() => {
+    if (!isCreating) {
+      setProgressDots(0);
+      return;
+    }
+    const interval = setInterval(() => {
+      setProgressDots((d) => (d + 1) % 4);
+    }, 500);
+    return () => clearInterval(interval);
+  }, [isCreating]);
+
+  // Keep assistant thinking message updated with animated dots in chat mode
+  useEffect(() => {
+    if (!isCreating || !showChatInterface) return;
+    setChatMessages((prev) => {
+      if (prev.length === 0) return prev;
+      const updated = [...prev];
+      const lastMessage = updated[updated.length - 1];
+      if (
+        lastMessage &&
+        lastMessage.sender === "assistant" &&
+        lastMessage.isThinking
+      ) {
+        lastMessage.content = `Generating application${".".repeat(
+          progressDots,
+        )}`;
+      }
+      return updated;
+    });
+  }, [progressDots, isCreating, showChatInterface]);
+
+  const handleSubmit = async () => {
+    if (!showChatInterface) {
+      // First time - show chat interface with user message
+      const userMessage: ChatMessage = {
+        id: Date.now().toString(),
+        content: description,
+        sender: "user",
+        timestamp: new Date(),
+      };
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        content: "Generating application",
+        sender: "assistant",
+        timestamp: new Date(),
+        isThinking: true,
+      };
+      setChatMessages([userMessage, assistantMessage]);
+      setShowChatInterface(true);
+      setDescription("");
+      clearFiles();
+
+      // Start the workflow creation process
+      setIsProcessing(true);
+      try {
+        await handleCreateWorkflow(description, attachedFiles);
+      } catch (_error) {
+        setIsProcessing(false);
+        return;
+      }
+    } else {
+      // Subsequent messages - handle as chat
+      setIsSubmitting(true);
+      try {
+        await handleCreateWorkflow(description, attachedFiles);
+      } catch (_error) {
+        setIsSubmitting(false);
+        return;
+      }
+      setDescription("");
+      clearFiles();
+    }
+  };
+
+  const handleDescriptionChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    const value = e.target.value;
+    if (value.length <= 2000) {
+      setDescription(value);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      if (description.trim().length > 0) {
+        handleSubmit();
+      }
+    }
+  };
+
+  const handleCreateWorkflow = async (
+    description: string,
+    attachedFiles?: any[],
+  ) => {
+    try {
+      setIsCreating(true);
+      setCreationProgress("Generating application");
+
+      // Add assistant message to chat if in chat mode
+      if (showChatInterface) {
+        const assistantMessage: ChatMessage = {
+          id: (Date.now() + 1).toString(),
+          content: "Generating application",
+          sender: "assistant",
+          timestamp: new Date(),
+          isThinking: true,
+        };
+        setChatMessages((prev) => [...prev, assistantMessage]);
+      }
+
+      console.log("=== Creating New Application ===");
+      console.log("Input:", { description });
+
+      // Use the AI service to create the workflow
+      const response = await Service.generateResponse(
+        `Create a new application that has the following description: ${description}. First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
+        buildDatabaseSystemPrompt(),
+        undefined, // history
+        undefined, // signal
+        undefined, // mode
+        attachedFiles, // attached files
+      );
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error Response:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: errorText,
+        });
+        throw new Error(
+          `Failed to create workflow: ${response.status} ${errorText}`,
+        );
+      }
+
+      // Process the streaming response
+      const reader = response.body?.getReader();
+      if (!reader) {
+        throw new Error("No response body available");
+      }
+
+      const decoder = new TextDecoder();
+      let isComplete = false;
+
+      // Keep the progress message simple - don't show LLM reasoning
+      setCreationProgress("Generating application");
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                // Don't show LLM reasoning text to user - keep it simple
+                if (data.text) {
+                  // Only update chat message if in chat mode, but don't show reasoning
+                  if (showChatInterface) {
+                    setChatMessages((prev) => {
+                      const updated = [...prev];
+                      const lastMessage = updated[updated.length - 1];
+                      if (lastMessage && lastMessage.sender === "assistant") {
+                        // Keep the message simple - don't append LLM reasoning
+                        lastMessage.content = "Generating application";
+                      }
+                      return updated;
+                    });
+                  }
+                }
+
+                if (data.done) {
+                  isComplete = true;
+                  // We'll handle the success message after the loop completes
+                }
+
+                // Check for timeout or other errors in the text content
+                if (data.text && data.text.includes("timeout")) {
+                  throw new Error(
+                    "Application creation timed out. Please try again.",
+                  );
+                }
+
+                // Check for incomplete workflow warnings
+                if (
+                  data.text &&
+                  data.text.includes("WARNING: Application creation incomplete")
+                ) {
+                  throw new Error(
+                    "Application creation was incomplete. Please try again.",
+                  );
+                }
+
+                if (data.error) {
+                  console.error("Streaming error received:", data.error);
+                  throw new Error(data.error);
+                }
+              } catch (parseError) {
+                console.warn("Failed to parse SSE data:", parseError);
+              }
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      if (!isComplete) {
+        throw new Error("Application creation did not complete properly");
+      }
+
+      // Try to extract application information from the response
+      // The LLM should have created an application, so we need to find it
+      try {
+        const response = await fetch(
+          "/api/database?table=Applications&order=id desc&limit=1",
+        );
+        if (response.ok) {
+          const result = await response.json();
+          if (result.data && result.data.length > 0) {
+            const app = result.data[0];
+            setCreatedApplication({
+              id: app.id,
+              name: app.name || "New Application",
+            });
+
+            // Build summary of what was created (objects list)
+            try {
+              const objectsRes = await fetch(
+                `/api/database?table=Objects&applicationid=${app.id}`,
+              );
+              if (objectsRes.ok) {
+                const objectsData = await objectsRes.json();
+                const allObjects: Array<{
+                  id: number;
+                  name: string;
+                  hasWorkflow?: boolean;
+                }> = Array.isArray(objectsData?.data) ? objectsData.data : [];
+                const workflowObjects = allObjects.filter(
+                  (o) => o && (o as any).hasWorkflow,
+                );
+                const workflowNames = workflowObjects
+                  .map((o) => o.name)
+                  .filter(Boolean);
+                const objectNames = allObjects
+                  .map((o) => o.name)
+                  .filter(Boolean);
+                const summaryLines: string[] = [];
+                summaryLines.push(`Summary:`);
+                if (workflowNames.length > 0) {
+                  summaryLines.push(
+                    `- Workflows created (${
+                      workflowNames.length
+                    }): ${workflowNames.join(", ")}.`,
+                  );
+                }
+                if (objectNames.length > 0) {
+                  summaryLines.push(
+                    `- Objects created (${
+                      objectNames.length
+                    }): ${objectNames.join(", ")}.`,
+                  );
+                }
+                const summaryText = summaryLines.join("\n");
+                setCreationSummary(summaryText);
+
+                // Update chat message with success + summary if in chat mode
+                if (showChatInterface) {
+                  setChatMessages((prev) => {
+                    const updated = [...prev];
+                    const lastMessage = updated[updated.length - 1];
+                    if (lastMessage && lastMessage.sender === "assistant") {
+                      lastMessage.content = `✅ Your application "${
+                        app.name || "New Application"
+                      }" has been successfully created.\n\n${summaryText}`;
+                      lastMessage.isThinking = false;
+                      lastMessage.applicationId = app.id;
+                    }
+                    return updated;
+                  });
+                }
+              } else {
+                setCreationSummary(null);
+              }
+            } catch {
+              setCreationSummary(null);
+            }
+
+            // If not in chat mode, no need to update chat message here (handled by success panel)
+          }
+        }
+      } catch (error) {
+        console.warn("Could not fetch created application:", error);
+      }
+    } catch (error) {
+      console.error("Error creating application:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to create application";
+      setCreationProgress("❌ " + errorMessage);
+
+      // Update chat message with error if in chat mode
+      if (showChatInterface) {
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          const lastMessage = updated[updated.length - 1];
+          if (lastMessage && lastMessage.sender === "assistant") {
+            lastMessage.content = "❌ " + errorMessage;
+            lastMessage.isThinking = false;
+          }
+          return updated;
+        });
+      }
+    } finally {
+      setIsCreating(false);
+      setIsSubmitting(false);
+      setIsProcessing(false);
+    }
+  };
+
+  const handleChatMessage = async (
+    message: string,
+    mode?: any,
+    attachedFiles?: any[],
+    _modelId?: string,
+  ) => {
+    // Add user message to chat
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      content: message,
+      sender: "user",
+      timestamp: new Date(),
+    };
+    setChatMessages((prev) => [...prev, userMessage]);
+
+    // Process the message
+    setIsProcessing(true);
+    try {
+      await handleCreateWorkflow(message, attachedFiles);
+    } catch (_error) {
+      setIsProcessing(false);
+      return;
+    }
+  };
+
+  const handleAbort = () => {
+    setIsProcessing(false);
+    setIsCreating(false);
+    setIsSubmitting(false);
+  };
+
+  // Show chat interface if user has entered description
+  if (showChatInterface) {
+    return (
+      <ChatInterface
+        onSendMessage={handleChatMessage}
+        onAbort={handleAbort}
+        messages={chatMessages}
+        isLoading={isSubmitting}
+        isProcessing={isProcessing}
+        applicationId={0} // We don't have an application ID yet
+        initialMessage={description}
+        enableMentions={false} // Disable @mentions for create app mode
+        variant="create-app" // Use create-app styling
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4">
+        {/* Logo */}
+        <div className="mb-8">
+          <Image
+            src="/Launchpad logo.svg"
+            alt="Launchpad"
+            width={180}
+            height={26}
+            className="w-[180px] h-[26px]"
+          />
+        </div>
+
+        {/* Form Fields */}
+        <div className="create-app-post">
+          <textarea
+            id="description"
+            value={description}
+            onChange={handleDescriptionChange}
+            onKeyDown={handleKeyDown}
+            rows={3}
+            className="w-full flex-1 min-h-[72px] max-h-[200px] p-4 bg-transparent text-white placeholder-gray-400 text-sm leading-relaxed resize-none overflow-y-auto focus:outline-none transition-all duration-200 ease-in-out"
+            placeholder="Describe the application you would like to create..."
+            disabled={isSubmitting || isCreating}
+          />
+          <ChatInputToolbar
+            onSendMessage={handleSubmit}
+            disabled={isSubmitting || isCreating}
+            isLoading={isSubmitting || isCreating}
+            hasContent={description.trim().length > 0}
+            attachedFiles={attachedFiles}
+            fileInputRef={fileInputRef}
+            handleFileSelect={handleFileSelect}
+            handleRemoveFile={handleRemoveFile}
+            handleRemoveAllFiles={handleRemoveAllFiles}
+            handleAttachFile={handleAttachFile}
+            truncateFileName={truncateFileName}
+            selectedModelId={selectedModelId}
+            onModelChange={setSelectedModelId}
+            showRecordButton={true}
+          />
+        </div>
+      </div>
+      {/* Progress Display */}
+      {isCreating && creationProgress && (
+        <div className="bg-[rgb(14,10,42)] border border-blue-200 rounded-md p-4 mb-4 max-w-md">
+          <div className="flex items-center mb-2">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
+            <span className="text-sm font-medium text-white">
+              {creationProgress}
+              {".".repeat(progressDots)}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Success Display */}
+      {createdApplication && !isCreating && (
+        <div className="bg-[rgb(14,10,42)] border border-green-200 rounded-md p-4 mb-4 max-w-md">
+          <div className="text-sm text-white mb-3">
+            ✅ Your application "{createdApplication.name}" has been
+            successfully created.
+          </div>
+          {creationSummary && (
+            <div className="text-sm text-white mb-3 whitespace-pre-wrap">
+              {creationSummary}
+            </div>
+          )}
+          <button
+            onClick={() =>
+              (window.location.href = `/application/${createdApplication.id}`)
+            }
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+          >
+            Open Application
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { FaUndo, FaCheck, FaClock, FaStop, FaMicrophone } from "react-icons/fa";
+import { FaUndo, FaCheck, FaClock } from "react-icons/fa";
 import ReactMarkdown from "react-markdown";
 import type { Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -8,12 +8,8 @@ import { composeQuickChatMessage } from "../application/[id]/utils/composeQuickC
 import type { ChatMode } from "../types/types";
 import StandardModal from "./StandardModal";
 import { useFileAttachment, AttachedFile } from "../hooks/useFileAttachment";
-import { FileAttachmentUI } from "./FileAttachmentUI";
-import {
-  AVAILABLE_MODELS,
-  getDefaultModelId,
-  getModelLabelById,
-} from "../lib/models";
+import ChatInputToolbar from "./ChatInputToolbar";
+import { getDefaultModelId } from "../lib/models";
 
 // Global cache for objects to avoid refetching
 const objectsCache = new Map<
@@ -291,9 +287,22 @@ const UnifiedSelectorPopup: React.FC<{
   );
 };
 
-// Blinking cursor component
-const BlinkingCursor = () => (
-  <span className="inline-block w-0.5 h-4 bg-blue-500 animate-pulse ml-1"></span>
+// Bouncing dots component
+const BouncingDots = () => (
+  <span className="inline-flex items-center ml-1">
+    <span
+      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+      style={{ animationDelay: "0ms", animationDuration: "0.8s" }}
+    ></span>
+    <span
+      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce ml-1"
+      style={{ animationDelay: "100ms", animationDuration: "0.8s" }}
+    ></span>
+    <span
+      className="w-2 h-2 bg-blue-500 rounded-full animate-bounce ml-1"
+      style={{ animationDelay: "200ms", animationDuration: "0.8s" }}
+    ></span>
+  </span>
 );
 
 export interface ChatMessage {
@@ -307,6 +316,8 @@ export interface ChatMessage {
   // Approximate number of prompt tokens sent to the LLM for this response
   tokenCount?: number;
   tokenExact?: boolean;
+  // For create-app variant: application ID when application is created
+  applicationId?: number;
 }
 
 interface CheckpointSession {
@@ -344,6 +355,10 @@ interface ChatInterfaceProps {
   isProcessing: boolean;
   objectid?: number;
   applicationId: number;
+  // New optional props for create app mode
+  initialMessage?: string;
+  enableMentions?: boolean; // Default true for backward compatibility
+  variant?: "chat" | "create-app"; // For styling differences
 }
 
 // Function to format content based on its type
@@ -467,8 +482,11 @@ export default function ChatInterface({
   isProcessing,
   objectid,
   applicationId,
+  initialMessage,
+  enableMentions = true,
+  variant = "chat",
 }: ChatInterfaceProps) {
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(initialMessage || "");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [checkpointStatus, setCheckpointStatus] =
@@ -500,8 +518,6 @@ export default function ChatInterface({
   const [filterText, setFilterText] = useState("");
   const popupRef = useRef<HTMLDivElement>(null);
   const [chatMode, setChatMode] = useState<ChatMode>("agent");
-  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
-  const modeDropdownRef = useRef<HTMLDivElement>(null);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     getDefaultModelId(),
   );
@@ -517,6 +533,9 @@ export default function ChatInterface({
     truncateFileName,
     clearFiles,
   } = useFileAttachment();
+
+  // Conditional @mention functionality - only enable if we have objectid and enableMentions is true
+  const shouldEnableMentions = enableMentions && objectid !== undefined;
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -553,12 +572,6 @@ export default function ChatInterface({
         setIsUnifiedSelectorOpen(false);
       }
       if (
-        modeDropdownRef.current &&
-        !modeDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsModeDropdownOpen(false);
-      }
-      if (
         modelDropdownRef.current &&
         !modelDropdownRef.current.contains(event.target as Node)
       ) {
@@ -566,14 +579,14 @@ export default function ChatInterface({
       }
     };
 
-    if (isUnifiedSelectorOpen || isModeDropdownOpen || isModelDropdownOpen) {
+    if (isUnifiedSelectorOpen || isModelDropdownOpen) {
       document.addEventListener("mousedown", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isUnifiedSelectorOpen, isModeDropdownOpen, isModelDropdownOpen]);
+  }, [isUnifiedSelectorOpen, isModelDropdownOpen]);
 
   // Load saved voice config on mount
   useEffect(() => {
@@ -749,7 +762,7 @@ export default function ChatInterface({
     }
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessageWithMentions = async () => {
     const raw = message.trim();
     if (raw || attachedFiles.length > 0) {
       let outgoing = raw;
@@ -859,7 +872,50 @@ export default function ChatInterface({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
+  const handleSendMessageSimple = async () => {
+    const raw = message.trim();
+    if (raw || attachedFiles.length > 0) {
+      let outgoing = raw;
+
+      // Include file content if attached
+      if (attachedFiles.length > 0) {
+        const fileDescriptions = attachedFiles.map((file) => {
+          if (file.type === "image") {
+            return `[Image attached: ${file.name}]`;
+          } else if (file.type === "pdf") {
+            return `[PDF attached: ${file.name}]`;
+          } else {
+            return `--- File: ${file.name} ---\n${file.content}`;
+          }
+        });
+
+        outgoing = outgoing
+          ? `${outgoing}\n\n${fileDescriptions.join("\n\n")}`
+          : fileDescriptions.join("\n\n");
+      }
+
+      // Pass the chat mode and attached files along with the message
+      onSendMessage(
+        outgoing,
+        chatMode,
+        attachedFiles.length > 0 ? attachedFiles : undefined,
+        selectedModelId,
+      );
+      setMessage("");
+      clearFiles();
+      // Reset textarea height after sending
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "auto";
+      }
+    }
+  };
+
+  // Conditional send message handler
+  const handleSendMessage = shouldEnableMentions
+    ? handleSendMessageWithMentions
+    : handleSendMessageSimple;
+
+  const handleKeyDownWithMentions = (e: React.KeyboardEvent) => {
     if (isUnifiedSelectorOpen) {
       // Handle popup navigation
       switch (e.key) {
@@ -880,6 +936,18 @@ export default function ChatInterface({
       handleSendMessage();
     }
   };
+
+  const handleKeyDownSimple = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Conditional key down handler
+  const handleKeyDown = shouldEnableMentions
+    ? handleKeyDownWithMentions
+    : handleKeyDownSimple;
 
   const getCursorPosition = (
     textarea: HTMLTextAreaElement,
@@ -942,7 +1010,9 @@ export default function ChatInterface({
     return { x, y };
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleInputChangeWithMentions = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
     const newValue = e.target.value;
     const cursorPos = e.target.selectionStart;
 
@@ -974,6 +1044,17 @@ export default function ChatInterface({
       setPopupPosition(position);
     }
   };
+
+  const handleInputChangeSimple = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+  ) => {
+    setMessage(e.target.value);
+  };
+
+  // Conditional input change handler
+  const handleInputChange = shouldEnableMentions
+    ? handleInputChangeWithMentions
+    : handleInputChangeSimple;
 
   const handleObjectSelect = (object: {
     id: number;
@@ -1136,8 +1217,19 @@ export default function ChatInterface({
     (msg) => !shouldFilterContent(msg.content),
   );
 
+  // Container styling based on variant
+  const containerClasses =
+    variant === "create-app"
+      ? "create-app-main"
+      : "flex flex-col h-full min-w-0 min-h-0";
+
+  const inputWrapperClasses =
+    variant === "create-app"
+      ? "create-app-post"
+      : "w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg flex-shrink-0 flex flex-col";
+
   return (
-    <div className="flex flex-col h-full min-w-0 min-h-0">
+    <div className={containerClasses}>
       {/* Checkpoint Status Bar */}
       {checkpointStatus?.activeSession && (
         <div className="bg-blue-50 dark:bg-blue-900 px-4 py-2">
@@ -1198,68 +1290,56 @@ export default function ChatInterface({
                   msg.sender === "user" ? "items-end" : "items-start"
                 }`}
               >
-                {isAssistant && (
-                  <>
+                <div
+                  className={`p-2 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
+                >
+                  <div className="flex items-start gap-2">
                     <div
-                      className={`p-2 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
+                      className="prose prose-sm dark:prose-invert max-w-none font-sans text-white"
+                      style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
                     >
-                      <div className="flex items-start gap-2">
-                        <div
-                          className="prose prose-sm dark:prose-invert max-w-none font-sans text-white"
-                          style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                        >
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
-                            components={markdownComponents}
-                          >
-                            {formatContent(msg.content)}
-                          </ReactMarkdown>
-                          {msg.isThinking && <BlinkingCursor />}
-                        </div>
-                      </div>
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
+                        components={markdownComponents}
+                      >
+                        {formatContent(msg.content)}
+                      </ReactMarkdown>
                     </div>
-                  </>
-                )}
-                {!isAssistant && (
-                  <>
-                    <div
-                      className={`p-2 text-sm ${bubbleRadiusClasses} ${baseBubbleClasses}`}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div
-                          className="prose prose-sm dark:prose-invert max-w-none font-sans text-white"
-                          style={{ fontFamily: "Arial, Helvetica, sans-serif" }}
-                        >
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
-                            components={markdownComponents}
-                          >
-                            {formatContent(msg.content)}
-                          </ReactMarkdown>
-                          {msg.isThinking && <BlinkingCursor />}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                )}
+                  </div>
+                </div>
+                {msg.isThinking && <BouncingDots />}
 
                 {/* In-bubble status and controls, matching screenshot style */}
                 {isAssistant && msg.isThinking && isLast && (
                   <div className="mt-3 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-2 text-white">
-                      <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span className="text-xs">Generating your response…</span>
-                    </div>
                     {onAbort && (
                       <button
                         onClick={() => onAbort?.()}
                         className="px-3 py-1.5 text-xs rounded-full bg-white/20 text-white hover:bg-white/30 border border-white/30"
                       >
-                        Stop generating
+                        Stop
                       </button>
                     )}
                   </div>
                 )}
+
+                {/* Success message with Open Application button for create-app variant */}
+                {isAssistant &&
+                  !msg.isThinking &&
+                  variant === "create-app" &&
+                  msg.content.includes("has been successfully created") &&
+                  msg.applicationId && (
+                    <div className="mt-3">
+                      <button
+                        onClick={() => {
+                          window.location.href = `/application/${msg.applicationId}`;
+                        }}
+                        className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-medium transition-colors"
+                      >
+                        Open Application
+                      </button>
+                    </div>
+                  )}
                 {/* Timestamp outside the bubble */}
                 <div
                   className={`text-xs mt-1.5 ${
@@ -1288,243 +1368,56 @@ export default function ChatInterface({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* File attachment toolbar */}
-      <FileAttachmentUI
-        attachedFiles={attachedFiles}
-        onRemoveFile={handleRemoveFile}
-        onRemoveAllFiles={handleRemoveAllFiles}
-        onAttachFile={handleAttachFile}
-        truncateFileName={truncateFileName}
-        fileInputRef={fileInputRef}
-        onFileSelect={handleFileSelect}
-        disabled={isLoading || isProcessing}
-        showAttachButton={false}
-        className="w-full flex-shrink-0"
-      />
-
       {/* Message input */}
-      <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] rounded-b-lg flex-shrink-0">
-        <div className="flex flex-col">
-          {/* Text area - full width with 3 lines */}
-          <div className="w-full">
-            <textarea
-              ref={textareaRef}
-              value={message}
-              onChange={handleInputChange}
-              onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              rows={3}
-              className="w-full min-h-[72px] max-h-[200px] p-4 bg-transparent text-white placeholder-gray-400 text-sm leading-relaxed resize-none overflow-y-auto focus:outline-none transition-all duration-200 ease-in-out"
-              disabled={isLoading || isProcessing}
-            />
-          </div>
 
-          {/* Bottom buttons row */}
-          <div className="flex items-center justify-between px-4 pb-4">
-            <div className="flex items-center gap-2">
-              {/* Mode selector dropdown */}
-              <div className="relative" ref={modeDropdownRef}>
-                <button
-                  className="chat-toolbar-btn-mode"
-                  disabled={isLoading || isProcessing}
-                  onClick={() => setIsModeDropdownOpen(!isModeDropdownOpen)}
-                  title={`Current mode: ${
-                    chatMode === "agent" ? "Agent" : "Ask"
-                  }`}
-                >
-                  <span className="text-xs font-medium">
-                    {chatMode === "agent" ? "Agent" : "Ask"}
-                  </span>
-                  <svg
-                    className="w-3 h-3 ml-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-
-                {isModeDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-1 bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl min-w-24 z-[100]">
-                    <button
-                      onClick={() => {
-                        setChatMode("agent");
-                        setIsModeDropdownOpen(false);
-                      }}
-                      className={`w-full px-3 py-2 text-left text-xs transition-colors ${
-                        chatMode === "agent"
-                          ? "bg-gray-700 text-white"
-                          : "text-white hover:bg-gray-700"
-                      }`}
-                    >
-                      Agent
-                    </button>
-                    <button
-                      onClick={() => {
-                        setChatMode("ask");
-                        setIsModeDropdownOpen(false);
-                      }}
-                      className={`w-full px-3 py-2 text-left text-xs transition-colors ${
-                        chatMode === "ask"
-                          ? "bg-gray-700 text-white"
-                          : "text-white hover:bg-gray-700"
-                      }`}
-                    >
-                      Ask
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* Model selector dropdown */}
-              <div className="relative" ref={modelDropdownRef}>
-                <button
-                  className="chat-toolbar-btn-mode"
-                  disabled={isLoading || isProcessing}
-                  onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
-                  title={`Current model: ${getModelLabelById(selectedModelId)}`}
-                >
-                  <span className="text-xs font-medium">
-                    {getModelLabelById(selectedModelId)}
-                  </span>
-                  <svg
-                    className="w-3 h-3 ml-1"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 9l-7 7-7-7"
-                    />
-                  </svg>
-                </button>
-                {isModelDropdownOpen && (
-                  <div className="absolute bottom-full left-0 mb-1 bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl min-w-32 z-[100]">
-                    {AVAILABLE_MODELS.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => {
-                          setSelectedModelId(m.id);
-                          setIsModelDropdownOpen(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left text-xs transition-colors ${
-                          selectedModelId === m.id
-                            ? "bg-gray-700 text-white"
-                            : "text-white hover:bg-gray-700"
-                        }`}
-                      >
-                        {m.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Microphone button */}
-              <button
-                onClick={() => {
-                  if (!recognition) return;
-                  // First time, open config modal
-                  if (!hasVoiceConfig) {
-                    setIsRecordModalOpen(true);
-                    return;
-                  }
-                  // Toggle record/stop
-                  if (isRecording) {
-                    stopRecording();
-                  } else {
-                    startRecording();
-                  }
-                }}
-                disabled={isLoading || isProcessing || !recognition}
-                className="chat-toolbar-btn"
-                title={
-                  recognition
-                    ? isRecording
-                      ? "Stop"
-                      : "Record"
-                    : "Speech recognition not supported"
-                }
-              >
-                {isRecording ? (
-                  <FaStop className="w-4 h-4" />
-                ) : (
-                  <FaMicrophone className="w-4 h-4" />
-                )}
-              </button>
-
-              {/* Attachment button */}
-              <button
-                className="chat-toolbar-btn"
-                disabled={isLoading || isProcessing}
-                title="Attach file"
-                onClick={handleAttachFile}
-              >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"
-                  />
-                </svg>
-              </button>
-            </div>
-
-            {/* Send button */}
-            {isProcessing ? (
-              <button
-                onClick={() => onAbort?.()}
-                className="chat-toolbar-btn-stop"
-                title="Stop"
-              >
-                <FaStop className="w-4 h-4" />
-              </button>
-            ) : (
-              <button
-                onClick={handleSendMessage}
-                disabled={
-                  isLoading || (!message.trim() && attachedFiles.length === 0)
-                }
-                className="chat-toolbar-btn"
-                title="Send message"
-              >
-                {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                ) : (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
-                    />
-                  </svg>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+      <div className={inputWrapperClasses}>
+        <textarea
+          ref={textareaRef}
+          value={message}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          placeholder="Type a message..."
+          rows={3}
+          className="w-full min-h-[72px] max-h-[200px] p-4 bg-transparent text-white placeholder-gray-400 text-sm leading-relaxed resize-none overflow-y-auto focus:outline-none transition-all duration-200 ease-in-out"
+          disabled={isLoading || isProcessing}
+        />
+        <ChatInputToolbar
+          onSendMessage={isProcessing ? () => onAbort?.() : handleSendMessage}
+          disabled={isLoading || isProcessing}
+          isLoading={isLoading}
+          hasContent={message.trim().length > 0}
+          attachedFiles={attachedFiles}
+          fileInputRef={fileInputRef}
+          handleFileSelect={handleFileSelect}
+          handleRemoveFile={handleRemoveFile}
+          handleRemoveAllFiles={handleRemoveAllFiles}
+          handleAttachFile={handleAttachFile}
+          truncateFileName={truncateFileName}
+          selectedModelId={selectedModelId}
+          onModelChange={setSelectedModelId}
+          chatMode={chatMode}
+          onModeChange={setChatMode}
+          showModeSelector={true}
+          onRecord={() => {
+            if (!recognition) return;
+            // First time, open config modal
+            if (!hasVoiceConfig) {
+              setIsRecordModalOpen(true);
+              return;
+            }
+            // Toggle record/stop
+            if (isRecording) {
+              stopRecording();
+            } else {
+              startRecording();
+            }
+          }}
+          isRecording={isRecording}
+          showRecordButton={true}
+          variant="chat"
+        />
       </div>
+
       <StandardModal
         isOpen={isRecordModalOpen}
         onCloseAction={closeRecordModal}
@@ -1637,8 +1530,8 @@ export default function ChatInterface({
         </div>
       </StandardModal>
 
-      {/* Inline Unified Selector Popup */}
-      {isUnifiedSelectorOpen && (
+      {/* Conditional @mention popup */}
+      {shouldEnableMentions && isUnifiedSelectorOpen && (
         <div
           ref={popupRef}
           className="fixed z-[100] bg-[rgb(14,10,42)] border border-gray-600 rounded-lg shadow-xl max-h-40 overflow-y-auto min-w-40"

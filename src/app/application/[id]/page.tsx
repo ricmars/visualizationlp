@@ -1888,7 +1888,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col h-app-screen overflow-auto main-border-radius ${
+        className={`flex-1 flex flex-col h-app-screen main-border-radius ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >

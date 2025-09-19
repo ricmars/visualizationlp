@@ -20,16 +20,14 @@ export const FileAttachmentUI: React.FC<FileAttachmentUIProps> = ({
   onRemoveFile,
   onRemoveAllFiles,
   onAttachFile,
-  truncateFileName,
   fileInputRef,
   onFileSelect,
   disabled = false,
   showAttachButton = true,
   attachButtonText = "Attach files",
-  className = "",
 }) => {
   return (
-    <div className={className}>
+    <>
       {/* Hidden file input */}
       <input
         ref={fileInputRef}
@@ -67,7 +65,7 @@ export const FileAttachmentUI: React.FC<FileAttachmentUIProps> = ({
 
       {/* File attachment toolbar */}
       {attachedFiles.length > 0 && (
-        <div className="w-full border-t border-gray-400 bg-[rgb(14,10,42)] px-3 py-1.5 flex-shrink-0 mt-2">
+        <>
           <div className="flex items-center justify-between mb-1">
             <span className="text-xs text-gray-300">
               Attached files ({attachedFiles.length})
@@ -128,10 +126,10 @@ export const FileAttachmentUI: React.FC<FileAttachmentUIProps> = ({
                     </svg>
                   )}
                   <span
-                    className="text-xs text-white truncate max-w-[180px]"
+                    className="text-xs text-white truncate"
                     title={file.name}
                   >
-                    {truncateFileName(file.name, 15)}
+                    {file.name}
                   </span>
                 </div>
                 <button
@@ -156,8 +154,8 @@ export const FileAttachmentUI: React.FC<FileAttachmentUIProps> = ({
               </div>
             ))}
           </div>
-        </div>
+        </>
       )}
-    </div>
+    </>
   );
 };

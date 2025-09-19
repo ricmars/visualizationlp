@@ -1,18 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { CreateApplicationModal } from "./components/CreateApplicationModal";
 import ConfirmDeleteModal from "./components/ConfirmDeleteModal";
 import EditApplicationModal from "./components/EditApplicationModal";
 import { useRouter } from "next/navigation";
 import { FaTrash, FaPencilAlt, FaTimes } from "react-icons/fa";
 import { fetchWithBaseUrl } from "./lib/fetchWithBaseUrl";
-import { Service } from "./services/service";
-import { buildDatabaseSystemPrompt } from "./lib/databasePrompt";
-import { registerRuleTypes } from "./types/ruleTypeDefinitions";
-
-// Initialize rule types on module load
-registerRuleTypes();
 
 /**
  * Deletes an application and all its associated workflows, fields, views, and checkpoints
@@ -72,11 +65,7 @@ export default function Home() {
       icon?: string | null;
     }>
   >([]);
-  const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreatingWorkflow, setIsCreatingWorkflow] = useState(false);
-  const [creationProgress, setCreationProgress] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isNavigatingId, setIsNavigatingId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -103,9 +92,6 @@ export default function Home() {
       setApplications(data.data);
     } catch (error) {
       console.error("Error fetching applications:", error);
-      setError(
-        error instanceof Error ? error.message : "Failed to fetch applications",
-      );
     } finally {
       setIsLoading(false);
     }
@@ -114,130 +100,6 @@ export default function Home() {
   useEffect(() => {
     refreshApplications();
   }, []);
-
-  const handleCreateWorkflow = async (
-    name: string,
-    description: string,
-    attachedFiles?: any[],
-  ) => {
-    try {
-      setIsCreatingWorkflow(true);
-      setError(null);
-      setCreationProgress("Initializing application creation...");
-
-      console.log("=== Creating New Application ===");
-      console.log("Input:", { name, description });
-
-      // Use the AI service to create the workflow
-      const response = await Service.generateResponse(
-        `Create a new application named "${name}" with description "${description}". First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
-        buildDatabaseSystemPrompt(),
-        undefined, // history
-        undefined, // signal
-        undefined, // mode
-        attachedFiles, // attached files
-      );
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("Error Response:", {
-          status: response.status,
-          statusText: response.statusText,
-          body: errorText,
-        });
-        throw new Error(
-          `Failed to create workflow: ${response.status} ${errorText}`,
-        );
-      }
-
-      // Process the streaming response
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error("No response body available");
-      }
-
-      const decoder = new TextDecoder();
-      let isComplete = false;
-
-      setCreationProgress("Creating application and workflows...");
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value);
-          const lines = chunk.split("\n");
-
-          for (const line of lines) {
-            if (line.startsWith("data: ")) {
-              try {
-                const data = JSON.parse(line.slice(6));
-
-                if (data.text) {
-                  setCreationProgress((prev) => prev + "\n" + data.text);
-                }
-
-                // Tool results are now sent as text messages, not as toolResult objects
-                // The case creation success is handled in the text messages above
-
-                if (data.done) {
-                  isComplete = true;
-                  setCreationProgress(
-                    (prev) => prev + "\n✅ Application creation completed!",
-                  );
-                }
-
-                // Check for timeout or other errors in the text content
-                if (data.text && data.text.includes("timeout")) {
-                  throw new Error(
-                    "Application creation timed out. Please try again.",
-                  );
-                }
-
-                // Check for incomplete workflow warnings
-                if (
-                  data.text &&
-                  data.text.includes("WARNING: Application creation incomplete")
-                ) {
-                  throw new Error(
-                    "Application creation was incomplete. Please try again.",
-                  );
-                }
-
-                if (data.error) {
-                  console.error("Streaming error received:", data.error);
-                  throw new Error(data.error);
-                }
-              } catch (parseError) {
-                console.warn("Failed to parse SSE data:", parseError);
-              }
-            }
-          }
-        }
-      } finally {
-        reader.releaseLock();
-      }
-
-      if (!isComplete) {
-        throw new Error("Application creation did not complete properly");
-      }
-
-      // Refresh applications to get the latest data
-      await refreshApplications();
-      setSuccessMessage("Application created successfully!");
-      setIsCreateModalOpen(false);
-    } catch (error) {
-      console.error("Error creating application:", error);
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to create application";
-      setError(errorMessage);
-      setCreationProgress((prev) => prev + "\n❌ " + errorMessage);
-      // Don't close modal on error - let the user see the error in the modal
-    } finally {
-      setIsCreatingWorkflow(false);
-    }
-  };
 
   const handleCardClick = async (applicationId: number) => {
     try {
@@ -322,7 +184,7 @@ export default function Home() {
       <div className="flex justify-between items-center mb-4">
         <h1>Applications</h1>
         <button
-          onClick={() => setIsCreateModalOpen(true)}
+          onClick={() => router.push("/application/create")}
           className="interactive-button text-black hover:opacity-90"
         >
           New application
@@ -401,19 +263,6 @@ export default function Home() {
           ))}
         </div>
       )}
-      <CreateApplicationModal
-        isOpen={isCreateModalOpen}
-        onClose={() => {
-          setIsCreateModalOpen(false);
-          setError(null); // Clear error when modal is closed
-          setCreationProgress(""); // Clear progress when modal is closed
-        }}
-        onCreate={handleCreateWorkflow}
-        isCreating={isCreatingWorkflow}
-        creationProgress={creationProgress}
-        creationError={error}
-        title="Create new application"
-      />
       <ConfirmDeleteModal
         isOpen={!!deleteTarget}
         title="Delete application"
