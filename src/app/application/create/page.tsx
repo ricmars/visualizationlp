@@ -77,13 +77,11 @@ export default function CreateApplicationPage() {
         lastMessage.isThinking &&
         !lastMessage.content.includes("successfully created") // Don't overwrite success messages
       ) {
-        lastMessage.content = `Generating application${".".repeat(
-          progressDots,
-        )}`;
+        lastMessage.content = "Generating application";
       }
       return updated;
     });
-  }, [progressDots, isCreating, showChatInterface]);
+  }, [isCreating, showChatInterface]);
 
   const handleSubmit = async () => {
     if (!showChatInterface) {
@@ -194,7 +192,7 @@ export default function CreateApplicationPage() {
       // Use the AI service to create the workflow
       console.log("CreateApp: calling Service.generateResponse");
       const response = await Service.generateResponse(
-        `Create a new application that has the following description: ${description}. First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
+        `Create a new application that has the following description: ${description}. First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Each workflow should have at least 4 stages, each with at least 3 steps including 2 steps of type "Collect information". Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
         buildDatabaseSystemPrompt(),
         undefined, // history
         abortRef.current.signal, // signal
@@ -384,11 +382,14 @@ export default function CreateApplicationPage() {
                 const workflowNames = workflowObjects
                   .map((o) => o.name)
                   .filter(Boolean);
-                const objectNames = allObjects
+                const nonWorkflowObjects = allObjects.filter(
+                  (o) => !o.hasWorkflow,
+                );
+                const objectNames = nonWorkflowObjects
                   .map((o) => o.name)
                   .filter(Boolean);
                 const summaryLines: string[] = [];
-                summaryLines.push(`Summary:`);
+                summaryLines.push(`<h2>Summary:</h2>`);
                 if (workflowNames.length > 0) {
                   summaryLines.push(
                     `- Workflows created (${
@@ -614,9 +615,10 @@ export default function CreateApplicationPage() {
             successfully created.
           </div>
           {creationSummary && (
-            <div className="text-sm text-white mb-3 whitespace-pre-wrap">
-              {creationSummary}
-            </div>
+            <div
+              className="text-sm text-white mb-3 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: creationSummary }}
+            />
           )}
           <button
             onClick={() =>
