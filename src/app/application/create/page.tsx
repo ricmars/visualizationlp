@@ -2,6 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import remarkBreaks from "remark-breaks";
 import { useFileAttachment } from "../../hooks/useFileAttachment";
 import ChatInputToolbar from "../../components/ChatInputToolbar";
 import ChatInterface, { ChatMessage } from "../../components/ChatInterface";
@@ -376,7 +379,7 @@ export default function CreateApplicationPage() {
                   .map((o) => o.name)
                   .filter(Boolean);
                 const summaryLines: string[] = [];
-                summaryLines.push(`<h2>Summary:</h2>`);
+                summaryLines.push(`## Summary`);
                 if (workflowNames.length > 0) {
                   summaryLines.push(
                     `- Workflows created (${
@@ -601,10 +604,11 @@ export default function CreateApplicationPage() {
             successfully created.
           </div>
           {creationSummary && (
-            <div
-              className="text-sm text-white mb-3 whitespace-pre-wrap"
-              dangerouslySetInnerHTML={{ __html: creationSummary }}
-            />
+            <div className="text-sm text-white mb-3 prose prose-sm dark:prose-invert max-w-none">
+              <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+                {creationSummary}
+              </ReactMarkdown>
+            </div>
           )}
           <button
             onClick={() =>
