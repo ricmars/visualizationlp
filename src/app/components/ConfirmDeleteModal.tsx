@@ -77,16 +77,8 @@ export default function ConfirmDeleteModal({
     >
       <p className="text-sm text-gray-200">{message}</p>
 
-      {progress && (
-        <div className="text-sm text-blue-700 bg-blue-50 border border-blue-200 rounded p-2">
-          {progress}
-        </div>
-      )}
-      {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">
-          {error}
-        </div>
-      )}
+      {progress && <div className="text-sm text-white p-2">{progress}</div>}
+      {error && <div className="text-sm text-white p-2">{error}</div>}
     </StandardModal>
   );
 }

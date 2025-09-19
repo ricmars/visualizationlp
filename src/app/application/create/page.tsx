@@ -31,6 +31,8 @@ export default function CreateApplicationPage() {
   } | null>(null);
   const [creationSummary, setCreationSummary] = useState<string | null>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const abortRef = useRef<AbortController | null>(null);
+  const chatModeRef = useRef<boolean>(false);
 
   const {
     attachedFiles,
@@ -72,7 +74,8 @@ export default function CreateApplicationPage() {
       if (
         lastMessage &&
         lastMessage.sender === "assistant" &&
-        lastMessage.isThinking
+        lastMessage.isThinking &&
+        !lastMessage.content.includes("successfully created") // Don't overwrite success messages
       ) {
         lastMessage.content = `Generating application${".".repeat(
           progressDots,
@@ -85,6 +88,7 @@ export default function CreateApplicationPage() {
   const handleSubmit = async () => {
     if (!showChatInterface) {
       // First time - show chat interface with user message
+      console.log("CreateApp: first submit; switching to chat interface");
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
         content: description,
@@ -98,7 +102,9 @@ export default function CreateApplicationPage() {
         timestamp: new Date(),
         isThinking: true,
       };
+      console.log("CreateApp: seeded assistant thinking message");
       setChatMessages([userMessage, assistantMessage]);
+      chatModeRef.current = true;
       setShowChatInterface(true);
       setDescription("");
       clearFiles();
@@ -113,7 +119,9 @@ export default function CreateApplicationPage() {
       }
     } else {
       // Subsequent messages - handle as chat
+      console.log("CreateApp: subsequent submit in chat mode");
       setIsSubmitting(true);
+      chatModeRef.current = true;
       try {
         await handleCreateWorkflow(description, attachedFiles);
       } catch (_error) {
@@ -151,27 +159,45 @@ export default function CreateApplicationPage() {
       setIsCreating(true);
       setCreationProgress("Generating application");
 
-      // Add assistant message to chat if in chat mode
-      if (showChatInterface) {
-        const assistantMessage: ChatMessage = {
-          id: (Date.now() + 1).toString(),
-          content: "Generating application",
-          sender: "assistant",
-          timestamp: new Date(),
-          isThinking: true,
-        };
-        setChatMessages((prev) => [...prev, assistantMessage]);
+      // Create abort controller for this request
+      abortRef.current = new AbortController();
+
+      // Add or reuse assistant message in chat mode (avoid duplicates)
+      if (chatModeRef.current) {
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          const lastMessage = updated[updated.length - 1];
+          if (
+            lastMessage &&
+            lastMessage.sender === "assistant" &&
+            lastMessage.isThinking
+          ) {
+            // Reuse existing assistant thinking message
+            lastMessage.content = "Generating application";
+            return updated;
+          }
+          // Otherwise append a new assistant thinking message
+          const assistantMessage: ChatMessage = {
+            id: (Date.now() + 1).toString(),
+            content: "Generating application",
+            sender: "assistant",
+            timestamp: new Date(),
+            isThinking: true,
+          };
+          return [...updated, assistantMessage];
+        });
       }
 
       console.log("=== Creating New Application ===");
       console.log("Input:", { description });
 
       // Use the AI service to create the workflow
+      console.log("CreateApp: calling Service.generateResponse");
       const response = await Service.generateResponse(
         `Create a new application that has the following description: ${description}. First call saveApplication with the metadata to get the application id. Then create at least two distinct workflow objects for this application, using createObject(hasWorkflow=true, applicationid=<new app id>), followed by saveFields, saveView, and saveObject to complete each workflow. Do not finish until at least two workflows have been created and saved. If any object was created without applicationid, finalize by calling saveApplication with objectsIds to ensure associations.`,
         buildDatabaseSystemPrompt(),
         undefined, // history
-        undefined, // signal
+        abortRef.current.signal, // signal
         undefined, // mode
         attachedFiles, // attached files
       );
@@ -201,7 +227,14 @@ export default function CreateApplicationPage() {
       setCreationProgress("Generating application");
 
       try {
+        let shouldStop = false;
         while (true) {
+          // Check if request was aborted
+          if (abortRef.current?.signal.aborted) {
+            console.log("Request aborted by user");
+            break;
+          }
+
           const { done, value } = await reader.read();
           if (done) break;
 
@@ -210,13 +243,14 @@ export default function CreateApplicationPage() {
 
           for (const line of lines) {
             if (line.startsWith("data: ")) {
+              const rawPayload = line.slice(6);
               try {
-                const data = JSON.parse(line.slice(6));
+                const data = JSON.parse(rawPayload);
 
                 // Don't show LLM reasoning text to user - keep it simple
                 if (data.text) {
                   // Only update chat message if in chat mode, but don't show reasoning
-                  if (showChatInterface) {
+                  if (chatModeRef.current) {
                     setChatMessages((prev) => {
                       const updated = [...prev];
                       const lastMessage = updated[updated.length - 1];
@@ -231,7 +265,12 @@ export default function CreateApplicationPage() {
 
                 if (data.done) {
                   isComplete = true;
-                  // We'll handle the success message after the loop completes
+                  // Stop reading the stream immediately on done to avoid UI hang
+                  try {
+                    await reader.cancel();
+                  } catch {}
+                  shouldStop = true;
+                  break;
                 }
 
                 // Check for timeout or other errors in the text content
@@ -257,24 +296,68 @@ export default function CreateApplicationPage() {
                 }
               } catch (parseError) {
                 console.warn("Failed to parse SSE data:", parseError);
+                // Fallback: treat special markers as completion signals
+                try {
+                  const payload = rawPayload.trim();
+                  if (
+                    payload === "[[COMPLETED]]" ||
+                    payload.includes("[[COMPLETED]]") ||
+                    payload === '"[[COMPLETED]]"'
+                  ) {
+                    isComplete = true;
+                    try {
+                      await reader.cancel();
+                    } catch {}
+                    shouldStop = true;
+                    break;
+                  }
+                } catch {}
               }
             }
           }
+          if (shouldStop) break;
         }
       } finally {
         reader.releaseLock();
       }
 
-      if (!isComplete) {
+      // Only proceed with success handling if not aborted and completed
+      if (!isComplete && !abortRef.current?.signal.aborted) {
         throw new Error("Application creation did not complete properly");
+      }
+
+      // If aborted, don't proceed with success handling
+      if (abortRef.current?.signal.aborted) {
+        console.log("CreateApp: aborted before success handling; exiting");
+        return;
+      }
+
+      // Immediately show a generic success message in chat to avoid getting stuck
+      if (chatModeRef.current) {
+        setChatMessages((prev) => {
+          const updated = [...prev];
+          const lastMessage = updated[updated.length - 1];
+          if (lastMessage && lastMessage.sender === "assistant") {
+            lastMessage.content =
+              "✅ Your application has been successfully created. Finalizing details...";
+            lastMessage.isThinking = false;
+          }
+          // Ensure no older assistant messages remain in thinking state
+          for (let i = 0; i < updated.length - 1; i++) {
+            if (updated[i].sender === "assistant" && updated[i].isThinking) {
+              updated[i].isThinking = false;
+            }
+          }
+          return updated;
+        });
       }
 
       // Try to extract application information from the response
       // The LLM should have created an application, so we need to find it
       try {
-        const response = await fetch(
-          "/api/database?table=Applications&order=id desc&limit=1",
-        );
+        const appsUrl =
+          "/api/database?ruleTypeId=application&orderBy=id&orderDirection=DESC&limit=1";
+        const response = await fetch(appsUrl);
         if (response.ok) {
           const result = await response.json();
           if (result.data && result.data.length > 0) {
@@ -286,9 +369,8 @@ export default function CreateApplicationPage() {
 
             // Build summary of what was created (objects list)
             try {
-              const objectsRes = await fetch(
-                `/api/database?table=Objects&applicationid=${app.id}`,
-              );
+              const objectsUrl = `/api/database?table=Objects&applicationid=${app.id}`;
+              const objectsRes = await fetch(objectsUrl);
               if (objectsRes.ok) {
                 const objectsData = await objectsRes.json();
                 const allObjects: Array<{
@@ -325,16 +407,26 @@ export default function CreateApplicationPage() {
                 setCreationSummary(summaryText);
 
                 // Update chat message with success + summary if in chat mode
-                if (showChatInterface) {
+                if (chatModeRef.current) {
                   setChatMessages((prev) => {
                     const updated = [...prev];
                     const lastMessage = updated[updated.length - 1];
                     if (lastMessage && lastMessage.sender === "assistant") {
-                      lastMessage.content = `✅ Your application "${
+                      const successMessage = `✅ Your application "${
                         app.name || "New Application"
                       }" has been successfully created.\n\n${summaryText}`;
+                      lastMessage.content = successMessage;
                       lastMessage.isThinking = false;
                       lastMessage.applicationId = app.id;
+                    }
+                    // Ensure no older assistant messages remain in thinking state
+                    for (let i = 0; i < updated.length - 1; i++) {
+                      if (
+                        updated[i].sender === "assistant" &&
+                        updated[i].isThinking
+                      ) {
+                        updated[i].isThinking = false;
+                      }
                     }
                     return updated;
                   });
@@ -374,6 +466,7 @@ export default function CreateApplicationPage() {
       setIsCreating(false);
       setIsSubmitting(false);
       setIsProcessing(false);
+      abortRef.current = null;
     }
   };
 
@@ -403,9 +496,39 @@ export default function CreateApplicationPage() {
   };
 
   const handleAbort = () => {
+    if (abortRef.current) {
+      try {
+        abortRef.current.abort();
+      } catch {
+        // ignore abort errors
+      }
+    }
     setIsProcessing(false);
     setIsCreating(false);
     setIsSubmitting(false);
+
+    // Update chat message to show stopped status if in chat mode
+    if (showChatInterface) {
+      setChatMessages((prev) => {
+        const updated = [...prev];
+        const lastMessage = updated[updated.length - 1];
+        if (
+          lastMessage &&
+          lastMessage.sender === "assistant" &&
+          lastMessage.isThinking
+        ) {
+          lastMessage.content = "❌ Application creation stopped by user.";
+          lastMessage.isThinking = false;
+        }
+        // Ensure no older assistant messages remain in thinking state
+        for (let i = 0; i < updated.length - 1; i++) {
+          if (updated[i].sender === "assistant" && updated[i].isThinking) {
+            updated[i].isThinking = false;
+          }
+        }
+        return updated;
+      });
+    }
   };
 
   // Show chat interface if user has entered description

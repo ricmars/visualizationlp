@@ -47,8 +47,17 @@ export async function GET(request: NextRequest) {
 
     // Build filters and options (mirror /api/dynamic behavior)
     const filters: Record<string, any> = {};
+    const optionKeys = new Set([
+      "limit",
+      "offset",
+      "orderBy",
+      "orderDirection",
+    ]);
     for (const [key, value] of searchParams.entries()) {
-      if (!["table", "ruleTypeId", "id"].includes(key)) {
+      if (
+        !["table", "ruleTypeId", "id"].includes(key) &&
+        !optionKeys.has(key)
+      ) {
         const numValue = Number(value);
         filters[key] = isNaN(numValue) ? value : numValue;
       }
