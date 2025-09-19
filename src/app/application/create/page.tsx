@@ -601,7 +601,6 @@ export default function CreateApplicationPage() {
             <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent mr-2"></div>
             <span className="text-sm font-medium text-white">
               {creationProgress}
-              {".".repeat(progressDots)}
             </span>
           </div>
         </div>
