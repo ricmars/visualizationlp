@@ -18,7 +18,6 @@ export default function CreateApplicationPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [creationProgress, setCreationProgress] = useState<string>("");
-  const [progressDots, setProgressDots] = useState<number>(0);
   const [selectedModelId, setSelectedModelId] = useState<string>(
     getDefaultModelId(),
   );
@@ -51,18 +50,6 @@ export default function CreateApplicationPage() {
       progressRef.current.scrollTop = progressRef.current.scrollHeight;
     }
   }, [isCreating, creationProgress]);
-
-  // Animate three dots while creating
-  useEffect(() => {
-    if (!isCreating) {
-      setProgressDots(0);
-      return;
-    }
-    const interval = setInterval(() => {
-      setProgressDots((d) => (d + 1) % 4);
-    }, 500);
-    return () => clearInterval(interval);
-  }, [isCreating]);
 
   // Keep assistant thinking message updated with animated dots in chat mode
   useEffect(() => {
