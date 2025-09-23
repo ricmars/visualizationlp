@@ -2,6 +2,36 @@ import React, { useState, useEffect } from "react";
 import { MODEL_UPDATED_EVENT } from "@/app/application/[id]/utils/constants";
 import { FaUndo } from "react-icons/fa";
 
+// Utility function to format dates with relative time for today's dates
+function formatDateWithRelativeTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+
+  // Check if the date is today
+  const isToday = date.toDateString() === now.toDateString();
+
+  if (isToday) {
+    const diffMs = Math.abs(now.getTime() - date.getTime());
+    const diffSeconds = Math.floor(diffMs / 1000);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+
+    if (diffHours > 0) {
+      return `${diffHours}h ago`;
+    } else if (diffMinutes > 0) {
+      return `${diffMinutes}mn ago`;
+    } else {
+      return `${diffSeconds}s ago`;
+    }
+  }
+
+  // For dates older than today, use the original format
+  return date.toLocaleString(navigator.language, {
+    dateStyle: "short",
+    timeStyle: "short",
+  });
+}
+
 interface CheckpointHistoryItem {
   id: string;
   description: string;
@@ -136,13 +166,7 @@ export default function ChangesPanel({
                 {/* Checkpoint Header: date/time with restore icon */}
                 <div className="flex items-center justify-between mb-2">
                   <div className="text-lg text-interactive">
-                    {new Date(checkpoint.created_at).toLocaleString(
-                      navigator.language,
-                      {
-                        dateStyle: "short",
-                        timeStyle: "short",
-                      },
-                    )}
+                    {formatDateWithRelativeTime(checkpoint.created_at)}
                   </div>
                   {checkpoint.status === "historical" && (
                     <button
