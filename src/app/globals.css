@@ -905,7 +905,7 @@ a[disabled] {
   min-height: 0;
 }
 
-/* Force full viewport dimensions for expanded modals */
+/*  Force full viewport dimensions for expanded modals */
 .floating-modal-enter.w-full.h-full {
   position: fixed !important;
   top: 0 !important;
