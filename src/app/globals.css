@@ -1003,7 +1003,7 @@ html {
   width: 300px;
   min-width: 300px;
   font-size: 14px;
-  background-color: #16244e;
+  background: rgba(40, 59, 103, 0.3);
 }
 
 .right-panel {
