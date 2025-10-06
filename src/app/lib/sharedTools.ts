@@ -8,6 +8,7 @@ import {
   SaveObjectParams,
   SaveFieldsParams,
   SaveViewParams,
+  SaveDecisionTableParams,
   DeleteParams,
   ToolParams,
   ToolResult,
@@ -189,6 +190,94 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
           icon: app.icon ?? null,
           objectIds,
         };
+      },
+    },
+
+    {
+      name: "getDecisionTable",
+      description: "Gets a decision table by ID from an application",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "DecisionTable ID" },
+          applicationId: { type: "integer", description: "Application ID" },
+        },
+        required: ["id", "applicationId"],
+      },
+      execute: async (params: { id: string; applicationId: number }) => {
+        console.log("=== getDecisionTable EXECUTION STARTED ===");
+        console.log(
+          "getDecisionTable parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("getDecisionTable called at:", new Date().toISOString());
+
+        const { id, applicationId } = params;
+        const client = await pool.connect();
+
+        try {
+          const query = `
+            SELECT decisionTables
+            FROM "${DB_TABLES.APPLICATIONS}"
+            WHERE id = $1
+          `;
+
+          const result = await client.query(query, [applicationId]);
+
+          if (result.rows.length === 0) {
+            throw new Error(`Application ${applicationId} not found`);
+          }
+
+          const decisionTables = result.rows[0].decisiontables || [];
+          const decisionTable = decisionTables.find((dt: any) => dt.id === id);
+
+          if (!decisionTable) {
+            throw new Error(
+              `DecisionTable ${id} not found in application ${applicationId}`,
+            );
+          }
+
+          return decisionTable;
+        } finally {
+          client.release();
+        }
+      },
+    },
+    {
+      name: "deleteDecisionTable",
+      description: "Deletes a decision table from an application",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "string", description: "DecisionTable ID" },
+          applicationId: { type: "integer", description: "Application ID" },
+        },
+        required: ["id", "applicationId"],
+      },
+      execute: async (params: { id: string; applicationId: number }) => {
+        console.log("=== deleteDecisionTable EXECUTION STARTED ===");
+        console.log(
+          "deleteDecisionTable parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("deleteDecisionTable called at:", new Date().toISOString());
+
+        const { id, applicationId } = params;
+        const client = await pool.connect();
+
+        try {
+          const query = `
+            UPDATE "${DB_TABLES.APPLICATIONS}"
+            SET decisionTables = decisionTables - (jsonb_path_query_array(decisionTables, '$[*] ? (@.id == $1)'))
+            WHERE id = $2
+          `;
+
+          await client.query(query, [id, applicationId]);
+
+          return { success: true, deletedId: id };
+        } finally {
+          client.release();
+        }
       },
     },
     {
@@ -1656,6 +1745,351 @@ export function createSharedTools(pool: Pool): Array<SharedTool<any, any>> {
         });
 
         return { views };
+      },
+    },
+    {
+      name: "saveDecisionTable",
+      description:
+        "Creates or updates a decision table for business logic rules. IMPORTANT: Always call listDecisionTables first to check existing decision tables before creating new ones. Save the returned decision table ID to reference in workflow steps.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "integer",
+            description:
+              "Decision table ID (required for update, omit for create)",
+          },
+          name: { type: "string", description: "Decision table name" },
+          description: {
+            type: "string",
+            description: "Decision table description",
+          },
+          objectid: {
+            type: "integer",
+            description: "Object ID that owns this decision table",
+          },
+          model: {
+            type: "object",
+            description: "Decision table model with fieldDefs and rowData",
+            properties: {
+              fieldDefs: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    columnId: { type: "string" },
+                    comparatorType: { type: "string" },
+                    dataType: { type: "string" },
+                  },
+                },
+              },
+              rowData: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    return: { type: "string" },
+                  },
+                  additionalProperties: true,
+                },
+              },
+              decisionMappings: {
+                type: "object",
+                description: "Mapping of return values to next step IDs",
+              },
+              returnElse: {
+                type: "string",
+                description: "Return value when no conditions match",
+              },
+            },
+          },
+        },
+        required: ["name", "objectid"],
+      },
+      execute: async (params: SaveDecisionTableParams) => {
+        console.log("=== saveDecisionTable EXECUTION STARTED ===");
+        console.log(
+          "saveDecisionTable parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("saveDecisionTable called at:", new Date().toISOString());
+
+        const { id, name, description, objectid } = params;
+        const model = params.model ?? { fieldDefs: [], rowData: [] };
+
+        // Validation
+        if (!name)
+          throw new Error(
+            "Decision table name is required for saveDecisionTable",
+          );
+        if (!objectid)
+          throw new Error("Object ID is required for saveDecisionTable");
+        // Allow empty model on create and update; default to empty arrays if missing
+
+        if (id) {
+          // Update existing decision table
+          const query = `
+            UPDATE "${DB_TABLES.DECISION_TABLES}"
+            SET name = $1, description = $2, objectid = $3, model = $4
+            WHERE id = $5
+            RETURNING id, name, description, objectid, model
+          `;
+          console.log("saveDecisionTable UPDATE query:", query);
+          const modelJson = JSON.stringify(model);
+          console.log("saveDecisionTable UPDATE query values:", [
+            name,
+            description || null,
+            objectid,
+            modelJson,
+            id,
+          ]);
+
+          const result = await pool.query(query, [
+            name,
+            description || null,
+            objectid,
+            modelJson,
+            id,
+          ]);
+          if (result.rowCount === 0) {
+            console.error(
+              `saveDecisionTable ERROR: No decision table found with id ${id}`,
+            );
+            throw new Error(`No decision table found with id ${id}`);
+          }
+
+          const decisionTableData = result.rows[0];
+          console.log("saveDecisionTable UPDATE successful:");
+          console.log({
+            id: decisionTableData?.id,
+            name: decisionTableData?.name,
+            objectid: decisionTableData?.objectid ?? objectid,
+            model:
+              typeof decisionTableData?.model === "string"
+                ? JSON.parse(decisionTableData.model)
+                : decisionTableData?.model,
+          });
+
+          return {
+            id: decisionTableData?.id,
+            name: decisionTableData?.name,
+            description: decisionTableData?.description,
+            objectid: decisionTableData?.objectid ?? objectid,
+            model:
+              typeof decisionTableData?.model === "string"
+                ? JSON.parse(decisionTableData.model)
+                : decisionTableData?.model,
+          };
+        } else {
+          // Create new decision table
+          const query = `
+            INSERT INTO "${DB_TABLES.DECISION_TABLES}" (name, description, objectid, model)
+            VALUES ($1, $2, $3, $4)
+            RETURNING id, name, description, objectid, model
+          `;
+          console.log("saveDecisionTable INSERT query:", query);
+          const modelJson = JSON.stringify(model);
+          console.log("saveDecisionTable INSERT query values:", [
+            name,
+            description || null,
+            objectid,
+            modelJson,
+          ]);
+
+          const result = await pool.query(query, [
+            name,
+            description || null,
+            objectid,
+            modelJson,
+          ]);
+          const decisionTableData = result.rows[0];
+
+          console.log("saveDecisionTable INSERT successful:");
+          console.log({
+            id: decisionTableData?.id,
+            name: decisionTableData?.name,
+            objectid: decisionTableData?.objectid ?? objectid,
+            model:
+              typeof decisionTableData?.model === "string"
+                ? JSON.parse(decisionTableData.model)
+                : decisionTableData?.model,
+          });
+
+          return {
+            id: decisionTableData?.id,
+            name: decisionTableData?.name,
+            description: decisionTableData?.description,
+            objectid: decisionTableData?.objectid ?? objectid,
+            model:
+              typeof decisionTableData?.model === "string"
+                ? JSON.parse(decisionTableData.model)
+                : decisionTableData?.model,
+          };
+        }
+      },
+    },
+    {
+      name: "listDecisionTables",
+      description:
+        "Lists all decision tables for an object. IMPORTANT: Always call this tool BEFORE saveDecisionTable to check existing decision tables and avoid duplicates.",
+      parameters: {
+        type: "object",
+        properties: {
+          objectid: {
+            type: "integer",
+            description: "Object ID to list decision tables for",
+          },
+        },
+        required: ["objectid"],
+      },
+      execute: async (params: { objectid: number }) => {
+        console.log("=== listDecisionTables EXECUTION STARTED ===");
+        console.log(
+          "listDecisionTables parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("listDecisionTables called at:", new Date().toISOString());
+
+        const query = `
+          SELECT id, name, description, objectid, model
+          FROM "${DB_TABLES.DECISION_TABLES}"
+          WHERE objectid = $1
+          ORDER BY name
+        `;
+        console.log("listDecisionTables query:", query);
+        console.log("listDecisionTables query values:", [params.objectid]);
+
+        const result = await pool.query(query, [params.objectid]);
+        const decisionTables = result.rows.map((row) => ({
+          id: row.id,
+          name: row.name,
+          description: row.description,
+          objectid: row.objectid,
+          model:
+            typeof row.model === "string" ? JSON.parse(row.model) : row.model,
+        }));
+
+        console.log("listDecisionTables successful:", {
+          objectid: params.objectid,
+          decisionTableCount: decisionTables.length,
+        });
+
+        return { decisionTables };
+      },
+    },
+    {
+      name: "getDecisionTable",
+      description: "Gets a specific decision table by ID including its model.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "integer", description: "Decision table ID" },
+        },
+        required: ["id"],
+      },
+      execute: async (params: { id: number }) => {
+        console.log("=== getDecisionTable EXECUTION STARTED ===");
+        console.log(
+          "getDecisionTable parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("getDecisionTable called at:", new Date().toISOString());
+
+        const query = `
+          SELECT id, name, description, objectid, model
+          FROM "${DB_TABLES.DECISION_TABLES}"
+          WHERE id = $1
+        `;
+        console.log("getDecisionTable query:", query);
+        console.log("getDecisionTable query values:", [params.id]);
+
+        const result = await pool.query(query, [params.id]);
+        if (result.rowCount === 0) {
+          console.error(
+            `getDecisionTable ERROR: No decision table found with id ${params.id}`,
+          );
+          throw new Error(`No decision table found with id ${params.id}`);
+        }
+
+        const decisionTable = result.rows[0];
+        const decisionTableData = {
+          id: decisionTable.id,
+          name: decisionTable.name,
+          description: decisionTable.description,
+          objectid: decisionTable.objectid,
+          model:
+            typeof decisionTable.model === "string"
+              ? JSON.parse(decisionTable.model)
+              : decisionTable.model,
+        };
+
+        console.log("getDecisionTable successful:", {
+          id: decisionTableData.id,
+          name: decisionTableData.name,
+        });
+
+        return decisionTableData;
+      },
+    },
+    {
+      name: "deleteDecisionTable",
+      description:
+        "Permanently deletes a decision table. This action is NOT recoverable. Use ONLY when the user explicitly requests deletion. If there is any ambiguity, ask the user to confirm before proceeding.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: { type: "integer", description: "Decision table ID to delete" },
+        },
+        required: ["id"],
+      },
+      execute: async (params: DeleteParams) => {
+        console.log("=== deleteDecisionTable EXECUTION STARTED ===");
+        console.log(
+          "deleteDecisionTable parameters:",
+          JSON.stringify(params, null, 2),
+        );
+        console.log("deleteDecisionTable called at:", new Date().toISOString());
+
+        const { id } = params;
+
+        // First, get the decision table name and parent object before deleting
+        const getDecisionTableQuery = `SELECT name, objectid FROM "${DB_TABLES.DECISION_TABLES}" WHERE id = $1`;
+        const getDecisionTableResult = await pool.query(getDecisionTableQuery, [
+          id,
+        ]);
+        if (getDecisionTableResult.rowCount === 0) {
+          console.error(
+            `deleteDecisionTable ERROR: No decision table found with id ${id}`,
+          );
+          throw new Error(`No decision table found with id ${id}`);
+        }
+        const decisionTableName = getDecisionTableResult.rows[0].name;
+        const parentObjectId = getDecisionTableResult.rows[0].objectid;
+
+        const query = `DELETE FROM "${DB_TABLES.DECISION_TABLES}" WHERE id = $1`;
+        console.log("deleteDecisionTable query:", query);
+        console.log("deleteDecisionTable query values:", [id]);
+
+        const result = await pool.query(query, [id]);
+        if (result.rowCount === 0) {
+          console.error(
+            `deleteDecisionTable ERROR: No decision table found with id ${id}`,
+          );
+          throw new Error(`No decision table found with id ${id}`);
+        }
+
+        console.log("deleteDecisionTable successful:", {
+          id,
+          name: decisionTableName,
+        });
+        return {
+          success: true,
+          deletedId: id,
+          deletedName: decisionTableName,
+          type: "decisionTable",
+          updatedObjectId: parentObjectId ?? null,
+        };
       },
     },
     {

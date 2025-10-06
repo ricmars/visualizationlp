@@ -183,6 +183,17 @@ a[disabled] {
     height: auto;
   }
 
+  /* Ensure date/datetime picker icons are visible on dark inputs */
+  input[type="date"],
+  input[type="datetime-local"] {
+    color-scheme: auto;
+  }
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 1;
+  }
+
   /* Interactive button style */
   .interactive-button {
     border-radius: 6px;
@@ -348,9 +359,9 @@ a[disabled] {
     cursor: not-allowed;
   }
 
-  /* Consistent modal/overlay header with bottom border */
+  /* Consistent modal/overlay header */
   .lp-modal-header {
-    @apply flex items-center justify-between pb-4 border-b border-gray-200 dark:border-gray-700;
+    @apply flex items-center justify-between pb-4;
   }
 
   /* Interactive text utility */
@@ -390,9 +401,11 @@ a[disabled] {
     text-align: center;
   }
 
-  .main-border-radius {
+  .main-panel {
     border-radius: var(--header-radius);
     border: 1px solid rgb(172, 117, 240);
+    flex-grow: 1;
+    overflow: auto;
   }
 
   .main-header-bg {
@@ -1012,6 +1025,108 @@ html {
   font-size: 14px;
   max-height: calc(100vh - 60px);
   height: calc(100vh - 60px);
+}
+
+/* Decision Table Styles */
+.decision-table-container {
+  overflow-x: auto;
+  max-width: 100%;
+  border: 1px solid #374151; /* border-gray-600 */
+  border-radius: 0.5rem; /* rounded-lg */
+}
+
+.decision-table {
+  width: 100%;
+  min-width: max-content;
+  border-collapse: collapse;
+  background: rgb(20, 16, 60);
+}
+
+.decision-table th {
+  background: rgb(20, 16, 60);
+  color: white;
+  padding: 0.5rem;
+  border: 1px solid #374151; /* border-gray-600 */
+  text-align: left;
+  font-size: 0.875rem; /* text-sm */
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.decision-table td {
+  border: 1px solid #374151; /* border-gray-600 */
+  padding: 0.5rem;
+  background: rgb(20, 16, 60);
+  color: white;
+}
+
+.decision-table tr:hover td {
+  background: rgba(20, 16, 60, 0.5);
+}
+
+/* Column width classes based on field types */
+.decision-table .col-text {
+  min-width: 120px;
+}
+
+.decision-table .col-number {
+  min-width: 100px;
+}
+
+.decision-table .col-date {
+  min-width: 140px;
+}
+
+.decision-table .col-boolean {
+  min-width: 80px;
+}
+
+.decision-table .col-select {
+  min-width: 120px;
+}
+
+.decision-table .col-actions {
+  min-width: 80px;
+  width: 80px;
+}
+
+.decision-table .col-next-step {
+  min-width: 150px;
+}
+
+/* Input styles within decision table */
+.decision-table input,
+.decision-table select {
+  width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #374151; /* border-gray-600 */
+  border-radius: 0.25rem; /* rounded */
+  background: rgb(20, 16, 60);
+  color: white;
+  font-size: 0.875rem; /* text-sm */
+}
+
+.decision-table input:focus,
+.decision-table select:focus {
+  outline: none;
+  border-color: #3b82f6; /* focus:ring-blue-500 */
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+}
+
+.decision-table input::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Range input container */
+.decision-table .range-input-container {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.decision-table .range-input-container input {
+  flex: 1;
 }
 
 /* Create App Mode Styling */

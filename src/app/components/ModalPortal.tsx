@@ -41,7 +41,7 @@ export default function ModalPortal({
   return createPortal(
     <div
       data-modal-portal="true"
-      style={{ position: "absolute", zIndex: 2, inset: 0 }}
+      style={{ position: "fixed", zIndex: 200, inset: 0 }}
     >
       {children}
     </div>,

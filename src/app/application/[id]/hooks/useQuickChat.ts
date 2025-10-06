@@ -28,6 +28,10 @@ type UseQuickChatArgs = {
   setActiveStepAction: (next: string | undefined) => void;
   isDataObjectView?: boolean;
   selectedObjectId?: number | null;
+  // Decision table quick tool selections
+  decisionTables?: Array<{ id: number; name: string }>;
+  selectedDecisionTableId?: number | null;
+  selectedDecisionTableFieldIds?: number[];
 };
 
 export function useQuickChat({
@@ -52,6 +56,9 @@ export function useQuickChat({
   setActiveStepAction,
   isDataObjectView = false,
   selectedObjectId = null,
+  decisionTables = [],
+  selectedDecisionTableId = null,
+  selectedDecisionTableFieldIds = [],
 }: UseQuickChatArgs) {
   const [isQuickChatOpen, setIsQuickChatOpen] = useState(false);
   const [quickChatText, setQuickChatText] = useState("");
@@ -100,6 +107,9 @@ export function useQuickChat({
         stages: stages as any,
         selectedObjectId: selectedObjectId ?? selectedCaseId ?? null,
         isDataObjectView,
+        decisionTables: decisionTables.map((d) => ({ id: d.id, name: d.name })),
+        selectedDecisionTableId,
+        selectedDecisionTableFieldIds,
       });
       // Leave closing/clearing to caller (so UI can control timing)
       void handleSendMessage(composedMessage);
@@ -118,6 +128,9 @@ export function useQuickChat({
       isDataObjectView,
       selectedObjectId,
       selectedCaseId,
+      decisionTables,
+      selectedDecisionTableId,
+      selectedDecisionTableFieldIds,
     ],
   );
 

@@ -169,7 +169,7 @@ export default function StandardModal({
           onKeyDown={handleKeyDown}
         >
           <div className={`modal-surface ${width}`}>
-            <div className="lp-modal-header p-4">
+            <div className="lp-modal-header p-4 sticky top-0 z-10 bg-modal border-b border-gray-200 dark:border-gray-700">
               <h3 id="modal-title">{title}</h3>
               <div className="flex items-center gap-2">
                 {/* Render secondary actions first */}
@@ -180,7 +180,7 @@ export default function StandardModal({
             </div>
             <div
               id={description ? "modal-description" : undefined}
-              className="p-4 space-y-4"
+              className="p-4 space-y-4 overflow-y-auto max-h-[calc(100vh-120px)]"
             >
               {description && <p className="sr-only">{description}</p>}
               {children}

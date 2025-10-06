@@ -15,6 +15,7 @@ type ComposedModel = {
   name: string;
   description?: string;
   stages: Stage[];
+  decisionTables?: any[];
 };
 
 type UseStepsUpdateArgs = {
@@ -41,6 +42,10 @@ export default function useStepsUpdate({
           ...(selectedCase.model || {}),
           stages: updatedStages,
           name: selectedCase.name,
+          // Preserve decisionTables if they exist
+          ...(selectedCase.model?.decisionTables && {
+            decisionTables: selectedCase.model.decisionTables,
+          }),
         };
 
         const requestUrl = `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`;

@@ -65,6 +65,27 @@ export interface SaveViewParams extends ToolParams {
   };
 }
 
+export interface SaveDecisionTableParams extends ToolParams {
+  id?: number;
+  name: string;
+  description?: string;
+  objectid: number;
+  model: {
+    fieldDefs: Array<{
+      columnId: string;
+      comparatorType: string;
+      dataType: string;
+    }>;
+    rowData: Array<{
+      id?: string;
+      return: string;
+      [key: string]: any;
+    }>;
+    decisionMappings?: Record<string, number>;
+    returnElse?: string;
+  };
+}
+
 export interface SaveObjectRecordsParams extends ToolParams {
   objectid: number;
   records: Array<{

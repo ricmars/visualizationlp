@@ -5,10 +5,11 @@ import React, {
   useMemo,
   useCallback,
 } from "react";
-import { Field, FieldReference } from "../types/types";
+import { Field, FieldReference, DecisionTable } from "../types/types";
 import AddFieldModal from "./AddFieldModal";
 import StepForm from "./StepForm";
 import StandardModal from "./StandardModal";
+import DecisionTableAuthoring from "./DecisionTableAuthoring";
 import {
   StepType,
   getAllStepTypes,
@@ -27,6 +28,7 @@ interface StepConfigurationModalProps {
     name: string;
     fields: FieldReference[];
     type: string;
+    decisionTableId?: number;
   };
   // For add mode, we need stageId and processId
   stageId?: number;
@@ -53,14 +55,32 @@ interface StepConfigurationModalProps {
   ) => void;
   workflowObjects?: Array<{ id: number; name: string }>;
   dataObjects?: Array<{ id: number; name: string }>;
-  onUpdateMeta?: (name: string, type: StepType, fields?: Field[]) => void;
+  onUpdateMeta?: (
+    name: string,
+    type: StepType,
+    fields?: Field[],
+    decisionTableId?: number,
+  ) => void;
   onAddStep?: (
     stageId: number,
     processId: number,
     stepName: string,
     stepType: StepType,
     fields?: Field[],
+    decisionTableId?: number,
   ) => void;
+  // Decision table management
+  decisionTables?: DecisionTable[];
+  onSaveDecisionTable?: (decisionTable: DecisionTable) => Promise<void>;
+  applicationId?: number;
+  // Workflow model for extracting steps
+  workflowModel?: {
+    stages: Array<{
+      processes: Array<{
+        steps: Array<{ id: number; name: string }>;
+      }>;
+    }>;
+  };
 }
 
 const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
@@ -82,6 +102,10 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
   dataObjects = [],
   onUpdateMeta,
   onAddStep,
+  decisionTables = [],
+  onSaveDecisionTable,
+  applicationId: _applicationId,
+  workflowModel,
 }) => {
   const [isAddFieldOpen, setIsAddFieldOpen] = useState(false);
   const [editingField, setEditingField] = useState<Field | null>(null);
@@ -91,6 +115,14 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
     null,
   ) as React.MutableRefObject<HTMLButtonElement>;
 
+  // Decision table state
+  const [isDecisionTableOpen, setIsDecisionTableOpen] = useState(false);
+  const [editingDecisionTable, setEditingDecisionTable] =
+    useState<DecisionTable | null>(null);
+  const [selectedDecisionTableId, setSelectedDecisionTableId] = useState<
+    number | null
+  >(typeof step?.decisionTableId === "number" ? step.decisionTableId : null);
+
   const [editedName, setEditedName] = useState(step?.name || "");
   const [editedType, setEditedType] = useState<StepType>(
     (step?.type as StepType) || "Collect information",
@@ -98,12 +130,16 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
 
   // Temporary cache for fields being added/edited in the modal
   const [tempFields, setTempFields] = useState<Field[]>([]);
+  const decisionTableSaveRef = useRef<{ save: () => void } | null>(null);
 
   useEffect(() => {
     if (mode === "edit" && step) {
       // Keep local state in sync if parent changes the step
       setEditedName(step.name);
       setEditedType((step.type as StepType) || "Collect information");
+      setSelectedDecisionTableId(
+        typeof step.decisionTableId === "number" ? step.decisionTableId : null,
+      );
 
       // Initialize tempFields from step.fields, preserving requirement status
       const initialFields = step.fields
@@ -127,8 +163,9 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
       setEditedName("");
       setEditedType("Collect information");
       setTempFields([]);
+      setSelectedDecisionTableId(null);
     }
-  }, [mode, step, step?.name, step?.type, fields]);
+  }, [mode, step, step?.name, step?.type, step?.decisionTableId, fields]);
 
   // Use tempFields for display - this includes both existing fields (in edit mode) and newly added fields
   const stepFields = useMemo(() => {
@@ -261,11 +298,69 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
     });
 
     if (mode === "edit" && onUpdateMeta) {
-      onUpdateMeta(trimmed, editedType, fieldsToSave);
+      onUpdateMeta(
+        trimmed,
+        editedType,
+        fieldsToSave,
+        selectedDecisionTableId ?? undefined,
+      );
     } else if (mode === "add" && onAddStep && stageId && processId) {
-      onAddStep(stageId, processId, trimmed, editedType, fieldsToSave);
+      onAddStep(
+        stageId,
+        processId,
+        trimmed,
+        editedType,
+        fieldsToSave,
+        selectedDecisionTableId ?? undefined,
+      );
     }
     onClose();
+  };
+
+  const handleSaveDecisionTable = async (decisionTable: DecisionTable) => {
+    if (onSaveDecisionTable) {
+      await onSaveDecisionTable(decisionTable);
+      // After save, decision table will have numeric id; reload list upstream then set by name match
+      const numeric = parseInt(decisionTable.id as any, 10);
+      setSelectedDecisionTableId(Number.isFinite(numeric) ? numeric : null);
+      setIsDecisionTableOpen(false);
+      setEditingDecisionTable(null);
+    }
+  };
+
+  const handleEditDecisionTable = (decisionTable: DecisionTable) => {
+    setEditingDecisionTable(decisionTable);
+    setIsDecisionTableOpen(true);
+  };
+
+  const handleCreateDecisionTable = () => {
+    setEditingDecisionTable(null);
+    setIsDecisionTableOpen(true);
+  };
+
+  const handleCloseDecisionTable = () => {
+    setIsDecisionTableOpen(false);
+    setEditingDecisionTable(null);
+  };
+
+  // Helper function to extract all steps from the workflow model
+  const getAllStepsFromWorkflow = (): Array<{ id: number; name: string }> => {
+    if (!workflowModel?.stages) return [];
+
+    const allSteps: Array<{ id: number; name: string }> = [];
+
+    for (const stage of workflowModel.stages) {
+      for (const process of stage.processes) {
+        for (const step of process.steps) {
+          allSteps.push({
+            id: step.id,
+            name: step.name,
+          });
+        }
+      }
+    }
+
+    return allSteps;
   };
 
   // For add mode, we need stageId and processId
@@ -389,6 +484,80 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
                     onEditField={onEditField}
                   />
                 )}
+              </div>
+            ) : null}
+
+            {editedType === "Decision" ? (
+              <div className="relative">
+                <div className="flex justify-between items-center mb-3">
+                  <h3>Decision Table</h3>
+                  <div className="space-x-2">
+                    <button
+                      onClick={handleCreateDecisionTable}
+                      className="interactive-button"
+                    >
+                      Create New
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-sm font-medium text-white mb-1">
+                      Select Decision Table
+                    </label>
+                    <select
+                      value={selectedDecisionTableId ?? ""}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const n = v ? parseInt(v, 10) : NaN;
+                        setSelectedDecisionTableId(
+                          Number.isFinite(n) ? n : null,
+                        );
+                      }}
+                      className="w-full px-3 py-2 rounded-lg border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 bg-[rgb(20,16,60)] text-white"
+                    >
+                      <option value="">Select a decision table</option>
+                      {decisionTables.map((dt) => (
+                        <option key={dt.id} value={dt.id}>
+                          {dt.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {selectedDecisionTableId && (
+                    <div className="flex items-center space-x-2">
+                      <button
+                        onClick={() => {
+                          const dt = decisionTables.find(
+                            (d) => d.id === selectedDecisionTableId,
+                          );
+                          if (dt) handleEditDecisionTable(dt);
+                        }}
+                        className="btn-secondary px-3"
+                      >
+                        Edit
+                      </button>
+                      <span className="text-sm text-gray-400">
+                        {
+                          decisionTables.find(
+                            (d) => d.id === selectedDecisionTableId,
+                          )?.description
+                        }
+                      </span>
+                    </div>
+                  )}
+
+                  {decisionTables.length === 0 && (
+                    <div className="text-center py-8">
+                      <p className="text-sm text-gray-400">
+                        No decision tables available. Click "Create New" to get
+                        started.
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             ) : null}
           </div>
@@ -517,6 +686,45 @@ const StepConfigurationModal: React.FC<StepConfigurationModalProps> = ({
             )}
           </div>
         )}
+      </StandardModal>
+
+      {/* Decision Table Authoring Modal */}
+      <StandardModal
+        isOpen={isDecisionTableOpen}
+        onCloseAction={handleCloseDecisionTable}
+        title={
+          editingDecisionTable ? "Edit Decision Table" : "Create Decision Table"
+        }
+        width="w-full min-w-6xl"
+        zIndex="z-[40]"
+        actions={[
+          {
+            id: "cancel",
+            label: "Cancel",
+            type: "secondary",
+            onClick: handleCloseDecisionTable,
+          },
+          {
+            id: "save",
+            label: editingDecisionTable ? "Save" : "Create",
+            type: "primary",
+            onClick: () => {
+              // Trigger save by calling the DecisionTableAuthoring's save handler
+              if (decisionTableSaveRef.current) {
+                decisionTableSaveRef.current.save();
+              }
+            },
+          },
+        ]}
+      >
+        <DecisionTableAuthoring
+          ref={decisionTableSaveRef}
+          decisionTable={editingDecisionTable || undefined}
+          fields={fields}
+          steps={getAllStepsFromWorkflow()}
+          onSave={handleSaveDecisionTable}
+          onCancel={handleCloseDecisionTable}
+        />
       </StandardModal>
     </>
   );

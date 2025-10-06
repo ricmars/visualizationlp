@@ -11,6 +11,7 @@ export type MinimalStage = {
   name: string;
   processes: MinimalProcess[];
 };
+export type MinimalDecisionTable = { id: number; name: string };
 
 type ComposeQuickChatMessageArgs = {
   quickChatText: string;
@@ -25,6 +26,10 @@ type ComposeQuickChatMessageArgs = {
   // When interacting with the Data Object fields view, include object id
   selectedObjectId?: number | null;
   isDataObjectView?: boolean;
+  // Decision table quick tool selections
+  decisionTables?: MinimalDecisionTable[];
+  selectedDecisionTableId?: number | null;
+  selectedDecisionTableFieldIds?: number[];
 };
 
 export function composeQuickChatMessage({
@@ -39,6 +44,9 @@ export function composeQuickChatMessage({
   stages,
   selectedObjectId = null,
   isDataObjectView = false,
+  decisionTables = [],
+  selectedDecisionTableId = null,
+  selectedDecisionTableFieldIds = [],
 }: ComposeQuickChatMessageArgs): string {
   const chosenFields = fields.filter((f) => selectedFieldIds.includes(f.id));
   const fieldNames = chosenFields.map((f) => f.name);
@@ -93,6 +101,33 @@ export function composeQuickChatMessage({
   addIfNonEmpty("Selected processNames", processMap.names);
   addIfNonEmpty("Selected stepIds", stepMap.ids);
   addIfNonEmpty("Selected stepNames", stepMap.names);
+
+  // Decision table context for quick tool
+  if (typeof selectedDecisionTableId === "number") {
+    contextLines.push(
+      `Selected decisionTableId=${JSON.stringify(selectedDecisionTableId)}`,
+    );
+    const dt = decisionTables.find((d) => d.id === selectedDecisionTableId);
+    if (dt) {
+      contextLines.push(
+        `Selected decisionTableName=${JSON.stringify(dt.name)}`,
+      );
+    }
+  }
+  if (
+    Array.isArray(selectedDecisionTableFieldIds) &&
+    selectedDecisionTableFieldIds.length > 0
+  ) {
+    const chosenDTFields = fields.filter((f) =>
+      selectedDecisionTableFieldIds.includes(f.id),
+    );
+    const chosenDTFieldNames = chosenDTFields.map((f) => f.name);
+    addIfNonEmpty(
+      "Selected decisionTableFieldIds",
+      selectedDecisionTableFieldIds,
+    );
+    addIfNonEmpty("Selected decisionTableFieldNames", chosenDTFieldNames);
+  }
 
   const contextPrefix = contextLines.join("\n");
 

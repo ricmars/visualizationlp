@@ -210,9 +210,14 @@ export function useViewMutations({
         })),
       }));
       const updatedModel = {
+        ...(selectedCase.model || {}),
         name: selectedCase.name,
         description: selectedCase.description,
         stages: updatedStages,
+        // Preserve decisionTables if they exist
+        ...(selectedCase.model?.decisionTables && {
+          decisionTables: selectedCase.model.decisionTables,
+        }),
       };
       const response = await fetch(
         `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`,

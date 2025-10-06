@@ -71,6 +71,7 @@ const PegaIcon = dynamic(
 
 // Import types separately since they don't need dynamic loading
 import type { IconTileProps, StageItemProps } from "@pega/cosmos-react-build";
+import type { DecisionTable } from "../types/types";
 import EditModal from "./EditModal";
 import AddProcessModal from "./AddProcessModal";
 
@@ -118,6 +119,18 @@ interface WorkflowLifecycleViewProps {
     initialFields?: Array<{ id: number }>,
   ) => void;
   onDeleteProcess?: (stageId: number, processId: number) => void;
+  onDeleteStage?: (stageId: number) => void;
+  // Decision table management
+  decisionTables?: Array<{
+    id: number;
+    name: string;
+    description?: string;
+    fieldDefs: any[];
+    rowData: any[];
+    returnElse?: string;
+  }>;
+  onSaveDecisionTable?: (decisionTable: DecisionTable) => Promise<void>;
+  applicationId?: number;
 }
 
 // Stable error boundary to avoid remounting the subtree on each render
@@ -222,6 +235,10 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
   onAddProcess,
   onAddStep,
   onDeleteProcess,
+  onDeleteStage,
+  decisionTables = [],
+  onSaveDecisionTable,
+  applicationId,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const shadowRootRef = useRef<ShadowRoot | null>(null);
@@ -240,6 +257,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
     fields: any[];
     type: string;
     viewId?: number;
+    decisionTableId?: number;
   } | null>(null);
 
   const [stageEdit, setStageEdit] = useState<{
@@ -358,6 +376,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                 typeof (step as any).viewId === "number"
                   ? (step as any).viewId
                   : undefined,
+              decisionTableId: (step as any).decisionTableId,
             });
             console.log("🔍 Set editing step with fields:", stepFields);
             return;
@@ -594,6 +613,23 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                             id: stage.id,
                             name: stage.name,
                           });
+                      },
+                    },
+                    {
+                      id: "delete-stage",
+                      text: "Delete",
+                      visual: <PegaIcon name="trash" />,
+                      onClick: (data: any) => {
+                        console.log("[LifeCycle] delete-stage action", data);
+                        const stageKey = data?.id || data?.stage?.id;
+                        const stage = stages.find(
+                          (s) =>
+                            String(s.id) === String(stageKey) ||
+                            s.name === stageKey,
+                        );
+                        if (stage && onDeleteStage) {
+                          onDeleteStage(stage.id);
+                        }
                       },
                     },
                   ],
@@ -847,6 +883,7 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
             name: string,
             type: StepType,
             fields?: Field[],
+            decisionTableId?: number,
           ) => {
             setEditingStep((prev) => (prev ? { ...prev, name, type } : prev));
 
@@ -1020,6 +1057,15 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                               steps: p.steps.map((st) => {
                                 if (st.id !== editingStep.id) return st;
                                 const next: any = { ...st, name, type };
+                                // Handle decision table ID for Decision steps
+                                if (
+                                  type === "Decision" &&
+                                  typeof decisionTableId === "number"
+                                ) {
+                                  next.decisionTableId = decisionTableId;
+                                } else if (type !== "Decision") {
+                                  delete next.decisionTableId;
+                                }
                                 if (wasCollectInfo && !nowCollectInfo) {
                                   delete next.viewId;
                                   next.fields = [] as never[];
@@ -1204,6 +1250,10 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
               onDeleteField={onDeleteField || (() => {})}
               onUpdateFieldInView={onUpdateFieldInView}
               onUpdateStepFieldReference={onUpdateStepFieldReference}
+              decisionTables={decisionTables}
+              onSaveDecisionTable={onSaveDecisionTable}
+              applicationId={applicationId}
+              workflowModel={{ stages }}
             />
           );
         })()}
@@ -1361,6 +1411,10 @@ const WorkflowLifecycleViewImpl: React.FC<WorkflowLifecycleViewProps> = ({
                 isOpen: false,
               });
             }}
+            decisionTables={decisionTables}
+            onSaveDecisionTable={onSaveDecisionTable}
+            applicationId={applicationId}
+            workflowModel={{ stages }}
           />
         )}
     </>

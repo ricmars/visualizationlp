@@ -48,6 +48,10 @@ export const DB_TABLES = {
     const ruleType = ruleTypeRegistry.get("theme");
     return ruleType?.databaseSchema.tableName || "Themes";
   },
+  get DECISION_TABLES() {
+    const ruleType = ruleTypeRegistry.get("decisionTable");
+    return ruleType?.databaseSchema.tableName || "DecisionTables";
+  },
 } as const;
 
 // Helper function to get table name by rule type ID

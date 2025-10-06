@@ -17,7 +17,14 @@ export type FreeFormSelectionState = {
 };
 
 type UseFreeFormSelectionArgs = {
-  activeTab: "workflow" | "fields" | "data" | "views" | "chat" | "history";
+  activeTab:
+    | "workflow"
+    | "fields"
+    | "data"
+    | "views"
+    | "decisionTables"
+    | "chat"
+    | "history";
   selectedView: string | null;
   onOpenQuickChatAction: () => void;
   // When true, we are in the Data Object fields view, not the Views tab

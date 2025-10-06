@@ -954,18 +954,123 @@ export const themeRuleType: RuleTypeDefinition = {
   },
 };
 
+// Decision Table Rule Type Definition
+export const decisionTableRuleType: RuleTypeDefinition = {
+  id: "decisionTable",
+  name: "DecisionTable",
+  description:
+    "A decision table that defines business logic rules with field definitions and row data",
+  category: "logic",
+  version: "1.0.0",
+
+  interfaceTemplate: {
+    name: "DecisionTable",
+    description:
+      "A decision table with field definitions and row data for business logic",
+    properties: [
+      {
+        name: "id",
+        type: "number",
+        optional: true,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "string",
+        description: "Decision table name",
+      },
+      {
+        name: "description",
+        type: "string",
+        optional: true,
+        description: "Decision table description",
+      },
+      {
+        name: "objectid",
+        type: "number",
+        description: "Reference to parent object",
+      },
+      {
+        name: "model",
+        type: "DecisionTableModel",
+        description: "Decision table configuration model",
+      },
+    ],
+  },
+
+  databaseSchema: {
+    tableName: "DecisionTables",
+    columns: [
+      {
+        name: "id",
+        type: "INTEGER",
+        primaryKey: true,
+        nullable: false,
+        description: "Primary key identifier",
+      },
+      {
+        name: "name",
+        type: "TEXT",
+        nullable: false,
+        description: "Decision table name",
+      },
+      {
+        name: "description",
+        type: "TEXT",
+        nullable: true,
+        description: "Decision table description",
+      },
+      {
+        name: "objectid",
+        type: "INTEGER",
+        nullable: false,
+        description: "Reference to parent object",
+      },
+      {
+        name: "model",
+        type: "JSONB",
+        nullable: false,
+        description: "Decision table configuration model",
+      },
+    ],
+    foreignKeys: [
+      {
+        name: "decisiontables_objectid_fkey",
+        columns: ["objectid"],
+        referenceTable: "Objects",
+        referenceColumns: ["id"],
+        onDelete: "CASCADE",
+      },
+    ],
+    indexes: [{ name: "decisiontables_objectid_idx", columns: ["objectid"] }],
+  },
+
+  hooks: {
+    beforeCreate: async (data) => {
+      // Ensure model is stored as JSON
+      if (typeof data.model === "object") {
+        data.model = JSON.stringify(data.model);
+      }
+    },
+    afterCreate: async (data, id) => {
+      console.log(`Created decision table ${id}: ${data.name}`);
+    },
+  },
+};
+
 // Removed Data Object Rule Type (merged into Object)
 
 // Register all rule types
 export function registerRuleTypes(): void {
   try {
     // Register in dependency order for FK correctness
-    // Applications → SystemsOfRecord → Objects → Fields → Views → ObjectRecords → Themes
+    // Applications → SystemsOfRecord → Objects → Fields → Views → DecisionTables → ObjectRecords → Themes
     ruleTypeRegistry.register(applicationRuleType);
     ruleTypeRegistry.register(systemOfRecordRuleType);
     ruleTypeRegistry.register(objectRuleType);
     ruleTypeRegistry.register(fieldRuleType);
     ruleTypeRegistry.register(viewRuleType);
+    ruleTypeRegistry.register(decisionTableRuleType);
     ruleTypeRegistry.register(objectRecordRuleType);
     ruleTypeRegistry.register(themeRuleType);
     console.log("✅ All rule types registered successfully");

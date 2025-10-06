@@ -4,7 +4,7 @@ import React, { Suspense } from "react";
 import { Stage, Field } from "../types/types";
 
 // Separate the props interface so it can be used by both components
-interface WorkflowLifecycleViewProps {
+export interface WorkflowLifecycleViewProps {
   stages: Stage[];
   onStepSelect: (stageId: string, processId: string, stepId: string) => void;
   activeStage?: string;
@@ -42,6 +42,25 @@ interface WorkflowLifecycleViewProps {
     initialFields?: Array<{ id: number }>,
   ) => void;
   onDeleteProcess?: (stageId: number, processId: number) => void;
+  onDeleteStage?: (stageId: number) => void;
+  // Decision table management
+  decisionTables?: Array<{
+    id: number;
+    name: string;
+    description?: string;
+    fieldDefs: any[];
+    rowData: any[];
+    returnElse?: string;
+  }>;
+  onSaveDecisionTable?: (decisionTable: {
+    id?: number;
+    name: string;
+    description?: string;
+    fieldDefs: any[];
+    rowData: any[];
+    returnElse?: string;
+  }) => Promise<void>;
+  applicationId?: number;
 }
 
 // Lazy load the actual implementation

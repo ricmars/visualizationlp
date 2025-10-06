@@ -16,6 +16,13 @@ type QuickChatOverlayProps = {
   onChange: (value: string) => void;
   onEnter: () => void;
   onEscape: () => void;
+  // Decision table quick tool (optional)
+  decisionTables?: Array<{ id: number; name: string }>;
+  selectedDecisionTableId?: number | null;
+  onChangeDecisionTableId?: (id: number | null) => void;
+  fields?: Array<{ id: number; name: string }>;
+  selectedDecisionTableFieldIds?: number[];
+  onChangeDecisionTableFieldIds?: (ids: number[]) => void;
 };
 
 export default function QuickChatOverlay({
@@ -26,6 +33,12 @@ export default function QuickChatOverlay({
   onChange,
   onEnter,
   onEscape,
+  decisionTables = [],
+  selectedDecisionTableId = null,
+  onChangeDecisionTableId,
+  fields = [],
+  selectedDecisionTableFieldIds = [],
+  onChangeDecisionTableFieldIds,
 }: QuickChatOverlayProps) {
   return (
     <div
@@ -50,7 +63,68 @@ export default function QuickChatOverlay({
             <FaTimes className="w-3.5 h-3.5" />
           </button>
         </div>
-        <div className="mt-1 text-xs text-gray-300">
+
+        {/* Decision table selectors */}
+        {decisionTables.length > 0 && (
+          <div className="mt-3 space-y-2">
+            <div>
+              <label className="block text-xs font-medium text-white mb-1">
+                Decision Table
+              </label>
+              <select
+                className="w-full px-2 py-1 rounded-md border border-gray-600 bg-gray-800 text-white text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                value={selectedDecisionTableId ?? ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  const n = v ? parseInt(v, 10) : NaN;
+                  onChangeDecisionTableId?.(Number.isFinite(n) ? n : null);
+                }}
+              >
+                <option value="">Select a decision table</option>
+                {decisionTables.map((dt) => (
+                  <option key={dt.id} value={dt.id}>
+                    {dt.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-white mb-1">
+                Columns (fields)
+              </label>
+              <div className="max-h-32 overflow-auto rounded-md border border-gray-600 bg-gray-800">
+                {fields.map((f) => {
+                  const checked = selectedDecisionTableFieldIds?.includes(f.id);
+                  return (
+                    <label
+                      key={f.id}
+                      className="flex items-center gap-2 px-2 py-1 text-sm cursor-pointer select-none hover:bg-gray-700"
+                    >
+                      <input
+                        type="checkbox"
+                        className="accent-purple-500"
+                        checked={checked}
+                        onChange={(e) => {
+                          const next = new Set(selectedDecisionTableFieldIds);
+                          if (e.target.checked) {
+                            next.add(f.id);
+                          } else {
+                            next.delete(f.id);
+                          }
+                          onChangeDecisionTableFieldIds?.(Array.from(next));
+                        }}
+                      />
+                      <span>{f.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 text-xs text-gray-300">
           AI quick action — type and press Enter. Esc to close.
         </div>
         <input

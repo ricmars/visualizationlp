@@ -18,6 +18,7 @@ type ComposedModel = {
   name: string;
   description?: string;
   stages: any[];
+  decisionTables?: any[];
 };
 
 type View = {

@@ -84,6 +84,7 @@ export async function GET(request: NextRequest) {
     // Collect all IDs that need to be fetched from main tables
     const fieldIds = new Set<number>();
     const viewIds = new Set<number>();
+    const decisionTableIds = new Set<number>();
     const objectids = new Set<number>();
     const applicationIds = new Set<number>();
     const themeIds = new Set<number>();
@@ -110,6 +111,9 @@ export async function GET(request: NextRequest) {
           case DB_TABLES.VIEWS:
             viewIds.add(id);
             break;
+          case DB_TABLES.DECISION_TABLES:
+            decisionTableIds.add(id);
+            break;
           case DB_TABLES.OBJECTS:
             objectids.add(id);
             break;
@@ -130,6 +134,7 @@ export async function GET(request: NextRequest) {
         { name: string; type: string; objectid: number }
       >(),
       views: new Map<number, { name: string; objectid: number }>(),
+      decisionTables: new Map<number, { name: string; objectid: number }>(),
       cases: new Map<number, { name: string; hasWorkflow: boolean }>(),
       applications: new Map<number, { name: string }>(),
       themes: new Map<number, { name: string; applicationid: number }>(),
@@ -163,6 +168,24 @@ export async function GET(request: NextRequest) {
       );
       for (const row of viewsResult.rows) {
         currentData.views.set(row.id, {
+          name: row.name,
+          objectid: row.objectid,
+        });
+        if (typeof row.objectid === "number") {
+          objectids.add(row.objectid);
+        }
+      }
+    }
+
+    // Fetch decision tables data
+    if (decisionTableIds.size > 0) {
+      const decisionTableIdsArray = Array.from(decisionTableIds);
+      const dtResult = await pool.query(
+        `SELECT id, name, objectid FROM "${DB_TABLES.DECISION_TABLES}" WHERE id = ANY($1)`,
+        [decisionTableIdsArray],
+      );
+      for (const row of dtResult.rows) {
+        currentData.decisionTables.set(row.id, {
           name: row.name,
           objectid: row.objectid,
         });
@@ -298,6 +321,20 @@ export async function GET(request: NextRequest) {
             }
             break;
 
+          case DB_TABLES.DECISION_TABLES:
+            type = "DecisionTable";
+            category = "logic";
+            if (operation === "Delete") {
+              const prev = readPrev();
+              name = prev?.name;
+              owningObjectId = prev?.objectid || owningObjectId;
+            } else if (id && currentData.decisionTables.has(id)) {
+              const dtData = currentData.decisionTables.get(id)!;
+              name = dtData.name;
+              owningObjectId = dtData.objectid;
+            }
+            break;
+
           case DB_TABLES.OBJECTS:
             type = "Object";
             category = "workflow";
@@ -374,11 +411,12 @@ export async function GET(request: NextRequest) {
       workflow: "Workflow",
       ui: "View",
       data: "Field",
+      logic: "Logic",
       app: "Application",
       theme: "Theme",
     };
 
-    const categoryOrder = ["workflow", "ui", "data", "theme"];
+    const categoryOrder = ["workflow", "ui", "data", "logic", "theme"];
 
     const objectGroups: ObjectGroup[] = Array.from(
       objectChangeMap.entries(),

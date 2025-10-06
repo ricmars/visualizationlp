@@ -58,6 +58,10 @@ export async function GET(request: NextRequest) {
         query = `SELECT * FROM "Themes" WHERE id = $1`;
         values = [dbId];
         break;
+      case "DecisionTables":
+        query = `SELECT * FROM "DecisionTables" WHERE id = $1`;
+        values = [dbId];
+        break;
       default:
         return NextResponse.json(
           { error: "Unsupported table" },
@@ -136,6 +140,18 @@ export async function GET(request: NextRequest) {
               ? JSON.parse(ruleData.model)
               : ruleData.model,
           logoURL: ruleData.logoURL,
+        };
+        break;
+      case "DecisionTables":
+        transformedData = {
+          id: ruleData.id,
+          name: ruleData.name,
+          description: ruleData.description,
+          objectid: ruleData.objectid,
+          model:
+            typeof ruleData.model === "string"
+              ? JSON.parse(ruleData.model)
+              : ruleData.model,
         };
         break;
     }

@@ -17,7 +17,7 @@ import ChatPanelContent from "./components/ChatPanelContent";
 import usePersistentTab from "./hooks/usePersistentTab";
 import { useFreeFormSelection } from "./hooks/useFreeFormSelection";
 import usePreviewIframe from "./hooks/usePreviewIframe";
-import type { channel } from "../../types/types";
+import type { channel, DecisionTable } from "../../types/types";
 import useStepsUpdate from "./hooks/useStepsUpdate";
 import useFieldMutations from "./hooks/useFieldMutations";
 import useWorkflowMutations from "./hooks/useWorkflowMutations";
@@ -48,6 +48,7 @@ interface WorkflowCheckpoint {
 }
 import { v4 as uuidv4 } from "uuid";
 import ViewsPanel from "../../components/ViewsPanel";
+import DecisionTablesPanel from "../../components/DecisionTablesPanel";
 import FieldsList from "../../components/FieldsList";
 //
 import ApplicationMenuBar from "./components/ApplicationMenuBar";
@@ -122,6 +123,7 @@ interface ComposedModel {
   name: string;
   description?: string;
   stages: Stage[];
+  decisionTables?: DecisionTable[];
 }
 
 export default function WorkflowPage() {
@@ -163,12 +165,25 @@ export default function WorkflowPage() {
   const [selectedChannel, setSelectedChannel] = useState<channel>("WorkPortal");
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [activeTab, setActiveTab] = usePersistentTab<
-    "workflow" | "fields" | "data" | "views" | "chat" | "history"
+    | "workflow"
+    | "fields"
+    | "data"
+    | "views"
+    | "decisionTables"
+    | "chat"
+    | "history"
   >(ACTIVE_TAB_STORAGE_KEY, "workflow");
 
   // Custom tab change handler that auto-selects first view when switching to views tab
   const handleTabChange = (
-    newTab: "workflow" | "fields" | "data" | "views" | "chat" | "history",
+    newTab:
+      | "workflow"
+      | "fields"
+      | "data"
+      | "views"
+      | "decisionTables"
+      | "chat"
+      | "history",
   ) => {
     setActiveTab(newTab);
 
@@ -217,6 +232,16 @@ export default function WorkflowPage() {
   const [selectedThemeId, setSelectedThemeId] = useState<number | null>(null);
   const [selectedTheme, setSelectedTheme] = useState<any>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [decisionTables, setDecisionTables] = useState<
+    Array<{
+      id: number;
+      name: string;
+      description?: string;
+      fieldDefs: any[];
+      rowData: any[];
+      returnElse?: string;
+    }>
+  >([]);
   const toastTimerRef = useRef<number | null>(null);
 
   const showToast = useCallback((message: string) => {
@@ -1200,6 +1225,7 @@ export default function WorkflowPage() {
     handleAddProcess,
     handleDeleteStep,
     handleDeleteProcess,
+    handleDeleteStage,
   } = useWorkflowMutations({
     selectedCase,
     workflowStages: workflowModel.stages,
@@ -1241,7 +1267,143 @@ export default function WorkflowPage() {
     setActiveStepAction: setActiveStep,
   });
 
+  // Load decision tables for the current workflow from DB
+  const loadDecisionTables = useCallback(async (objectId: number) => {
+    try {
+      const res = await fetchWithBaseUrl(
+        `/api/database?table=${DB_TABLES.DECISION_TABLES}&objectid=${objectId}`,
+      );
+      if (!res.ok) throw new Error("Failed to load decision tables");
+      const json = await res.json();
+      const rows = Array.isArray(json?.data)
+        ? json.data
+        : Array.isArray(json)
+        ? json
+        : [];
+      const list = rows.map((row: any) => {
+        const modelObj =
+          typeof row.model === "string"
+            ? JSON.parse(row.model)
+            : row.model || {};
+        return {
+          id: Number(row.id),
+          name: row.name,
+          description: row.description ?? undefined,
+          fieldDefs: Array.isArray(modelObj.fieldDefs)
+            ? modelObj.fieldDefs
+            : [],
+          rowData: Array.isArray(modelObj.rowData) ? modelObj.rowData : [],
+          returnElse: modelObj.returnElse ?? undefined,
+        } as any;
+      });
+      setDecisionTables(list);
+    } catch (e) {
+      console.error("Error loading decision tables:", e);
+      setDecisionTables([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    const objectId = selectedCase?.id;
+    if (typeof objectId === "number") {
+      void loadDecisionTables(objectId);
+    } else {
+      setDecisionTables([]);
+    }
+  }, [selectedCase, loadDecisionTables]);
+
+  // Auto-refresh decision tables when the overall model updates (e.g., via chat/tools)
+  useEffect(() => {
+    const handler = () => {
+      const objectId = selectedCase?.id;
+      if (typeof objectId === "number") {
+        void loadDecisionTables(objectId);
+      }
+    };
+    window.addEventListener(MODEL_UPDATED_EVENT, handler as EventListener);
+    return () =>
+      window.removeEventListener(MODEL_UPDATED_EVENT, handler as EventListener);
+  }, [selectedCase, loadDecisionTables]);
+
+  // Decision table save handler (DB via dynamic tools)
+  const handleSaveDecisionTable = useCallback(
+    async (decisionTable: {
+      id?: number | string;
+      name: string;
+      description?: string;
+      fieldDefs: any[];
+      rowData: any[];
+      returnElse?: string;
+    }) => {
+      if (!selectedCase) return;
+      try {
+        const numericId =
+          typeof decisionTable.id === "number"
+            ? decisionTable.id
+            : Number.isFinite(parseInt(String(decisionTable.id), 10))
+            ? parseInt(String(decisionTable.id), 10)
+            : undefined;
+        const resp = await fetchWithBaseUrl("/api/dynamic", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "saveDecisionTable",
+            params: {
+              ...(numericId ? { id: numericId } : {}),
+              name: decisionTable.name,
+              description: decisionTable.description,
+              objectid: selectedCase.id,
+              model: {
+                fieldDefs: decisionTable.fieldDefs,
+                rowData: decisionTable.rowData,
+                returnElse: decisionTable.returnElse,
+              },
+            },
+          }),
+        });
+        if (!resp.ok) throw new Error("Failed to save decision table");
+        await loadDecisionTables(selectedCase.id);
+        window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
+        showToast("Decision table saved successfully");
+      } catch (error) {
+        console.error("Error saving decision table:", error);
+        showToast("Failed to save decision table");
+      }
+    },
+    [selectedCase, showToast, loadDecisionTables],
+  );
+
+  const handleDeleteDecisionTable = useCallback(
+    async (decisionTableId: number) => {
+      if (!selectedCase) return;
+      try {
+        const resp = await fetchWithBaseUrl(
+          `/api/database?table=${DB_TABLES.DECISION_TABLES}&id=${decisionTableId}`,
+          {
+            method: "DELETE",
+          },
+        );
+        if (!resp.ok) throw new Error("Failed to delete decision table");
+        await loadDecisionTables(selectedCase.id);
+        window.dispatchEvent(new CustomEvent(MODEL_UPDATED_EVENT));
+        showToast("Decision table deleted");
+      } catch (e) {
+        console.error("Error deleting decision table:", e);
+        showToast("Failed to delete decision table");
+      }
+    },
+    [selectedCase, showToast, loadDecisionTables],
+  );
+
   const quickInputRef = useRef<HTMLInputElement>(null);
+  // Decision table quick tool state (for QuickChatOverlay)
+  const [selectedQuickDecisionTableId, setSelectedQuickDecisionTableId] =
+    useState<number | null>(null);
+  const [
+    selectedQuickDecisionTableFieldIds,
+    setSelectedQuickDecisionTableFieldIds,
+  ] = useState<number[]>([]);
+
   const { quickSelectionSummary, sendQuickChat } = useQuickChat({
     stages: workflowModel.stages,
     // In Data Object view, use dataObjectFields; otherwise use workflow fields
@@ -1265,6 +1427,12 @@ export default function WorkflowPage() {
     setActiveStepAction: setActiveStep,
     isDataObjectView: selectedDataObjectId !== null,
     selectedObjectId: selectedDataObjectId,
+    decisionTables: (decisionTables || []).map((d) => ({
+      id: d.id,
+      name: d.name,
+    })),
+    selectedDecisionTableId: selectedQuickDecisionTableId,
+    selectedDecisionTableFieldIds: selectedQuickDecisionTableFieldIds,
   });
 
   useEffect(() => {
@@ -1321,9 +1489,14 @@ export default function WorkflowPage() {
 
     const updatedStages = [...workflowModel.stages, newStage];
     const updatedModel: ComposedModel = {
+      ...(selectedCase.model || {}),
       name: selectedCase.name,
       description: selectedCase.description,
       stages: updatedStages,
+      // Preserve decisionTables if they exist
+      ...(selectedCase.model?.decisionTables && {
+        decisionTables: selectedCase.model.decisionTables,
+      }),
     };
 
     try {
@@ -1888,7 +2061,7 @@ export default function WorkflowPage() {
       )}
       {/* Main Content */}
       <div
-        className={`flex-1 flex flex-col h-app-screen main-border-radius ${
+        className={`flex flex-col h-app-screen main-panel ${
           isMobile ? "ml-0 rounded-lg" : ""
         }`}
       >
@@ -2135,6 +2308,12 @@ export default function WorkflowPage() {
                     onDeleteProcess={(stageId, processId) =>
                       handleDeleteProcess(Number(stageId), Number(processId))
                     }
+                    onDeleteStage={(stageId) =>
+                      handleDeleteStage(Number(stageId))
+                    }
+                    decisionTables={decisionTables}
+                    onSaveDecisionTable={handleSaveDecisionTable}
+                    applicationId={applicationId || undefined}
                   />
                 </div>
               </div>
@@ -2204,6 +2383,21 @@ export default function WorkflowPage() {
                     selectedView={selectedView}
                   />
                 </>
+              )}
+            {!isPreviewVisible &&
+              selectedDataObjectId === null &&
+              activeTab === "decisionTables" && (
+                <DecisionTablesPanel
+                  stages={workflowModel.stages}
+                  fields={fields}
+                  decisionTables={decisionTables as any}
+                  onSaveDecisionTable={async (dt) => {
+                    await handleSaveDecisionTable(dt as any);
+                  }}
+                  onDeleteDecisionTable={async (id) => {
+                    await handleDeleteDecisionTable(id);
+                  }}
+                />
               )}
           </>
         </main>
@@ -2513,14 +2707,30 @@ export default function WorkflowPage() {
           inputRef={quickInputRef as React.RefObject<HTMLInputElement | null>}
           value={quickChatText}
           onChange={setQuickChatText}
+          decisionTables={(decisionTables || []).map((d) => ({
+            id: d.id,
+            name: d.name,
+          }))}
+          selectedDecisionTableId={selectedQuickDecisionTableId}
+          onChangeDecisionTableId={setSelectedQuickDecisionTableId}
+          fields={(selectedDataObjectId !== null
+            ? dataObjectFields
+            : fields
+          ).map((f) => ({ id: f.id as number, name: f.name }))}
+          selectedDecisionTableFieldIds={selectedQuickDecisionTableFieldIds}
+          onChangeDecisionTableFieldIds={setSelectedQuickDecisionTableFieldIds}
           onEnter={() => {
             void sendQuickChat(quickChatText);
             setIsQuickChatOpen(false);
             setQuickChatText("");
+            setSelectedQuickDecisionTableId(null);
+            setSelectedQuickDecisionTableFieldIds([]);
           }}
           onEscape={() => {
             setIsQuickChatOpen(false);
             setQuickChatText("");
+            setSelectedQuickDecisionTableId(null);
+            setSelectedQuickDecisionTableFieldIds([]);
           }}
         />
       )}

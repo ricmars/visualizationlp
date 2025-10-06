@@ -25,6 +25,8 @@ export interface Step {
   fields?: FieldReference[];
   viewId?: number;
   order?: number;
+  /** For Decision steps, the ID of the DecisionTable to evaluate */
+  decisionTableId?: number;
 }
 
 export interface Process {
@@ -159,6 +161,10 @@ export interface Application {
    * If not set, the current active step will be the first step in the case type
    */
   stepName?: string;
+  /**
+   * DecisionTables available in this application
+   */
+  decisionTables?: DecisionTable[];
 }
 
 // Channel type for live preview selection
@@ -179,4 +185,61 @@ export interface CheckpointSession {
   id: string;
   description: string;
   startedAt: Date;
+}
+
+// DecisionTable types for conditional logic
+export type ComparatorType =
+  | "="
+  | "!="
+  | ">"
+  | "<"
+  | ">="
+  | "<="
+  | "> and <"
+  | ">= and <="
+  | "> and <="
+  | ">= and <";
+
+export interface FieldDefinition {
+  /** The comparator operator for this field condition */
+  comparatorType: ComparatorType;
+  /** The field ID to compare against */
+  columnId: string;
+  /** The data type of the field */
+  dataType: FieldType;
+}
+
+export interface RangeValue {
+  /** Start value for range comparisons */
+  from: string;
+  /** End value for range comparisons */
+  to: string;
+}
+
+export interface DecisionTableRow {
+  /** Unique identifier for the row */
+  id?: string;
+  /** The value to return if this row's conditions are met */
+  return: string;
+  /** The next step ID to route to if this row's conditions are met */
+  nextStepId?: number;
+  /** Field values for comparison - can be string, number, or range */
+  [fieldId: string]: string | number | RangeValue | undefined;
+}
+
+export interface DecisionTable {
+  /** Unique identifier for the DecisionTable */
+  id?: number;
+  /** Name of the DecisionTable */
+  name: string;
+  /** Description of the DecisionTable */
+  description?: string;
+  /** Field definitions that define the structure and comparison logic */
+  fieldDefs: FieldDefinition[];
+  /** Array of rows with conditions and return values */
+  rowData: DecisionTableRow[];
+  /** For Decision steps, mapping of return values to next step IDs */
+  decisionMappings?: Record<string, number>;
+  /** Return value when no conditions match */
+  returnElse?: string;
 }

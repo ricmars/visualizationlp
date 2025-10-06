@@ -118,8 +118,10 @@ export function createCheckpointTools(pool: Pool) {
             "saveFields",
             "saveObject",
             "saveView",
+            "saveDecisionTable",
             "deleteField",
             "deleteView",
+            "deleteDecisionTable",
             "createObject",
             "saveApplication",
             "saveTheme",
@@ -167,6 +169,9 @@ async function executeCheckpointAwareTool(
     case "saveView":
       return await wrapSaveView(originalExecute, params, pool);
 
+    case "saveDecisionTable":
+      return await wrapSaveDecisionTable(originalExecute, params, pool);
+
     case "saveObject":
       return await wrapSaveObject(originalExecute, params, pool);
 
@@ -176,6 +181,7 @@ async function executeCheckpointAwareTool(
 
     case "deleteField":
     case "deleteView":
+    case "deleteDecisionTable":
       return await wrapDelete(originalExecute, params, pool, toolName);
 
     case "saveTheme":
@@ -347,6 +353,52 @@ async function wrapSaveView(originalExecute: any, params: any, pool: Pool) {
   return result;
 }
 
+async function wrapSaveDecisionTable(
+  originalExecute: any,
+  params: any,
+  pool: Pool,
+) {
+  console.log("Wrapping saveDecisionTable with checkpoint capture");
+  const decisionTableId = params?.id as number | undefined;
+  let previousData: any = null;
+  if (typeof decisionTableId === "number") {
+    try {
+      const prev = await pool.query(
+        `SELECT * FROM "${DB_TABLES.DECISION_TABLES}" WHERE id = $1`,
+        [decisionTableId],
+      );
+      previousData = prev.rows[0] || null;
+    } catch (e) {
+      console.warn(
+        "wrapSaveDecisionTable: failed to load previous decision table",
+        decisionTableId,
+        e,
+      );
+    }
+  }
+
+  const result = await originalExecute(params);
+
+  if (typeof decisionTableId === "number") {
+    // Update
+    if (previousData) {
+      await captureOperation(
+        "update",
+        DB_TABLES.DECISION_TABLES,
+        { id: decisionTableId },
+        previousData,
+      );
+    }
+  } else if (result?.id) {
+    // Insert
+    await captureOperation("insert", DB_TABLES.DECISION_TABLES, {
+      id: result.id,
+    });
+  }
+
+  return result;
+}
+
 async function wrapSaveObject(originalExecute: any, params: any, pool: Pool) {
   console.log("Wrapping saveObject with checkpoint capture");
 
@@ -445,7 +497,11 @@ async function wrapDelete(
   console.log(`Wrapping ${toolName} with checkpoint capture`);
 
   const tableName =
-    toolName === "deleteField" ? DB_TABLES.FIELDS : DB_TABLES.VIEWS;
+    toolName === "deleteField"
+      ? DB_TABLES.FIELDS
+      : toolName === "deleteView"
+      ? DB_TABLES.VIEWS
+      : DB_TABLES.DECISION_TABLES;
   const itemId = params.id;
 
   // Capture current state before deletion

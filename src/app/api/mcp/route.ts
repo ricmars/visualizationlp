@@ -113,6 +113,8 @@ export async function POST(request: NextRequest) {
         "saveApplication",
         "saveTheme",
         "deleteTheme",
+        "saveDecisionTable",
+        "deleteDecisionTable",
       ];
       const needsCheckpoint = modificationTools.includes(name);
 

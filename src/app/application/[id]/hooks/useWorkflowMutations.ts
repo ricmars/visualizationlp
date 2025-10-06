@@ -41,6 +41,7 @@ export default function useWorkflowMutations({
       stepName: string,
       stepType: StepType,
       initialFields?: Array<{ id: number }>,
+      decisionTableId?: number,
     ) => {
       if (!selectedCase) return;
 
@@ -113,6 +114,7 @@ export default function useWorkflowMutations({
           type: stepType,
           fields: initialFields || [],
           ...(createdViewId ? { viewId: createdViewId } : {}),
+          ...(typeof decisionTableId === "number" ? { decisionTableId } : {}),
         } as any;
 
         const updatedStages = workflowStages.map((stage) =>
@@ -129,9 +131,14 @@ export default function useWorkflowMutations({
         );
 
         const updatedModel = {
+          ...(selectedCase.model || {}),
           name: selectedCase.name,
           description: selectedCase.description,
           stages: updatedStages,
+          // Preserve decisionTables if they exist
+          ...(selectedCase.model?.decisionTables && {
+            decisionTables: selectedCase.model.decisionTables,
+          }),
         };
         addCheckpointAction(`Added step: ${stepName}`, updatedModel);
 
@@ -211,9 +218,14 @@ export default function useWorkflowMutations({
           : stage,
       );
       const updatedModel = {
+        ...(selectedCase.model || {}),
         name: selectedCase.name,
         description: selectedCase.description,
         stages: updatedStages,
+        // Preserve decisionTables if they exist
+        ...(selectedCase.model?.decisionTables && {
+          decisionTables: selectedCase.model.decisionTables,
+        }),
       };
       addCheckpointAction("Deleted step", updatedModel);
 
@@ -303,9 +315,14 @@ export default function useWorkflowMutations({
           : stage,
       );
       const updatedModel = {
+        ...(selectedCase.model || {}),
         name: selectedCase.name,
         description: selectedCase.description,
         stages: updatedStages,
+        // Preserve decisionTables if they exist
+        ...(selectedCase.model?.decisionTables && {
+          decisionTables: selectedCase.model.decisionTables,
+        }),
       };
       addCheckpointAction("Deleted process", updatedModel);
 
@@ -382,9 +399,14 @@ export default function useWorkflowMutations({
           : stage,
       );
       const updatedModel = {
+        ...(selectedCase.model || {}),
         name: selectedCase.name,
         description: selectedCase.description,
         stages: updatedStages,
+        // Preserve decisionTables if they exist
+        ...(selectedCase.model?.decisionTables && {
+          decisionTables: selectedCase.model.decisionTables,
+        }),
       };
       addCheckpointAction(`Added process: ${processName}`, updatedModel);
       const requestUrl = `/api/database?table=${DB_TABLES.OBJECTS}&id=${selectedCase.id}`;
@@ -438,9 +460,14 @@ export default function useWorkflowMutations({
 
       const updatedStages = workflowStages.filter((s) => s.id !== stageId);
       const updatedModel = {
+        ...(selectedCase.model || {}),
         name: selectedCase.name,
         description: selectedCase.description,
         stages: updatedStages,
+        // Preserve decisionTables if they exist
+        ...(selectedCase.model?.decisionTables && {
+          decisionTables: selectedCase.model.decisionTables,
+        }),
       };
       addCheckpointAction("Deleted stage", updatedModel);
 

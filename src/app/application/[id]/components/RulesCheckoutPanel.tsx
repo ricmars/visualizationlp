@@ -20,7 +20,9 @@ import EditFieldModal from "../../../components/EditFieldModal";
 import EditWorkflowModal from "../../../components/EditWorkflowModal";
 import StepConfigurationModal from "../../../components/StepConfigurationModal";
 import { ThemeModal } from "../../../components/ThemeModal";
-import { Field, Stage } from "../../../types/types";
+import DecisionTableAuthoring from "../../../components/DecisionTableAuthoring";
+import StandardModal from "../../../components/StandardModal";
+import { Field, Stage, DecisionTable } from "../../../types/types";
 import { DB_TABLES } from "../../../types/database";
 import { MODEL_UPDATED_EVENT } from "../utils/constants";
 
@@ -66,6 +68,7 @@ type RulesCheckoutPanelProps = {
 export default function RulesCheckoutPanel({
   objectid,
   applicationId,
+  stages = [],
   fields = [],
 }: RulesCheckoutPanelProps) {
   const [data, setData] = useState<RuleCheckoutData | null>(null);
@@ -104,6 +107,16 @@ export default function RulesCheckoutPanel({
     model: any;
   } | null>(null);
   const [isThemeSaving, setIsThemeSaving] = useState(false);
+
+  // Decision table editor state
+  const [editingDecisionTable, setEditingDecisionTable] = useState<{
+    id: number;
+    name: string;
+    description?: string;
+    objectid: number;
+    model: any;
+  } | null>(null);
+  const [isSavingDecisionTable, setIsSavingDecisionTable] = useState(false);
 
   const fetchCheckoutData = useCallback(async () => {
     setIsLoading(true);
@@ -209,6 +222,8 @@ export default function RulesCheckoutPanel({
         return <MdApps className={iconClass} />;
       case "theme":
         return <MdPalette className={iconClass} />;
+      case "logic":
+        return <MdAccountTree className={iconClass} />;
       default:
         return <MdAccountTree className={iconClass} />;
     }
@@ -352,6 +367,11 @@ export default function RulesCheckoutPanel({
         case "Themes":
           setEditingTheme(ruleData);
           break;
+        case "DecisionTables": {
+          // ruleData: { id, name, description, objectid, model }
+          setEditingDecisionTable(ruleData);
+          break;
+        }
         default:
           console.error("Unsupported table type:", table);
       }
@@ -539,6 +559,47 @@ export default function RulesCheckoutPanel({
       console.error("Error updating theme:", error);
     } finally {
       setIsThemeSaving(false);
+    }
+  };
+
+  // Decision table save
+  const handleDecisionTableSave = async (data: DecisionTable) => {
+    if (!editingDecisionTable?.id) return;
+    try {
+      setIsSavingDecisionTable(true);
+      // Transform DecisionTableAuthoring shape to DB row shape: { name, description, model }
+      const model = {
+        fieldDefs: data.fieldDefs,
+        rowData: data.rowData,
+        returnElse: data.returnElse,
+      };
+      const payload = {
+        table: DB_TABLES.DECISION_TABLES,
+        data: {
+          name: data.name,
+          description: data.description ?? null,
+          objectid: editingDecisionTable.objectid,
+          model: JSON.stringify(model),
+        },
+      };
+      const resp = await fetch(
+        `/api/database?table=${DB_TABLES.DECISION_TABLES}&id=${editingDecisionTable.id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+      if (!resp.ok) {
+        console.error("Failed to save decision table", await resp.text());
+        return;
+      }
+      await fetchCheckoutData();
+      setEditingDecisionTable(null);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSavingDecisionTable(false);
     }
   };
 
@@ -902,6 +963,7 @@ export default function RulesCheckoutPanel({
           onDeleteField={onViewDeleteField}
           onUpdateFieldInView={onViewUpdateFieldInView}
           onUpdateStepFieldReference={onViewUpdateStepFieldReference}
+          workflowModel={{ stages }}
         />
       )}
 
@@ -936,6 +998,66 @@ export default function RulesCheckoutPanel({
           isSaving={isThemeSaving}
           showThemeEditor={true} // Show full theme editor in rule checkout context
         />
+      )}
+
+      {/* Decision Table Editor Modal */}
+      {editingDecisionTable && (
+        <StandardModal
+          isOpen={!!editingDecisionTable}
+          onCloseAction={() => setEditingDecisionTable(null)}
+          title={
+            <div className="flex items-center gap-2">
+              <span>Decision Table</span>
+              <span className="opacity-70">{editingDecisionTable.name}</span>
+            </div>
+          }
+          actions={[
+            {
+              id: "cancel",
+              label: "Cancel",
+              type: "secondary",
+              onClick: () => setEditingDecisionTable(null),
+            },
+            {
+              id: "save",
+              label: isSavingDecisionTable ? "Saving..." : "Save",
+              type: "primary",
+              onClick: () => {
+                // DecisionTableAuthoring will call onSave with DecisionTable model
+                // We'll trigger save via DOM event
+                const event = new CustomEvent("save-decision-table");
+                window.dispatchEvent(event);
+              },
+              disabled: isSavingDecisionTable,
+            },
+          ]}
+          width="w-[1100px]"
+        >
+          <DecisionTableAuthoring
+            decisionTable={{
+              id: editingDecisionTable.id,
+              name: editingDecisionTable.name,
+              description: editingDecisionTable.description,
+              fieldDefs: editingDecisionTable.model?.fieldDefs || [],
+              rowData: editingDecisionTable.model?.rowData || [],
+              returnElse: editingDecisionTable.model?.returnElse || "",
+            }}
+            fields={fields}
+            steps={(() => {
+              const all: Array<{ id: number; name: string }> = [];
+              stages.forEach((stage) => {
+                stage.processes.forEach((process) => {
+                  process.steps.forEach((step) => {
+                    all.push({ id: step.id, name: step.name });
+                  });
+                });
+              });
+              return all;
+            })()}
+            onSave={(dt) => handleDecisionTableSave(dt)}
+            onCancel={() => setEditingDecisionTable(null)}
+          />
+        </StandardModal>
       )}
     </div>
   );
